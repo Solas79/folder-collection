@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
-    <Version>0.1.5</Version>
+    <Version>0.1.6</Version>
   </PropertyGroup>
 
   <ItemGroup>
