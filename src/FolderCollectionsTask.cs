@@ -4,15 +4,19 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
-using Jellyfin.Data.Enums;
 
 namespace Jellyfin.Plugin.FolderCollections.GUI
 {
+    /// <summary>
+    /// Scheduled Task: erzeugt/aktualisiert Collections (BoxSets) je Eltern-Ordner.
+    /// </summary>
     public sealed class FolderCollectionsTask : IScheduledTask
     {
         private readonly ILibraryManager _library;
@@ -29,16 +33,16 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             _logger = logger;
         }
 
-        // NEU: Pflicht-Property für Jellyfin
+        // Pflicht für neuere Jellyfin-ABIs
         public string Key => "FolderCollectionsTask";
 
         public string Name => "Folder Collections (per directory)";
-        public string Description => "Create/Update BoxSets based on parent folders.";
+        public string Description => "Create / Update BoxSets based on parent folders.";
         public string Category => "Library";
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
-            // täglich um 04:00
+            // täglich 04:00
             return new[]
             {
                 new TaskTriggerInfo
@@ -49,41 +53,43 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             };
         }
 
-        // NEU: Signatur entsprechend Jellyfin (Progress zuerst, dann CancellationToken)
+        // Signatur für neuere ABIs: Progress zuerst, dann CancellationToken
         public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+
             _logger.LogInformation(
                 "[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}",
                 cfg.IncludeMovies, cfg.IncludeSeries);
 
-            // Ignore-Regexe kompilieren
+            // Ignore-Regexe vorbereiten
             var ignore = (cfg.IgnorePatterns ?? new List<string>())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // Items sammeln über InternalItemsQuery (Enum-Varianten!)
+            // Enum-Itemtypen zusammenstellen
             var kinds = new List<BaseItemKind>();
             if (cfg.IncludeMovies) kinds.Add(BaseItemKind.Movie);
             if (cfg.IncludeSeries) kinds.Add(BaseItemKind.Series);
 
-            var query = new MediaBrowser.Controller.Entities.InternalItemsQuery
+            // Items per InternalItemsQuery einsammeln (rekursiv)
+            var query = new InternalItemsQuery
             {
                 IncludeItemTypes = kinds.ToArray(),
                 Recursive = true
             };
+            var allItems = _library.GetItemList(query).ToList();
 
-var allItems = _library.GetItemList(query).ToList();
-
-
-            // gruppieren nach Parent-Ordner (mit Präfix-Whitelist & Ignore)
+            // Gruppieren nach Eltern-Ordner (mit Präfix-Whitelist & Ignore)
             var groups = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
+
             foreach (var item in allItems)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var path = item.Path;
-                if (string.IsNullOrWhiteSpace(path)) continue;
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
 
                 // Präfix-Whitelist
                 if (cfg.LibraryPathPrefixes != null && cfg.LibraryPathPrefixes.Count > 0)
@@ -101,7 +107,7 @@ var allItems = _library.GetItemList(query).ToList();
                     if (!ok) continue;
                 }
 
-                // Ignore
+                // Ignore-Patterns
                 var ignored = false;
                 foreach (var rx in ignore)
                 {
@@ -109,9 +115,13 @@ var allItems = _library.GetItemList(query).ToList();
                 }
                 if (ignored) continue;
 
-                var parent = System.IO.Path.GetDirectoryName(
-                    path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
-                if (string.IsNullOrEmpty(parent)) continue;
+                var trimmed = path.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar);
+
+                var parent = System.IO.Path.GetDirectoryName(trimmed);
+                if (string.IsNullOrEmpty(parent))
+                    continue;
 
                 if (!groups.TryGetValue(parent, out var list))
                 {
@@ -121,20 +131,21 @@ var allItems = _library.GetItemList(query).ToList();
                 list.Add(item);
             }
 
-            // Mindestanzahl anwenden
+            // Mindestanzahl je Ordner
             var minItems = Math.Max(1, cfg.MinimumItemsPerFolder);
             var filtered = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in groups)
             {
-                if (kv.Value.Count >= minItems) filtered[kv.Key] = kv.Value;
+                if (kv.Value.Count >= minItems)
+                    filtered[kv.Key] = kv.Value;
             }
 
-           // Collections erzeugen/aktualisieren (Variante B)
-           var done = 0;
-           var total = filtered.Count == 0 ? 1 : filtered.Count;
-           
-           foreach (var kv in filtered)
-           {
+            // Collections erzeugen/aktualisieren (ABI-sicher via Reflection)
+            var done = 0;
+            var total = filtered.Count == 0 ? 1 : filtered.Count;
+
+            foreach (var kv in filtered)
+            {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var folder = kv.Key;
@@ -147,17 +158,16 @@ var allItems = _library.GetItemList(query).ToList();
                     : folder;
 
                 var name = (cfg.NamePrefix ?? string.Empty) + baseName + (cfg.NameSuffix ?? string.Empty);
+                var ids = items.Select(i => i.Id).ToArray();
 
                 try
                 {
-                    // sicherstellen/anlegen
-                    var boxSet = await _collections.EnsureCollectionAsync(name, cancellationToken).ConfigureAwait(false);
+                    await CollectionCompat.UpsertAsync(_collections, _library, name, ids, cancellationToken)
+                        .ConfigureAwait(false);
 
-                    // Items setzen (exakte Liste)
-                    var ids = items.Select(i => i.Id).ToArray();
-                    await _collections.SetCollectionItemsAsync(boxSet.Id, ids, cancellationToken).ConfigureAwait(false);
-
-                    _logger.LogInformation("[FolderCollections] Upsert '{Name}' with {Count} items", name, ids.Length);
+                    _logger.LogInformation(
+                        "[FolderCollections] Upsert '{Name}' with {Count} items",
+                        name, ids.Length);
                 }
                 catch (Exception ex)
                 {
@@ -168,9 +178,99 @@ var allItems = _library.GetItemList(query).ToList();
                 progress.Report(done * 100.0 / total);
             }
 
-
-
             _logger.LogInformation("[FolderCollections] Finished. Collections processed: {Count}", done);
         }
+    }
+}
+
+/* ===========================
+ *  ABI-kompatibler Helper
+ * =========================== */
+using System.Reflection;
+
+static class CollectionCompat
+{
+    /// <summary>
+    /// Legt eine Collection an (falls nötig) und setzt exakt die Items – je nach vorhandener API.
+    /// Unterstützte Varianten (in dieser Reihenfolge):
+    /// 1) AddToCollectionAsync(string, Guid[], CancellationToken)
+    /// 2) EnsureCollectionAsync(string, CancellationToken) + SetCollectionItemsAsync(Guid, Guid[], CancellationToken)
+    /// 3) CreateCollection(string, Guid[]) + SetCollectionItems(Guid, Guid[])      // sync
+    /// 4) AddToCollection(string, Guid[])                                           // sync (fallback)
+    /// </summary>
+    public static async Task UpsertAsync(
+        ICollectionManager collections,
+        ILibraryManager library,
+        string name,
+        Guid[] itemIds,
+        CancellationToken ct)
+    {
+        // 1) AddToCollectionAsync(name, Guid[], CancellationToken)
+        var m = Find(collections, "AddToCollectionAsync",
+                     new[] { typeof(string), typeof(Guid[]), typeof(CancellationToken) });
+        if (m != null)
+        {
+            await (Task)m.Invoke(collections, new object[] { name, itemIds, ct })!;
+            return;
+        }
+
+        // 2) EnsureCollectionAsync + SetCollectionItemsAsync
+        var ensure = Find(collections, "EnsureCollectionAsync",
+                          new[] { typeof(string), typeof(CancellationToken) });
+        var setAsync = Find(collections, "SetCollectionItemsAsync",
+                            new[] { typeof(Guid), typeof(Guid[]), typeof(CancellationToken) });
+        if (ensure != null && setAsync != null)
+        {
+            var t = (Task)ensure.Invoke(collections, new object[] { name, ct })!;
+            await t.ConfigureAwait(false);
+
+            var boxSet = GetTaskResult(t); // Task<T> mit Property "Id" (Guid)
+            var idProp = boxSet.GetType().GetProperty("Id");
+            var colId = (Guid)idProp!.GetValue(boxSet)!;
+
+            var t2 = (Task)setAsync.Invoke(collections, new object[] { colId, itemIds, ct })!;
+            await t2.ConfigureAwait(false);
+            return;
+        }
+
+        // 3) CreateCollection + SetCollectionItems (sync)
+        var create = Find(collections, "CreateCollection", new[] { typeof(string), typeof(Guid[]) });
+        var set = Find(collections, "SetCollectionItems", new[] { typeof(Guid), typeof(Guid[]) });
+        if (create != null && set != null)
+        {
+            var boxSet = create.Invoke(collections, new object[] { name, itemIds })!;
+            var idProp = boxSet.GetType().GetProperty("Id");
+            var colId = (Guid)idProp!.GetValue(boxSet)!;
+            set.Invoke(collections, new object[] { colId, itemIds });
+            return;
+        }
+
+        // 4) AddToCollection (sync)
+        var add = Find(collections, "AddToCollection", new[] { typeof(string), typeof(Guid[]) });
+        if (add != null)
+        {
+            add.Invoke(collections, new object[] { name, itemIds });
+            return;
+        }
+
+        throw new MissingMethodException("Keine kompatible ICollectionManager-Methode gefunden.");
+    }
+
+    private static MethodInfo? Find(object obj, string name, Type[] signature)
+    {
+        return obj.GetType()
+                  .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                  .FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.Ordinal) &&
+                                       m.GetParameters().Select(p => p.ParameterType).SequenceEqual(signature));
+    }
+
+    private static dynamic GetTaskResult(Task t)
+    {
+        var tp = t.GetType();
+        if (tp.IsGenericType) // Task<T>
+        {
+            return tp.GetProperty("Result")!.GetValue(t)!;
+        }
+        throw new InvalidOperationException("Task hat kein Result.");
     }
 }
