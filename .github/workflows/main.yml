@@ -1,0 +1,62 @@
+name: build-and-release
+
+on:
+push:
+tags:
+- 'v*.*.*'
+
+jobs:
+build:
+runs-on: ubuntu-latest
+steps:
+- name: Checkout
+uses: actions/checkout@v4
+
+- name: Setup .NET
+uses: actions/setup-dotnet@v4
+with:
+dotnet-version: '8.0.x'
+
+- name: Restore
+run: dotnet restore src/FolderCollectionsPlugin.csproj
+
+- name: Build (Release)
+run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore
+
+- name: Publish AnyCPU
+run: |
+mkdir -p out/plugins/FolderCollections
+cp src/bin/Release/net8.0/*.dll out/plugins/FolderCollections/
+if [ -d src/Web ]; then
+mkdir -p out/plugins/FolderCollections/Web
+cp -r src/Web/* out/plugins/FolderCollections/Web/
+fi
+VERSION=${GITHUB_REF_NAME#v}
+ZIPNAME="FolderCollections_${VERSION}.zip"
+(cd out && zip -r "../${ZIPNAME}" .)
+echo "ZIPNAME=${ZIPNAME}" >> $GITHUB_ENV
+echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+- name: Create Release
+uses: softprops/action-gh-release@v2
+with:
+tag_name: ${{ github.ref_name }}
+name: ${{ github.ref_name }}
+draft: false
+prerelease: false
+files: |
+${{ env.ZIPNAME }}
+env:
+GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+- name: Update manifest.json in Release (linux-x64 asset URL)
+run: |
+VERSION=${{ env.VERSION }}
+URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${{ env.ZIPNAME }}"
+jq \
+--arg v "$VERSION" \
+--arg url "$URL" \
+'.version=$v | .assets[0].version=$v | .assets[0].sourceUrl=$url' manifest.json > manifest.release.json
+gh release upload "v${VERSION}" manifest.release.json --clobber
+env:
+GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
