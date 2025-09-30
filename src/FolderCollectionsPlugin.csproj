@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
-    <Version>0.1.7</Version>
+    <Version>0.1.8</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +14,7 @@
     <PackageReference Include="Jellyfin.Common" Version="10.9.0" />
     <PackageReference Include="Jellyfin.Controller" Version="10.9.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.9.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
   </ItemGroup>
 
   <!-- UI als Embedded Resources (für EmbeddedResourcePath) -->
