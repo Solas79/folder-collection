@@ -10,14 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- WICHTIG: Diese drei bringen MediaBrowser.Common/Controller/Model rein -->
+    <!-- Bringen die MediaBrowser.*-Namespaces -->
     <PackageReference Include="Jellyfin.Common" Version="10.9.0" />
     <PackageReference Include="Jellyfin.Controller" Version="10.9.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.9.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
-  <!-- Web-Dateien EINBETTEN (weil Plugin.GetPages() EmbeddedResourcePath benutzt) -->
+  <!-- UI als Embedded Resources (für EmbeddedResourcePath) -->
   <ItemGroup>
     <EmbeddedResource Include="Web/Configuration/config.html">
       <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.html</LogicalName>
