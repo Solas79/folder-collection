@@ -9,6 +9,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using Jellyfin.Data.Enums
 
 namespace Jellyfin.Plugin.FolderCollections.GUI
 {
@@ -62,19 +63,18 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // Items sammeln über InternalItemsQuery (statt GetChildren/GetRecursiveChildren)
-            var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (cfg.IncludeMovies) allowedTypes.Add("Movie");
-            if (cfg.IncludeSeries) allowedTypes.Add("Series");
+            // Items sammeln über InternalItemsQuery (Enum-Varianten!)
+            var kinds = new List<BaseItemKind>();
+            if (cfg.IncludeMovies) kinds.Add(BaseItemKind.Movie);
+            if (cfg.IncludeSeries) kinds.Add(BaseItemKind.Series);
 
-            // Achtung: InternalItemsQuery steckt im Namespace MediaBrowser.Controller.Entities
             var query = new MediaBrowser.Controller.Entities.InternalItemsQuery
             {
-                IncludeItemTypes = allowedTypes.ToArray(),
+                IncludeItemTypes = kinds.ToArray(),
                 Recursive = true
             };
 
-            var allItems = _library.GetItemList(query).ToList();
+var allItems = _library.GetItemList(query).ToList();
 
 
             // gruppieren nach Parent-Ordner (mit Präfix-Whitelist & Ignore)
