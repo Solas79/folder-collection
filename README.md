@@ -12,7 +12,7 @@ Erzeugt/aktualisiert **Collections (BoxSets)** automatisch pro **Eltern-Ordner**
 
 ## Installation (nur über GitHub)
 1. **Manifest als Repository** in Jellyfin hinzufügen:
-- *Dashboard → Plugins → Repositories → Add* – URL: `https://raw.githubusercontent.com/YourGitHubUser/jellyfin-plugin-folder-collections-gui/main/manifest.json`
+- *Dashboard → Plugins → Repositories → Add* – URL: https://raw.githubusercontent.com/Solas79/folder-collection/main/manifest.json
 2. *Dashboard → Plugins → Catalog* → **Folder Collections** installieren.
 3. Server neu starten.
 4. *Dashboard → Plugins → Folder Collections (Zahnrad)* → konfigurieren.
