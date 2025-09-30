@@ -4,6 +4,7 @@ using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.FolderCollections.GUI
 {
