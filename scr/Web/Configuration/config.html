@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Folder Collections – Configuration</title>
+</head>
+<body>
+<div id="folderCollectionsConfig" class="page type-interior pluginConfigurationPage">
+<div class="contentPrimary">
+<h1>Folder Collections – Einstellungen</h1>
+
+<form id="cfgForm">
+<div class="inputContainer">
+<label><input type="checkbox" id="includeMovies"> Movies</label>
+<label style="margin-left:1rem"><input type="checkbox" id="includeSeries"> Series</label>
+</div>
+
+<div class="inputContainer">
+<label>Min. Items/Ordner
+<input type="number" id="minItems" min="1" value="2">
+</label>
+</div>
+
+<div class="inputContainer">
+<label><input type="checkbox" id="useBasename"> Basename als Sammlungsname</label>
+</div>
+
+<div class="inputContainer">
+<label>Prefix <input type="text" id="namePrefix" placeholder="z.B. Box: "></label>
+<label>Suffix <input type="text" id="nameSuffix" placeholder=""></label>
+</div>
+
+<div class="inputContainer">
+<label>Pfad-Präfixe (eine pro Zeile)
+<textarea id="prefixes" rows="4" placeholder="/mnt/media/movies\n/mnt/media/series"></textarea>
+</label>
+</div>
+
+<div class="inputContainer">
+<label>Ignore-Patterns (Regex, eine pro Zeile)
+<textarea id="ignores" rows="4" placeholder="sample\nextras\n\\.ignore"></textarea>
+</label>
+</div>
+
+<div class="inputContainer">
+<button is="emby-button" type="submit" class="raised button-submit">Speichern</button>
+</div>
+</form>
+</div>
+</div>
+<script src="config.js"></script>
+</html>
