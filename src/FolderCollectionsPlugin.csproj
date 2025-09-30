@@ -3,17 +3,21 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
-    <Version>0.1.6</Version>
+    <Version>0.1.7</Version>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- WICHTIG: Diese drei bringen MediaBrowser.Common/Controller/Model rein -->
+    <PackageReference Include="Jellyfin.Common" Version="10.9.0" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.9.0" />
+    <PackageReference Include="Jellyfin.Model" Version="10.9.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-    <!-- Falls du Jellyfin-Pakete referenzierst, diese hier ergänzen -->
   </ItemGroup>
 
-  <!-- WICHTIG: Web-Dateien einbetten -->
+  <!-- Web-Dateien EINBETTEN (weil Plugin.GetPages() EmbeddedResourcePath benutzt) -->
   <ItemGroup>
     <EmbeddedResource Include="Web/Configuration/config.html">
       <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.html</LogicalName>
