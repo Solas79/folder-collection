@@ -9,7 +9,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
-using Jellyfin.Data.Enums
+using Jellyfin.Data.Enums;
 
 namespace Jellyfin.Plugin.FolderCollections.GUI
 {
