@@ -62,21 +62,20 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // erlaubte Typen
+            // Items sammeln über InternalItemsQuery (statt GetChildren/GetRecursiveChildren)
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (cfg.IncludeMovies) allowedTypes.Add("Movie");
             if (cfg.IncludeSeries) allowedTypes.Add("Series");
 
-            // Items sammeln
-            var allItems = new List<BaseItem>();
-            var root = _library.GetUserRootFolder();
-            foreach (var lib in root.GetChildren())
+            // Achtung: InternalItemsQuery steckt im Namespace MediaBrowser.Controller.Entities
+            var query = new MediaBrowser.Controller.Entities.InternalItemsQuery
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var q = lib.GetRecursiveChildren()
-                           .Where(i => allowedTypes.Contains(i.GetType().Name));
-                allItems.AddRange(q);
-            }
+                IncludeItemTypes = allowedTypes.ToArray(),
+                Recursive = true
+            };
+
+            var allItems = _library.GetItemList(query).ToList();
+
 
             // gruppieren nach Parent-Ordner (mit Präfix-Whitelist & Ignore)
             var groups = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
