@@ -1,10 +1,9 @@
+using System;
+using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using System;
-using System.IO;
-using System.Collections.Generic;
 
 namespace Jellyfin.Plugin.FolderCollections.GUI
 {
@@ -14,6 +13,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
         public override string Name => "Folder Collections";
         public override Guid Id { get; } = Guid.Parse("4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1");
+        public override string Description => "Group library items by parent folder into BoxSets (configurable).";
 
         public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
             : base(applicationPaths, xmlSerializer)
@@ -21,24 +21,22 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             Instance = this;
         }
 
-        public override string Description => "Group library items by parent folder into BoxSets (configurable).";
-
         public IEnumerable<PluginPageInfo> GetPages()
         {
+            var ns = GetType().Namespace;
             return new[]
             {
                 new PluginPageInfo
                 {
                     Name = "config",
-                    EmbeddedResourcePath = GetType().Namespace + ".Web.Configuration.config.html"
+                    EmbeddedResourcePath = ns + ".Web.Configuration.config.html"
                 },
                 new PluginPageInfo
                 {
                     Name = "config.js",
-                    EmbeddedResourcePath = GetType().Namespace + ".Web.Configuration.config.js"
+                    EmbeddedResourcePath = ns + ".Web.Configuration.config.js"
                 }
             };
         }
     }
 }
-
