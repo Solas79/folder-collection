@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection; // <- hierher, nicht ans Dateiende!
 
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Collections;
@@ -33,9 +34,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             _logger = logger;
         }
 
-        // Pflicht für neuere Jellyfin-ABIs
         public string Key => "FolderCollectionsTask";
-
         public string Name => "Folder Collections (per directory)";
         public string Description => "Create / Update BoxSets based on parent folders.";
         public string Category => "Library";
@@ -68,7 +67,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // Enum-Itemtypen zusammenstellen
+            // Enum-Itemtypen
             var kinds = new List<BaseItemKind>();
             if (cfg.IncludeMovies) kinds.Add(BaseItemKind.Movie);
             if (cfg.IncludeSeries) kinds.Add(BaseItemKind.Series);
@@ -181,96 +180,94 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             _logger.LogInformation("[FolderCollections] Finished. Collections processed: {Count}", done);
         }
     }
-}
 
-/* ===========================
- *  ABI-kompatibler Helper
- * =========================== */
-using System.Reflection;
-
-static class CollectionCompat
-{
     /// <summary>
-    /// Legt eine Collection an (falls nötig) und setzt exakt die Items – je nach vorhandener API.
-    /// Unterstützte Varianten (in dieser Reihenfolge):
-    /// 1) AddToCollectionAsync(string, Guid[], CancellationToken)
-    /// 2) EnsureCollectionAsync(string, CancellationToken) + SetCollectionItemsAsync(Guid, Guid[], CancellationToken)
-    /// 3) CreateCollection(string, Guid[]) + SetCollectionItems(Guid, Guid[])      // sync
-    /// 4) AddToCollection(string, Guid[])                                           // sync (fallback)
+    /// ABI-kompatibler Helfer für ICollectionManager – probiert mehrere Methoden-Signaturen.
     /// </summary>
-    public static async Task UpsertAsync(
-        ICollectionManager collections,
-        ILibraryManager library,
-        string name,
-        Guid[] itemIds,
-        CancellationToken ct)
+    static class CollectionCompat
     {
-        // 1) AddToCollectionAsync(name, Guid[], CancellationToken)
-        var m = Find(collections, "AddToCollectionAsync",
-                     new[] { typeof(string), typeof(Guid[]), typeof(CancellationToken) });
-        if (m != null)
+        /// <summary>
+        /// Legt eine Collection an (falls nötig) und setzt exakt die Items – je nach vorhandener API.
+        /// Reihenfolge:
+        /// 1) AddToCollectionAsync(string, Guid[], CancellationToken)
+        /// 2) EnsureCollectionAsync(string, CancellationToken) + SetCollectionItemsAsync(Guid, Guid[], CancellationToken)
+        /// 3) CreateCollection(string, Guid[]) + SetCollectionItems(Guid, Guid[])
+        /// 4) AddToCollection(string, Guid[])
+        /// </summary>
+        public static async Task UpsertAsync(
+            ICollectionManager collections,
+            ILibraryManager library,
+            string name,
+            Guid[] itemIds,
+            CancellationToken ct)
         {
-            await (Task)m.Invoke(collections, new object[] { name, itemIds, ct })!;
-            return;
+            // 1) AddToCollectionAsync
+            var m = Find(collections, "AddToCollectionAsync",
+                         new[] { typeof(string), typeof(Guid[]), typeof(CancellationToken) });
+            if (m != null)
+            {
+                await (Task)m.Invoke(collections, new object[] { name, itemIds, ct })!;
+                return;
+            }
+
+            // 2) EnsureCollectionAsync + SetCollectionItemsAsync
+            var ensure = Find(collections, "EnsureCollectionAsync",
+                              new[] { typeof(string), typeof(CancellationToken) });
+            var setAsync = Find(collections, "SetCollectionItemsAsync",
+                                new[] { typeof(Guid), typeof(Guid[]), typeof(CancellationToken) });
+            if (ensure != null && setAsync != null)
+            {
+                var t = (Task)ensure.Invoke(collections, new object[] { name, ct })!;
+                await t.ConfigureAwait(false);
+
+                var boxSet = GetTaskResult(t); // Task<T> mit Property "Id" (Guid)
+                var idProp = boxSet.GetType().GetProperty("Id");
+                var colId = (Guid)idProp!.GetValue(boxSet)!;
+
+                var t2 = (Task)setAsync.Invoke(collections, new object[] { colId, itemIds, ct })!;
+                await t2.ConfigureAwait(false);
+                return;
+            }
+
+            // 3) CreateCollection + SetCollectionItems (sync)
+            var create = Find(collections, "CreateCollection", new[] { typeof(string), typeof(Guid[]) });
+            var set = Find(collections, "SetCollectionItems", new[] { typeof(Guid), typeof(Guid[]) });
+            if (create != null && set != null)
+            {
+                var boxSet = create.Invoke(collections, new object[] { name, itemIds })!;
+                var idProp = boxSet.GetType().GetProperty("Id");
+                var colId = (Guid)idProp!.GetValue(boxSet)!;
+                set.Invoke(collections, new object[] { colId, itemIds });
+                return;
+            }
+
+            // 4) AddToCollection (sync)
+            var add = Find(collections, "AddToCollection", new[] { typeof(string), typeof(Guid[]) });
+            if (add != null)
+            {
+                add.Invoke(collections, new object[] { name, itemIds });
+                return;
+            }
+
+            throw new MissingMethodException("Keine kompatible ICollectionManager-Methode gefunden.");
         }
 
-        // 2) EnsureCollectionAsync + SetCollectionItemsAsync
-        var ensure = Find(collections, "EnsureCollectionAsync",
-                          new[] { typeof(string), typeof(CancellationToken) });
-        var setAsync = Find(collections, "SetCollectionItemsAsync",
-                            new[] { typeof(Guid), typeof(Guid[]), typeof(CancellationToken) });
-        if (ensure != null && setAsync != null)
+        private static MethodInfo? Find(object obj, string name, Type[] signature)
         {
-            var t = (Task)ensure.Invoke(collections, new object[] { name, ct })!;
-            await t.ConfigureAwait(false);
-
-            var boxSet = GetTaskResult(t); // Task<T> mit Property "Id" (Guid)
-            var idProp = boxSet.GetType().GetProperty("Id");
-            var colId = (Guid)idProp!.GetValue(boxSet)!;
-
-            var t2 = (Task)setAsync.Invoke(collections, new object[] { colId, itemIds, ct })!;
-            await t2.ConfigureAwait(false);
-            return;
+            return obj.GetType()
+                      .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                      .FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.Ordinal) &&
+                                           m.GetParameters().Select(p => p.ParameterType).SequenceEqual(signature));
         }
 
-        // 3) CreateCollection + SetCollectionItems (sync)
-        var create = Find(collections, "CreateCollection", new[] { typeof(string), typeof(Guid[]) });
-        var set = Find(collections, "SetCollectionItems", new[] { typeof(Guid), typeof(Guid[]) });
-        if (create != null && set != null)
+        private static dynamic GetTaskResult(Task t)
         {
-            var boxSet = create.Invoke(collections, new object[] { name, itemIds })!;
-            var idProp = boxSet.GetType().GetProperty("Id");
-            var colId = (Guid)idProp!.GetValue(boxSet)!;
-            set.Invoke(collections, new object[] { colId, itemIds });
-            return;
+            var tp = t.GetType();
+            if (tp.IsGenericType) // Task<T>
+            {
+                return tp.GetProperty("Result")!.GetValue(t)!;
+            }
+            throw new InvalidOperationException("Task hat kein Result.");
         }
-
-        // 4) AddToCollection (sync)
-        var add = Find(collections, "AddToCollection", new[] { typeof(string), typeof(Guid[]) });
-        if (add != null)
-        {
-            add.Invoke(collections, new object[] { name, itemIds });
-            return;
-        }
-
-        throw new MissingMethodException("Keine kompatible ICollectionManager-Methode gefunden.");
-    }
-
-    private static MethodInfo? Find(object obj, string name, Type[] signature)
-    {
-        return obj.GetType()
-                  .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                  .FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.Ordinal) &&
-                                       m.GetParameters().Select(p => p.ParameterType).SequenceEqual(signature));
-    }
-
-    private static dynamic GetTaskResult(Task t)
-    {
-        var tp = t.GetType();
-        if (tp.IsGenericType) // Task<T>
-        {
-            return tp.GetProperty("Result")!.GetValue(t)!;
-        }
-        throw new InvalidOperationException("Task hat kein Result.");
     }
 }
