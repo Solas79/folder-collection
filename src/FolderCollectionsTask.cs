@@ -34,7 +34,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
-            // täglich um 04:00
+            // daily at 04:00
             return new[]
             {
                 new TaskTriggerInfo
@@ -47,24 +47,23 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
-            // Konfiguration holen
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
             _logger.LogInformation(
                 "[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}",
                 cfg.IncludeMovies, cfg.IncludeSeries);
 
-            // Ignore-Regexe vorbereiten
+            // compile ignore regexes
             var ignore = (cfg.IgnorePatterns ?? new List<string>())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // Erlaubte Typen
+            // allowed item types
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (cfg.IncludeMovies) allowedTypes.Add("Movie");
             if (cfg.IncludeSeries) allowedTypes.Add("Series");
 
-            // Alle Items aus allen Bibliotheken sammeln
+            // collect items from all libraries
             var allItems = new List<BaseItem>();
             var root = _library.GetUserRootFolder();
             foreach (var lib in root.GetChildren())
@@ -75,7 +74,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 allItems.AddRange(q);
             }
 
-            // Gruppieren nach Parent-Folder (Pfad-Filter + Mindestanzahl)
+            // group by parent folder (respect prefixes & ignore)
             var groups = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in allItems)
             {
@@ -83,7 +82,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 var path = item.Path;
                 if (string.IsNullOrWhiteSpace(path)) continue;
 
-                // Präfix-Whitelist
+                // whitelist prefixes
                 if (cfg.LibraryPathPrefixes != null && cfg.LibraryPathPrefixes.Count > 0)
                 {
                     var ok = false;
@@ -99,7 +98,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                     if (!ok) continue;
                 }
 
-                // Ignore-Patterns
+                // ignore patterns
                 var ignored = false;
                 foreach (var rx in ignore)
                 {
@@ -111,9 +110,11 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 }
                 if (ignored) continue;
 
-                var parent = System.IO.Path.GetDirectoryName(
-                    path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar)
-                );
+                var trimmed = path.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar);
+
+                var parent = System.IO.Path.GetDirectoryName(trimmed);
                 if (string.IsNullOrEmpty(parent)) continue;
 
                 if (!groups.TryGetValue(parent, out var list))
@@ -124,7 +125,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 list.Add(item);
             }
 
-            // Mindestanzahl filtern
+            // filter by minimum items
             var minItems = Math.Max(1, cfg.MinimumItemsPerFolder);
             var filtered = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in groups)
@@ -135,9 +136,10 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 }
             }
 
-            // Collections anlegen/aktualisieren
+            // create / update collections
             var done = 0;
             var total = filtered.Count == 0 ? 1 : filtered.Count;
+
             foreach (var kv in filtered)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -145,11 +147,13 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 var folder = kv.Key;
                 var items = kv.Value;
 
-                var nameCore = cfg.UseBasenameForCollection
-                    ? System.IO.Path.GetFileName(folder.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar))
+                var baseName = cfg.UseBasenameForCollection
+                    ? System.IO.Path.GetFileName(folder.TrimEnd(
+                        System.IO.Path.DirectorySeparatorChar,
+                        System.IO.Path.AltDirectorySeparatorChar))
                     : folder;
 
-                var name = (cfg.NamePrefix ?? string.Empty) + nameCore + (cfg.NameSuffix ?? string.Empty);
+                var name = (cfg.NamePrefix ?? string.Empty) + baseName + (cfg.NameSuffix ?? string.Empty);
 
                 try
                 {
@@ -158,10 +162,25 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
                     if (existing == null)
                     {
-                        var created = await _collections.CreateCollection(name, ids).ConfigureAwait(false);
+                        await _collections.CreateCollection(name, ids).ConfigureAwait(false);
                         _logger.LogInformation("[FolderCollections] Created '{Name}' with {Count} items", name, ids.Length);
                     }
                     else
                     {
                         await _collections.SetCollectionItems(existing.Id, ids).ConfigureAwait(false);
-                        _logger.LogInformation("[FolderCollections] Update_
+                        _logger.LogInformation("[FolderCollections] Updated '{Name}' with {Count} items", name, ids.Length);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[FolderCollections] Failed for '{Name}'", name);
+                }
+
+                done++;
+                progress.Report(done * 100.0 / total);
+            }
+
+            _logger.LogInformation("[FolderCollections] Finished. Collections processed: {Count}", done);
+        }
+    }
+}
