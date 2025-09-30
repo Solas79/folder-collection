@@ -1,22 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
-<PropertyGroup>
-<TargetFramework>net8.0</TargetFramework>
-<Nullable>enable</Nullable>
-<ImplicitUsings>enable</ImplicitUsings>
-<LangVersion>latest</LangVersion>
-<AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
-<RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
-<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-<Version>0.1.0</Version>
-</PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
+    <Version>0.1.3</Version>
+  </PropertyGroup>
 
-<ItemGroup>
-<PackageReference Include="Jellyfin.Server" Version="10.9.0" />
-<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <!-- Falls du Jellyfin-Pakete referenzierst, diese hier ergänzen -->
+  </ItemGroup>
 
-<ItemGroup>
-<None Include="Web/**" CopyToOutputDirectory="Always" />
-</ItemGroup>
+  <!-- WICHTIG: Web-Dateien einbetten -->
+  <ItemGroup>
+    <EmbeddedResource Include="Web/Configuration/config.html">
+      <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Web/Configuration/config.js">
+      <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.js</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>
