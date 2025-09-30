@@ -129,7 +129,7 @@ var allItems = _library.GetItemList(query).ToList();
                 if (kv.Value.Count >= minItems) filtered[kv.Key] = kv.Value;
             }
 
-            // Collections erzeugen/aktualisieren (ohne FindCollectionByName)
+            // Collections erzeugen/aktualisieren (Variante A)
             var done = 0;
             var total = filtered.Count == 0 ? 1 : filtered.Count;
 
@@ -141,38 +141,37 @@ var allItems = _library.GetItemList(query).ToList();
                 var items = kv.Value;
 
                 var baseName = cfg.UseBasenameForCollection
-                    ? System.IO.Path.GetFileName(folder.TrimEnd(
-                        System.IO.Path.DirectorySeparatorChar,
-                        System.IO.Path.AltDirectorySeparatorChar))
-                    : folder;
+                ? System.IO.Path.GetFileName(folder.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar,
+                    System.IO.Path.AltDirectorySeparatorChar))
+                : folder;
 
                 var name = (cfg.NamePrefix ?? string.Empty) + baseName + (cfg.NameSuffix ?? string.Empty);
 
                 try
                 {
-                    // 1) Collection per Query suchen
-                    var colQuery = new MediaBrowser.Controller.Entities.InternalItemsQuery
+                    // über LibraryManager nach bestehender BoxSet suchen
+                    var q = new MediaBrowser.Controller.Entities.InternalItemsQuery
                     {
-                        IncludeItemTypes = new[] { Jellyfin.Data.Enums.BaseItemKind.BoxSet },
+                        IncludeItemTypes = new[] { BaseItemKind.BoxSet },
                         Recursive = true,
                         SearchTerm = name
                     };
-                    var candidates = _library.GetItemList(colQuery);
-                    var existing = candidates.FirstOrDefault(i =>
-                        string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
+                    var existing = _library.GetItemList(q)
+                        .FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
 
-                    // 2) Item-IDs vorbereiten
                     var ids = items.Select(i => i.Id).ToArray();
 
-                    // 3) Create oder Update
                     if (existing == null)
                     {
-                        await _collections.CreateCollection(name, ids, cancellationToken).ConfigureAwait(false);
+                        // Legt die Collection an, wenn sie nicht existiert, und fügt Items hinzu
+                        await _collections.AddToCollectionAsync(name, ids, cancellationToken).ConfigureAwait(false);
                         _logger.LogInformation("[FolderCollections] Created '{Name}' with {Count} items", name, ids.Length);
                     }
                     else
                     {
-                        await _collections.SetCollectionItems(existing.Id, ids, cancellationToken).ConfigureAwait(false);
+                        // Setzt die Items exakt (überschreibt Inhalt)
+                        await _collections.SetCollectionItemsAsync(existing.Id, ids, cancellationToken).ConfigureAwait(false);
                         _logger.LogInformation("[FolderCollections] Updated '{Name}' with {Count} items", name, ids.Length);
                     }
                 }
@@ -184,6 +183,7 @@ var allItems = _library.GetItemList(query).ToList();
                 done++;
                 progress.Report(done * 100.0 / total);
             }
+
 
 
             _logger.LogInformation("[FolderCollections] Finished. Collections processed: {Count}", done);
