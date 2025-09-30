@@ -129,51 +129,35 @@ var allItems = _library.GetItemList(query).ToList();
                 if (kv.Value.Count >= minItems) filtered[kv.Key] = kv.Value;
             }
 
-            // Collections erzeugen/aktualisieren (Variante A)
-            var done = 0;
-            var total = filtered.Count == 0 ? 1 : filtered.Count;
-
-            foreach (var kv in filtered)
-            {
+           // Collections erzeugen/aktualisieren (Variante B)
+           var done = 0;
+           var total = filtered.Count == 0 ? 1 : filtered.Count;
+           
+           foreach (var kv in filtered)
+           {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var folder = kv.Key;
                 var items = kv.Value;
 
                 var baseName = cfg.UseBasenameForCollection
-                ? System.IO.Path.GetFileName(folder.TrimEnd(
-                    System.IO.Path.DirectorySeparatorChar,
-                    System.IO.Path.AltDirectorySeparatorChar))
-                : folder;
+                    ? System.IO.Path.GetFileName(folder.TrimEnd(
+                        System.IO.Path.DirectorySeparatorChar,
+                        System.IO.Path.AltDirectorySeparatorChar))
+                    : folder;
 
                 var name = (cfg.NamePrefix ?? string.Empty) + baseName + (cfg.NameSuffix ?? string.Empty);
 
                 try
                 {
-                    // über LibraryManager nach bestehender BoxSet suchen
-                    var q = new MediaBrowser.Controller.Entities.InternalItemsQuery
-                    {
-                        IncludeItemTypes = new[] { BaseItemKind.BoxSet },
-                        Recursive = true,
-                        SearchTerm = name
-                    };
-                    var existing = _library.GetItemList(q)
-                        .FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
+                    // sicherstellen/anlegen
+                    var boxSet = await _collections.EnsureCollectionAsync(name, cancellationToken).ConfigureAwait(false);
 
+                    // Items setzen (exakte Liste)
                     var ids = items.Select(i => i.Id).ToArray();
+                    await _collections.SetCollectionItemsAsync(boxSet.Id, ids, cancellationToken).ConfigureAwait(false);
 
-                    if (existing == null)
-                    {
-                        // Legt die Collection an, wenn sie nicht existiert, und fügt Items hinzu
-                        await _collections.AddToCollectionAsync(name, ids, cancellationToken).ConfigureAwait(false);
-                        _logger.LogInformation("[FolderCollections] Created '{Name}' with {Count} items", name, ids.Length);
-                    }
-                    else
-                    {
-                        // Setzt die Items exakt (überschreibt Inhalt)
-                        await _collections.SetCollectionItemsAsync(existing.Id, ids, cancellationToken).ConfigureAwait(false);
-                        _logger.LogInformation("[FolderCollections] Updated '{Name}' with {Count} items", name, ids.Length);
-                    }
+                    _logger.LogInformation("[FolderCollections] Upsert '{Name}' with {Count} items", name, ids.Length);
                 }
                 catch (Exception ex)
                 {
