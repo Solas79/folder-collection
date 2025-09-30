@@ -1,0 +1,22 @@
+{
+"name": "Folder Collections",
+"guid": "4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1",
+"version": "0.1.0",
+"targetAbi": "10.9.0.0",
+"framework": "net8.0",
+"overview": "Create collections (BoxSets) automatically by grouping library items per parent folder.",
+"description": "Groups Movies/Series by their parent folder into BoxSets. Configurable prefixes, ignore patterns, and minimum item count.",
+"owner": "Solas79",
+"category": "General",
+"imageUrl": "https://raw.githubusercontent.com/Solas79/folder-collection/main/.assets/icon.png",
+"newsUrl": "https://raw.githubusercontent.com/Solas79/folder-collection/main/CHANGELOG.md",
+"sourceUrl": "https://github.com/Solas79/folder-collections",
+"checksum": "",
+"assets": [
+{
+"name": "linux-x64",
+"version": "0.1.0",
+"sourceUrl": "https://github.com/Solas79/folder-collections/releases/download/v0.1.0/FolderCollections_0.1.0.zip"
+}
+]
+}
