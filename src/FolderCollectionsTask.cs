@@ -34,7 +34,6 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
-            // daily at 04:00
             return new[]
             {
                 new TaskTriggerInfo
@@ -48,22 +47,17 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
         {
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-            _logger.LogInformation(
-                "[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}",
-                cfg.IncludeMovies, cfg.IncludeSeries);
+            _logger.LogInformation("[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}", cfg.IncludeMovies, cfg.IncludeSeries);
 
-            // compile ignore regexes
             var ignore = (cfg.IgnorePatterns ?? new List<string>())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // allowed item types
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (cfg.IncludeMovies) allowedTypes.Add("Movie");
             if (cfg.IncludeSeries) allowedTypes.Add("Series");
 
-            // collect items from all libraries
             var allItems = new List<BaseItem>();
             var root = _library.GetUserRootFolder();
             foreach (var lib in root.GetChildren())
@@ -74,7 +68,6 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 allItems.AddRange(q);
             }
 
-            // group by parent folder (respect prefixes & ignore)
             var groups = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in allItems)
             {
@@ -82,7 +75,6 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 var path = item.Path;
                 if (string.IsNullOrWhiteSpace(path)) continue;
 
-                // whitelist prefixes
                 if (cfg.LibraryPathPrefixes != null && cfg.LibraryPathPrefixes.Count > 0)
                 {
                     var ok = false;
@@ -98,23 +90,12 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                     if (!ok) continue;
                 }
 
-                // ignore patterns
                 var ignored = false;
-                foreach (var rx in ignore)
-                {
-                    if (rx.IsMatch(path))
-                    {
-                        ignored = true;
-                        break;
-                    }
-                }
+                foreach (var rx in ignore) { if (rx.IsMatch(path)) { ignored = true; break; } }
                 if (ignored) continue;
 
-                var trimmed = path.TrimEnd(
-                    System.IO.Path.DirectorySeparatorChar,
-                    System.IO.Path.AltDirectorySeparatorChar);
-
-                var parent = System.IO.Path.GetDirectoryName(trimmed);
+                var parent = System.IO.Path.GetDirectoryName(
+                    path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar));
                 if (string.IsNullOrEmpty(parent)) continue;
 
                 if (!groups.TryGetValue(parent, out var list))
@@ -125,18 +106,10 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 list.Add(item);
             }
 
-            // filter by minimum items
             var minItems = Math.Max(1, cfg.MinimumItemsPerFolder);
             var filtered = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kv in groups)
-            {
-                if (kv.Value.Count >= minItems)
-                {
-                    filtered[kv.Key] = kv.Value;
-                }
-            }
+            foreach (var kv in groups) if (kv.Value.Count >= minItems) filtered[kv.Key] = kv.Value;
 
-            // create / update collections
             var done = 0;
             var total = filtered.Count == 0 ? 1 : filtered.Count;
 
