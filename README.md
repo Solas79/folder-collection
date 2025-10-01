@@ -10,6 +10,12 @@ Erzeugt/aktualisiert **Collections (BoxSets)** automatisch pro **Eltern-Ordner**
 - Geplante Aufgabe täglich 04:00; manuell ausführbar
 - **GUI-Konfiguration** im Jellyfin-Dashboard
 
+- Basename als Sammlungsname: Der **letzte Ordnernamen** wird als Sammlungsname verwendet, sonst **kompletter Pfadname**
+- Prefix: wird dem Sammlungsnamen vorangesetzt (z.B. Box: -> Box: Harry Potter)
+- Suffix: wird dem Sammlungsnamen angefügt (z.B. Collection -> Collection -> Harry Potter Collection)
+- Ignore: Schließt alles aus, was im Pfad sample enthält. (z. B. /mnt/media/Filme/HarryPotter/sample/ → wird ignoriert)
+- Pfad Präfixe: entspricht einer Art Whitelist. Es Werden nur Daten aus dem angegebenen Verzeichnis gescannt. Alle anderen werden Ignoriert. (z.B. /mnt/Media/File/HarryPotter scannt nur diesen Pfad)
+
 ## Installation (nur über GitHub)
 1. **Manifest als Repository** in Jellyfin hinzufügen:
 - *Dashboard → Plugins → Repositories → Add* – URL: https://raw.githubusercontent.com/Solas79/folder-collection/main/manifest.json
