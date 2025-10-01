@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Reflection; // <- hierher, nicht ans Dateiende!
+using System.Reflection;
 
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Collections;
@@ -34,63 +34,81 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             _logger = logger;
         }
 
+        // Pflicht für neuere Jellyfin-ABIs
         public string Key => "FolderCollectionsTask";
+
         public string Name => "Folder Collections (per directory)";
         public string Description => "Create / Update BoxSets based on parent folders.";
         public string Category => "Library";
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
         {
-            // täglich 04:00
+            // Uhrzeit aus der Plugin-Konfiguration lesen (Fallback 04:00)
+            var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+            var hour = Math.Clamp(cfg.ScanHour, 0, 23);
+            var minute = Math.Clamp(cfg.ScanMinute, 0, 59);
+
             return new[]
             {
                 new TaskTriggerInfo
                 {
                     Type = TaskTriggerInfo.TriggerDaily,
-                    TimeOfDayTicks = TimeSpan.FromHours(4).Ticks
+                    TimeOfDayTicks = TimeSpan.FromHours(hour).Add(TimeSpan.FromMinutes(minute)).Ticks
                 }
             };
         }
 
-        // Signatur für neuere ABIs: Progress zuerst, dann CancellationToken
+        // Signatur für aktuelle ABIs: Progress zuerst, dann CancellationToken
         public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
-            _logger.LogInformation(
-                "[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}",
+            _logger.LogInformation("[FolderCollections] Start. IncludeMovies={Movies}, IncludeSeries={Series}",
                 cfg.IncludeMovies, cfg.IncludeSeries);
 
-            // Ignore-Regexe vorbereiten
+            // --- Ignore-Regexe ---
             var ignore = (cfg.IgnorePatterns ?? new List<string>())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
                 .Select(s => new Regex(s, RegexOptions.IgnoreCase | RegexOptions.Compiled))
                 .ToList();
 
-            // Enum-Itemtypen
+            // --- Typen zusammenstellen ---
             var kinds = new List<BaseItemKind>();
             if (cfg.IncludeMovies) kinds.Add(BaseItemKind.Movie);
             if (cfg.IncludeSeries) kinds.Add(BaseItemKind.Series);
 
-            // Items per InternalItemsQuery einsammeln (rekursiv)
+            if (kinds.Count == 0)
+            {
+                _logger.LogWarning("[FolderCollections] No item types enabled (Movies/Series). Aborting.");
+                return;
+            }
+
+            // --- Items via InternalItemsQuery einsammeln (rekursiv) ---
             var query = new InternalItemsQuery
             {
                 IncludeItemTypes = kinds.ToArray(),
                 Recursive = true
             };
-            var allItems = _library.GetItemList(query).ToList();
 
-            // Gruppieren nach Eltern-Ordner (mit Präfix-Whitelist & Ignore)
+            var allItems = _library.GetItemList(query)
+                // Doppelt filtern zur Sicherheit
+                .Where(i =>
+                    (cfg.IncludeMovies && string.Equals(i.GetType().Name, "Movie", StringComparison.Ordinal)) ||
+                    (cfg.IncludeSeries && string.Equals(i.GetType().Name, "Series", StringComparison.Ordinal)))
+                .ToList();
+
+            // --- Gruppieren nach Eltern-Ordner (mit Präfix-Whitelist & Ignore) ---
             var groups = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var item in allItems)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
                 var path = item.Path;
                 if (string.IsNullOrWhiteSpace(path))
                     continue;
 
-                // Präfix-Whitelist
+                // Präfix-Whitelist (falls gesetzt)
                 if (cfg.LibraryPathPrefixes != null && cfg.LibraryPathPrefixes.Count > 0)
                 {
                     var ok = false;
@@ -130,7 +148,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                 list.Add(item);
             }
 
-            // Mindestanzahl je Ordner
+            // --- Mindestanzahl je Ordner ---
             var minItems = Math.Max(1, cfg.MinimumItemsPerFolder);
             var filtered = new Dictionary<string, List<BaseItem>>(StringComparer.OrdinalIgnoreCase);
             foreach (var kv in groups)
@@ -139,7 +157,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                     filtered[kv.Key] = kv.Value;
             }
 
-            // Collections erzeugen/aktualisieren (ABI-sicher via Reflection)
+            // --- Collections erzeugen/aktualisieren (ABI-sicher via Reflection) ---
             var done = 0;
             var total = filtered.Count == 0 ? 1 : filtered.Count;
 
@@ -161,12 +179,10 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
 
                 try
                 {
-                    await CollectionCompat.UpsertAsync(_collections, _library, name, ids, cancellationToken)
+                    await CollectionCompat.UpsertAsync(_collections, name, ids, cancellationToken)
                         .ConfigureAwait(false);
 
-                    _logger.LogInformation(
-                        "[FolderCollections] Upsert '{Name}' with {Count} items",
-                        name, ids.Length);
+                    _logger.LogInformation("[FolderCollections] Upsert '{Name}' with {Count} items", name, ids.Length);
                 }
                 catch (Exception ex)
                 {
@@ -182,77 +198,79 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
     }
 
     /// <summary>
-    /// ABI-kompatibler Helfer für ICollectionManager – probiert mehrere Methoden-Signaturen.
+    /// ABI-kompatibler Helfer für ICollectionManager – probiert diverse Methoden- und Parametervarianten.
     /// </summary>
     static class CollectionCompat
     {
-        /// <summary>
-        /// Legt eine Collection an (falls nötig) und setzt exakt die Items – je nach vorhandener API.
-        /// Reihenfolge:
-        /// 1) AddToCollectionAsync(string, Guid[], CancellationToken)
-        /// 2) EnsureCollectionAsync(string, CancellationToken) + SetCollectionItemsAsync(Guid, Guid[], CancellationToken)
-        /// 3) CreateCollection(string, Guid[]) + SetCollectionItems(Guid, Guid[])
-        /// 4) AddToCollection(string, Guid[])
-        /// </summary>
         public static async Task UpsertAsync(
             ICollectionManager collections,
-            ILibraryManager library,
             string name,
             Guid[] itemIds,
             CancellationToken ct)
         {
-            // 1) AddToCollectionAsync
-            var m = Find(collections, "AddToCollectionAsync",
-                         new[] { typeof(string), typeof(Guid[]), typeof(CancellationToken) });
-            if (m != null)
+            // Wir versuchen mehrere API-Varianten und mehrere Parameterformen (Guid[], List<Guid>, IEnumerable<Guid>, IReadOnlyCollection<Guid>)
+            var list = new List<Guid>(itemIds);
+            IEnumerable<Guid> ienum = list;
+            IReadOnlyCollection<Guid> iread = list;
+
+            // 1) AddToCollectionAsync(name, items, ct)
+            if (await TryInvokeAsync(collections, "AddToCollectionAsync", new object[] { name, itemIds, ct }) ||
+                await TryInvokeAsync(collections, "AddToCollectionAsync", new object[] { name, list,   ct }) ||
+                await TryInvokeAsync(collections, "AddToCollectionAsync", new object[] { name, ienum,  ct }) ||
+                await TryInvokeAsync(collections, "AddToCollectionAsync", new object[] { name, iread,  ct }))
             {
-                await (Task)m.Invoke(collections, new object[] { name, itemIds, ct })!;
                 return;
             }
 
-            // 2) EnsureCollectionAsync + SetCollectionItemsAsync
-            var ensure = Find(collections, "EnsureCollectionAsync",
-                              new[] { typeof(string), typeof(CancellationToken) });
-            var setAsync = Find(collections, "SetCollectionItemsAsync",
-                                new[] { typeof(Guid), typeof(Guid[]), typeof(CancellationToken) });
-            if (ensure != null && setAsync != null)
+            // 2) EnsureCollectionAsync(name, ct) + SetCollectionItemsAsync(id, items, ct)
+            var ensure = FindMethod(collections, "EnsureCollectionAsync",  new[] { typeof(string), typeof(CancellationToken) });
+            var setA   = FindMethodFlexible(collections, "SetCollectionItemsAsync", new[] { typeof(Guid), typeof(IEnumerable<Guid>), typeof(CancellationToken) });
+
+            if (ensure != null && setA != null)
             {
                 var t = (Task)ensure.Invoke(collections, new object[] { name, ct })!;
                 await t.ConfigureAwait(false);
 
-                var boxSet = GetTaskResult(t); // Task<T> mit Property "Id" (Guid)
+                var boxSet = GetTaskResult(t); // Task<T> mit Property Id
                 var idProp = boxSet.GetType().GetProperty("Id");
-                var colId = (Guid)idProp!.GetValue(boxSet)!;
+                var colId  = (Guid)idProp!.GetValue(boxSet)!;
 
-                var t2 = (Task)setAsync.Invoke(collections, new object[] { colId, itemIds, ct })!;
-                await t2.ConfigureAwait(false);
-                return;
+                if (await TryInvokeAsync(collections, "SetCollectionItemsAsync", new object[] { colId, itemIds, ct }) ||
+                    await TryInvokeAsync(collections, "SetCollectionItemsAsync", new object[] { colId, list,   ct }) ||
+                    await TryInvokeAsync(collections, "SetCollectionItemsAsync", new object[] { colId, ienum,  ct }) ||
+                    await TryInvokeAsync(collections, "SetCollectionItemsAsync", new object[] { colId, iread,  ct }))
+                {
+                    return;
+                }
             }
 
-            // 3) CreateCollection + SetCollectionItems (sync)
-            var create = Find(collections, "CreateCollection", new[] { typeof(string), typeof(Guid[]) });
-            var set = Find(collections, "SetCollectionItems", new[] { typeof(Guid), typeof(Guid[]) });
-            if (create != null && set != null)
+            // 3) CreateCollection(name, items)  (sync)
+            if (TryInvoke(collections, "CreateCollection", out _, new object[] { name, itemIds }) ||
+                TryInvoke(collections, "CreateCollection", out _, new object[] { name, list })   ||
+                TryInvoke(collections, "CreateCollection", out _, new object[] { name, ienum })  ||
+                TryInvoke(collections, "CreateCollection", out _, new object[] { name, iread }))
             {
-                var boxSet = create.Invoke(collections, new object[] { name, itemIds })!;
-                var idProp = boxSet.GetType().GetProperty("Id");
-                var colId = (Guid)idProp!.GetValue(boxSet)!;
-                set.Invoke(collections, new object[] { colId, itemIds });
                 return;
             }
 
-            // 4) AddToCollection (sync)
-            var add = Find(collections, "AddToCollection", new[] { typeof(string), typeof(Guid[]) });
-            if (add != null)
+            // 4) AddToCollection(name, items)  (sync)
+            if (TryInvoke(collections, "AddToCollection", out _, new object[] { name, itemIds }) ||
+                TryInvoke(collections, "AddToCollection", out _, new object[] { name, list })   ||
+                TryInvoke(collections, "AddToCollection", out _, new object[] { name, ienum })  ||
+                TryInvoke(collections, "AddToCollection", out _, new object[] { name, iread }))
             {
-                add.Invoke(collections, new object[] { name, itemIds });
                 return;
             }
+
+            // 5) SetCollectionItems(id, items) (ohne Ensure/Create macht das wenig Sinn; einige ABIs setzen implizit an)
+            // -> absichtlich weggelassen, da wir ohne Id nicht sinnvoll aufrufen können.
 
             throw new MissingMethodException("Keine kompatible ICollectionManager-Methode gefunden.");
         }
 
-        private static MethodInfo? Find(object obj, string name, Type[] signature)
+        // ---------- Reflection-Utilities ----------
+
+        private static MethodInfo? FindMethod(object obj, string name, Type[] signature)
         {
             return obj.GetType()
                       .GetMethods(BindingFlags.Instance | BindingFlags.Public)
@@ -260,13 +278,65 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
                                            m.GetParameters().Select(p => p.ParameterType).SequenceEqual(signature));
         }
 
+        private static MethodInfo? FindMethodFlexible(object obj, string name, Type[] wanted)
+        {
+            return obj.GetType()
+                      .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                      .FirstOrDefault(m =>
+                      {
+                          if (!string.Equals(m.Name, name, StringComparison.Ordinal)) return false;
+                          var pars = m.GetParameters();
+                          if (pars.Length != wanted.Length) return false;
+
+                          for (int i = 0; i < pars.Length; i++)
+                          {
+                              var have = pars[i].ParameterType;
+                              var need = wanted[i];
+                              if (need == typeof(IEnumerable<Guid>))
+                              {
+                                  // akzeptiere IEnumerable<Guid>, IReadOnlyCollection<Guid>, ICollection<Guid>, List<Guid>, Guid[]
+                                  if (!(have == typeof(Guid[]) ||
+                                        (have.IsGenericType && typeof(IEnumerable<>).IsAssignableFrom(have.GetGenericTypeDefinition())) ||
+                                        (have.IsGenericType && typeof(IReadOnlyCollection<>).IsAssignableFrom(have.GetGenericTypeDefinition())) ||
+                                        (have.IsGenericType && typeof(ICollection<>).IsAssignableFrom(have.GetGenericTypeDefinition()))))
+                                      return false;
+                              }
+                              else if (have != need) return false;
+                          }
+                          return true;
+                      });
+        }
+
+        private static bool TryInvoke(object obj, string name, out object? result, object[] args)
+        {
+            result = null;
+            var candidates = obj.GetType()
+                                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                .Where(m => m.Name == name && m.GetParameters().Length == args.Length);
+            foreach (var mi in candidates)
+            {
+                try { result = mi.Invoke(obj, args); return true; } catch { /* next */ }
+            }
+            return false;
+        }
+
+        private static async Task<bool> TryInvokeAsync(object obj, string name, object[] args)
+        {
+            var candidates = obj.GetType()
+                                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                .Where(m => m.Name == name && m.GetParameters().Length == args.Length);
+            foreach (var mi in candidates)
+            {
+                try { var t = (Task)mi.Invoke(obj, args)!; await t.ConfigureAwait(false); return true; }
+                catch { /* next */ }
+            }
+            return false;
+        }
+
         private static dynamic GetTaskResult(Task t)
         {
             var tp = t.GetType();
-            if (tp.IsGenericType) // Task<T>
-            {
-                return tp.GetProperty("Result")!.GetValue(t)!;
-            }
+            if (tp.IsGenericType) return tp.GetProperty("Result")!.GetValue(t)!;
             throw new InvalidOperationException("Task hat kein Result.");
         }
     }
