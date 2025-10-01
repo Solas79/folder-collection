@@ -5,12 +5,18 @@
   .mt{margin-top:12px}
   .checkboxLabel{display:inline-flex;align-items:center;gap:.5rem}
   textarea[is="emby-textarea"]{width:100%}
+  /* sorgt für eigenen Layer/Hintergrund */
+  .pluginConfigurationPage{
+    position:relative;
+    background:var(--theme-page-background);
+    z-index:1;
+  }
 </style>
 
 <div id="folderCollectionsConfig"
      data-role="page"
      class="page type-interior pluginConfigurationPage"
-     data-controller="__plugin/config">
+     data-controller="config">
 
   <div class="content-primary">
     <div class="fc-wrap">
@@ -78,7 +84,6 @@ extras
     </div>
   </div>
 
+  <!-- zweiter Bereich muss existieren, auch wenn leer -->
   <div class="content-secondary"></div>
 </div>
-
-<script src="config.js"></script>
