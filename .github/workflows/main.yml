@@ -1,18 +1,19 @@
-permissions:
-  contents: write
-
 name: build-and-release
+
 on:
   push:
-    tags: ['v*.*.*']
+    tags:
+      - 'v*.*.*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
@@ -22,7 +23,7 @@ jobs:
       - name: Build (Release)
         run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore
 
-      - name: Package ZIP
+      - name: Publish AnyCPU
         run: |
           mkdir -p out/plugins/FolderCollections
           cp src/bin/Release/net8.0/*.dll out/plugins/FolderCollections/
@@ -43,17 +44,22 @@ jobs:
           name: ${{ github.ref_name }}
           draft: false
           prerelease: false
-          files: ${{ env.ZIPNAME }}
+          files: |
+            ${{ env.ZIPNAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload manifest.json to Release (mit korrekter URL/Version)
+      - name: Update manifest.json in Release
         run: |
           VERSION=${{ env.VERSION }}
           URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${{ env.ZIPNAME }}"
-          jq --arg v "$VERSION" --arg url "$URL" \
-             '.version=$v | .assets[0].version=$v | .assets[0].sourceUrl=$url' \
-             manifest.json > manifest.release.json
+          jq --arg v "$VERSION" --arg url "$URL" '
+            .[] |= (
+              .version = $v
+              | .assets[0].version = $v
+              | .assets[0].sourceUrl = $url
+            )
+          ' manifest.json > manifest.release.json
           gh release upload "v${VERSION}" manifest.release.json --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
