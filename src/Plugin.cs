@@ -28,7 +28,7 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             {
                 new PluginPageInfo
                 {
-                    Name = "config",
+                    Name = "config.html",
                     EmbeddedResourcePath = ns + ".Web.Configuration.config.html"
                 },
                 new PluginPageInfo
