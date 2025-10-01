@@ -21,9 +21,6 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Add Jellyfin feed
-        run: dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json --name jellyfin
-
       - name: Restore dependencies
         run: dotnet restore src/FolderCollectionsPlugin.csproj
 
