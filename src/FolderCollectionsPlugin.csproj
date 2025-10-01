@@ -20,9 +20,9 @@
 
   <!-- Referenzen: Versionen zur Jellyfin-Server-Version passend halten -->
   <ItemGroup>
-    <PackageReference Include="MediaBrowser.Common" Version="10.10.7" />
-    <PackageReference Include="MediaBrowser.Controller" Version="10.10.7" />
-    <PackageReference Include="MediaBrowser.Model" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
   </ItemGroup>
 
   <!-- Deine Web-UI als Embedded Resources, damit die Config-Seite NICHT „schwebt“ -->
