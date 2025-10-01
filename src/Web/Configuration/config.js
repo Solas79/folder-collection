@@ -1,7 +1,8 @@
 define([], function () {
   'use strict';
 
-  const pluginId = '4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1'; // exakt Id aus Plugin.cs
+  // MUSS exakt der Id in Plugin.cs entsprechen!
+  const pluginId = '4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1';
 
   function q(view, id) { return view.querySelector('#' + id); }
 
@@ -35,6 +36,7 @@ define([], function () {
   return function (view) {
     async function load() {
       const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
       q(view, 'includeMovies').checked = !!cfg.IncludeMovies;
       q(view, 'includeSeries').checked = !!cfg.IncludeSeries;
       q(view, 'minItems').value = cfg.MinimumItemsPerFolder ?? 2;
@@ -43,6 +45,7 @@ define([], function () {
       q(view, 'nameSuffix').value = cfg.NameSuffix || '';
       q(view, 'prefixes').value = (cfg.LibraryPathPrefixes || []).join('\n');
       q(view, 'ignores').value = (cfg.IgnorePatterns || []).join('\n');
+
       q(view, 'scanHour').value = cfg.ScanHour ?? 4;
       q(view, 'scanMinute').value = cfg.ScanMinute ?? 0;
     }
@@ -58,6 +61,7 @@ define([], function () {
       cfg.NameSuffix = q(view, 'nameSuffix').value || '';
       cfg.LibraryPathPrefixes = q(view, 'prefixes').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
       cfg.IgnorePatterns = q(view, 'ignores').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
       const h = Math.min(23, Math.max(0, parseInt(q(view, 'scanHour').value   || '4', 10)));
       const m = Math.min(59, Math.max(0, parseInt(q(view, 'scanMinute').value || '0', 10)));
       cfg.ScanHour = h; cfg.ScanMinute = m;
