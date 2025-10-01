@@ -1,65 +1,61 @@
-name: build-and-release
+name: Build Jellyfin FolderCollections Plugin
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
+      - name: Add Jellyfin feed
+        run: dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json --name jellyfin
+
+      - name: Restore dependencies
         run: dotnet restore src/FolderCollectionsPlugin.csproj
 
       - name: Build (Release)
         run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore
 
       - name: Publish AnyCPU
-        run: |
-          mkdir -p out/plugins/FolderCollections
-          cp src/bin/Release/net8.0/*.dll out/plugins/FolderCollections/
-          if [ -d src/Web ]; then
-            mkdir -p out/plugins/FolderCollections/Web
-            cp -r src/Web/* out/plugins/FolderCollections/Web/
-          fi
-          VERSION=${GITHUB_REF_NAME#v}
-          ZIPNAME="FolderCollections_${VERSION}.zip"
-          (cd out && zip -r "../${ZIPNAME}" .)
-          echo "ZIPNAME=${ZIPNAME}" >> $GITHUB_ENV
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+        run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore
 
-      - name: Create Release
+      - name: Archive plugin
+        run: |
+          cd publish
+          zip -r ../FolderCollections.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCollections
+          path: FolderCollections.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: FolderCollections
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          files: |
-            ${{ env.ZIPNAME }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update manifest.json in Release
-        run: |
-          VERSION=${{ env.VERSION }}
-          URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${{ env.ZIPNAME }}"
-          jq --arg v "$VERSION" --arg url "$URL" '
-            .[] |= (
-              .version = $v
-              | .assets[0].version = $v
-              | .assets[0].sourceUrl = $url
-            )
-          ' manifest.json > manifest.release.json
-          gh release upload "v${VERSION}" manifest.release.json --clobber
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: FolderCollections.zip
