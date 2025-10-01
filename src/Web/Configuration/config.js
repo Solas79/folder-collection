@@ -1,47 +1,53 @@
-(function(){
-  const pluginId = '4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1';
+define([], function () {
+    'use strict';
 
-  function page(){ return document.querySelector('#folderCollectionsConfig'); }
-  function val(id){ return document.getElementById(id); }
+    const pluginId = '4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1'; // muss exakt der Id in Plugin.cs entsprechen
 
-  document.addEventListener('viewshow', function(e){
-    // Seite ist z. B. /web/index.html#!/plugins/foldercollections/config.html
-    if (!page()) return;
-    load();
-  });
-
-  async function load(){
-    const cfg = await ApiClient.getPluginConfiguration(pluginId);
-    val('includeMovies').checked = cfg.IncludeMovies ?? true;
-    val('includeSeries').checked = cfg.IncludeSeries ?? true;
-    val('minItems').value = cfg.MinimumItemsPerFolder ?? 2;
-    val('useBasename').checked = cfg.UseBasenameForCollection ?? true;
-    val('namePrefix').value = cfg.NamePrefix ?? '';
-    val('nameSuffix').value = cfg.NameSuffix ?? '';
-    val('prefixes').value = (cfg.LibraryPathPrefixes||[]).join('\n');
-    val('ignores').value = (cfg.IgnorePatterns||[]).join('\n');
-  }
-
-  document.addEventListener('submit', async function(ev){
-    if (ev.target.id !== 'cfgForm') return;
-    ev.preventDefault();
-
-    const cfg = await ApiClient.getPluginConfiguration(pluginId);
-    cfg.IncludeMovies = val('includeMovies').checked;
-    cfg.IncludeSeries = val('includeSeries').checked;
-    cfg.MinimumItemsPerFolder = parseInt(val('minItems').value || '2', 10);
-    cfg.UseBasenameForCollection = val('useBasename').checked;
-    cfg.NamePrefix = val('namePrefix').value || '';
-    cfg.NameSuffix = val('nameSuffix').value || '';
-    cfg.LibraryPathPrefixes = val('prefixes').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    cfg.IgnorePatterns = val('ignores').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-
-    const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    if (result?.Status === 'Invalid') {
-      Dashboard.alert({ message: result?.ErrorMessage || 'Speichern fehlgeschlagen', title: 'Folder Collections' });
-    } else {
-      Dashboard.processPluginConfigurationUpdateResult(result);
-      Dashboard.alert({ message: 'Gespeichert', title: 'Folder Collections' });
+    function byId(view, id) {
+        return view.querySelector('#' + id);
     }
-  });
-})();
+
+    return function (view) {
+
+        async function load() {
+            const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+            byId(view, 'includeMovies').checked = !!cfg.IncludeMovies;
+            byId(view, 'includeSeries').checked = !!cfg.IncludeSeries;
+            byId(view, 'minItems').value = cfg.MinimumItemsPerFolder ?? 2;
+            byId(view, 'useBasename').checked = !!cfg.UseBasenameForCollection;
+            byId(view, 'namePrefix').value = cfg.NamePrefix || '';
+            byId(view, 'nameSuffix').value = cfg.NameSuffix || '';
+            byId(view, 'prefixes').value = (cfg.LibraryPathPrefixes || []).join('\n');
+            byId(view, 'ignores').value = (cfg.IgnorePatterns || []).join('\n');
+        }
+
+        async function save(ev) {
+            ev.preventDefault();
+
+            const cfg = await ApiClient.getPluginConfiguration(pluginId);
+            cfg.IncludeMovies = byId(view, 'includeMovies').checked;
+            cfg.IncludeSeries = byId(view, 'includeSeries').checked;
+            cfg.MinimumItemsPerFolder = parseInt(byId(view, 'minItems').value || '2', 10);
+            cfg.UseBasenameForCollection = byId(view, 'useBasename').checked;
+            cfg.NamePrefix = byId(view, 'namePrefix').value || '';
+            cfg.NameSuffix = byId(view, 'nameSuffix').value || '';
+            cfg.LibraryPathPrefixes = byId(view, 'prefixes').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+            cfg.IgnorePatterns = byId(view, 'ignores').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+            const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
+            if (result?.Status === 'Invalid') {
+                Dashboard.alert({
+                    title: 'Folder Collections',
+                    message: result?.ErrorMessage || 'Speichern fehlgeschlagen'
+                });
+            } else {
+                Dashboard.processPluginConfigurationUpdateResult(result);
+                Dashboard.alert({ title: 'Folder Collections', message: 'Gespeichert' });
+            }
+        }
+
+        view.addEventListener('viewshow', load);
+        view.querySelector('#cfgForm').addEventListener('submit', save);
+    };
+});
