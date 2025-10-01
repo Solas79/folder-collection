@@ -1,6 +1,6 @@
 // src/FolderCollections/Configuration/config.js
 (() => {
-  const pluginId = 'YOUR-GUID-HERE-1234-5678-90AB-ABCDEF012345'; // exakt wie in Plugin.cs
+  const pluginId = '9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a'; // exakt wie in Plugin.cs
 
   function toLines(arr) {
     return Array.isArray(arr) ? arr.join('\n') : (arr || '');
