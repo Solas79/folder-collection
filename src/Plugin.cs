@@ -26,11 +26,10 @@ namespace Jellyfin.Plugin.FolderCollections.GUI
             var ns = GetType().Namespace;
             return new[]
             {
-                new PluginPageInfo
-                {Name = "config.html", EmbeddedResourcePath = ns + ".Web.Configuration.config.html"},
-                new PluginPageInfo
-                {Name = "config.js", EmbeddedResourcePath = ns + ".Web.Configuration.config.js"}
+              new PluginPageInfo { Name = "config",    EmbeddedResourcePath = ns + ".Web.Configuration.config.html" },
+              new PluginPageInfo { Name = "config.js", EmbeddedResourcePath = ns + ".Web.Configuration.config.js" }
             };
+
         }
     }
 }
