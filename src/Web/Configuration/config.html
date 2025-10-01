@@ -4,67 +4,76 @@
   <meta charset="utf-8" />
   <title>Folder Collections – Configuration</title>
   <style>
-    .fc-wrap { max-width: 900px; margin: 0 auto; }
+    .fc-wrap { max-width: 980px; margin: 0 auto; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .mt { margin-top: 12px; }
   </style>
 </head>
 <body>
+  <!-- WICHTIG: page + content + pluginConfigurationPage + data-controller -->
   <div id="folderCollectionsConfig"
        data-role="page"
-       class="page type-interior pluginConfigurationPage"
+       class="page type-interior pluginConfigurationPage withTabs withTitle"
        data-controller="__plugin/config">
-    <div class="fc-wrap">
-      <h1>Folder Collections – Einstellungen</h1>
 
-      <form id="cfgForm">
-        <div class="grid-2">
-          <label><input is="emby-checkbox" type="checkbox" id="includeMovies"> Nur Filme</label>
-          <label><input is="emby-checkbox" type="checkbox" id="includeSeries"> Serien auch einbeziehen</label>
-        </div>
+    <div data-role="content">
+      <div class="contentPrimary">
+        <div class="fc-wrap">
+          <h1>Folder Collections – Einstellungen</h1>
 
-        <div class="grid-2 mt">
-          <label>Min. Items/Ordner
-            <input is="emby-input" type="number" id="minItems" min="1" value="2">
-          </label>
-          <label><input is="emby-checkbox" type="checkbox" id="useBasename"> Basename als Sammlungsname</label>
-        </div>
-
-        <div class="grid-2 mt">
-          <label>Prefix <input is="emby-input" type="text" id="namePrefix" placeholder="z.B. Box: "></label>
-          <label>Suffix <input is="emby-input" type="text" id="nameSuffix" placeholder=""></label>
-        </div>
-
-        <div class="grid-2 mt">
-          <label>Tägliche Scan-Uhrzeit (24h)
+          <form id="cfgForm">
             <div class="grid-2">
-              <input is="emby-input" type="number" id="scanHour" min="0" max="23" value="4" placeholder="Stunde">
-              <input is="emby-input" type="number" id="scanMinute" min="0" max="59" value="0" placeholder="Minute">
+              <label><input is="emby-checkbox" type="checkbox" id="includeMovies"> Filme einbeziehen</label>
+              <label><input is="emby-checkbox" type="checkbox" id="includeSeries"> Serien einbeziehen</label>
             </div>
-          </label>
-          <div class="mt">
-            <button is="emby-button" class="raised button-submit" type="submit">Speichern</button>
-            <button is="emby-button" class="raised" id="runNow" type="button">Jetzt scannen</button>
-          </div>
-        </div>
 
-        <div class="mt">
-          <label>Pfad-Präfixe (Whitelist, eine pro Zeile)
-            <textarea id="prefixes" rows="4" placeholder="/mnt/media/Filme
+            <div class="grid-2 mt">
+              <label>Min. Items/Ordner
+                <input is="emby-input" type="number" id="minItems" min="1" value="2">
+              </label>
+              <label><input is="emby-checkbox" type="checkbox" id="useBasename"> Basename als Sammlungsname</label>
+            </div>
+
+            <div class="grid-2 mt">
+              <label>Prefix <input is="emby-input" type="text" id="namePrefix" placeholder="z.B. Box: "></label>
+              <label>Suffix <input is="emby-input" type="text" id="nameSuffix" placeholder=""></label>
+            </div>
+
+            <div class="grid-2 mt">
+              <label>Tägliche Scan-Uhrzeit (24h)
+                <div class="grid-2">
+                  <input is="emby-input" type="number" id="scanHour" min="0" max="23" value="4" placeholder="Stunde">
+                  <input is="emby-input" type="number" id="scanMinute" min="0" max="59" value="0" placeholder="Minute">
+                </div>
+              </label>
+              <div class="mt">
+                <button is="emby-button" class="raised button-submit" type="submit">Speichern</button>
+                <button is="emby-button" class="raised" id="runNow" type="button">Jetzt scannen</button>
+              </div>
+            </div>
+
+            <div class="mt">
+              <label>Pfad-Präfixe (Whitelist, eine pro Zeile)
+                <textarea id="prefixes" rows="4" placeholder="/mnt/media/Filme
 /mnt/media/Serien"></textarea>
-          </label>
-        </div>
+              </label>
+            </div>
 
-        <div class="mt">
-          <label>Ignore-Patterns (Regex, eine pro Zeile)
-            <textarea id="ignores" rows="4" placeholder="sample
+            <div class="mt">
+              <label>Ignore-Patterns (Regex, eine pro Zeile)
+                <textarea id="ignores" rows="4" placeholder="sample
 extras
 \.ignore"></textarea>
-          </label>
+              </label>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
+
+      <div class="contentSecondary"></div>
     </div>
   </div>
+
   <script src="config.js"></script>
 </body>
 </html>
