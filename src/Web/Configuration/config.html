@@ -2,93 +2,108 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Folder Collections – Configuration</title>
+  <title>Folder Collections – Einstellungen</title>
   <style>
+    /* Eigener Layer + echter Seitenhintergrund */
+    .pluginConfigurationPage {
+      position: relative;
+      z-index: 2;
+      background: var(--theme-page-background);
+      min-height: calc(100vh - 60px);
+    }
+    .content { padding: 1.5rem; }
     .fc-wrap { max-width: 980px; margin: 0 auto; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .mt { margin-top: 12px; }
+    .checkboxLabel { display: inline-flex; align-items: center; gap: .5rem; }
+    textarea[is="emby-textarea"] { width: 100%; }
   </style>
 </head>
 <body>
-  <!-- WICHTIG: page + content-primary/-secondary + pluginConfigurationPage + data-controller -->
+  <!-- Eigene Jellyfin-Seite -->
   <div id="folderCollectionsConfig"
        data-role="page"
-       class="page type-interior pluginConfigurationPage withTabs withTitle"
+       data-title="Folder Collections – Einstellungen"
+       data-backbutton="true"
+       class="page type-interior pluginConfigurationPage"
        data-controller="__plugin/config">
 
-    <div class="content-primary">
-      <div class="fc-wrap">
-        <h1>Folder Collections – Einstellungen</h1>
+    <div class="content">
+      <div class="content-primary">
+        <div class="fc-wrap">
+          <h1>Folder Collections – Einstellungen</h1>
 
-        <form id="cfgForm" class="emby-form">
-          <div class="grid-2">
-            <label class="checkboxLabel">
-              <input type="checkbox" id="includeMovies" is="emby-checkbox">
-              <span>Filme einbeziehen</span>
-            </label>
-
-            <label class="checkboxLabel">
-              <input type="checkbox" id="includeSeries" is="emby-checkbox">
-              <span>Serien einbeziehen</span>
-            </label>
-          </div>
-
-          <div class="grid-2 mt">
-            <label>
-              Min. Items/Ordner
-              <input type="number" id="minItems" is="emby-input" min="1" value="2">
-            </label>
-
-            <label class="checkboxLabel">
-              <input type="checkbox" id="useBasename" is="emby-checkbox">
-              <span>Basename als Sammlungsname</span>
-            </label>
-          </div>
-
-          <div class="grid-2 mt">
-            <label>Prefix
-              <input type="text" id="namePrefix" is="emby-input" placeholder="z.B. Box: ">
-            </label>
-            <label>Suffix
-              <input type="text" id="nameSuffix" is="emby-input" placeholder="">
-            </label>
-          </div>
-
-          <div class="grid-2 mt">
-            <label>Tägliche Scan-Uhrzeit (24h)
-              <div class="grid-2">
-                <input type="number" id="scanHour"   is="emby-input" min="0" max="23" value="4" placeholder="Stunde">
-                <input type="number" id="scanMinute" is="emby-input" min="0" max="59" value="0" placeholder="Minute">
-              </div>
-            </label>
-            <div class="mt">
-              <button is="emby-button" class="raised button-submit" type="submit">Speichern</button>
-              <button is="emby-button" class="raised" id="runNow" type="button">Jetzt scannen</button>
+          <form id="cfgForm" class="emby-form">
+            <div class="grid-2">
+              <label class="checkboxLabel">
+                <input type="checkbox" id="includeMovies" is="emby-checkbox">
+                <span>Filme einbeziehen</span>
+              </label>
+              <label class="checkboxLabel">
+                <input type="checkbox" id="includeSeries" is="emby-checkbox">
+                <span>Serien einbeziehen</span>
+              </label>
             </div>
-          </div>
 
-          <div class="mt">
-            <label>Pfad-Präfixe (Whitelist, eine pro Zeile)
-              <textarea id="prefixes" rows="4" is="emby-textarea" placeholder="/mnt/media/Filme
+            <div class="grid-2 mt">
+              <label>
+                Min. Items/Ordner
+                <input type="number" id="minItems" is="emby-input" min="1" value="2">
+              </label>
+
+              <label class="checkboxLabel">
+                <input type="checkbox" id="useBasename" is="emby-checkbox">
+                <span>Basename als Sammlungsname</span>
+              </label>
+            </div>
+
+            <div class="grid-2 mt">
+              <label>Prefix
+                <input type="text" id="namePrefix" is="emby-input" placeholder="z.B. Box: ">
+              </label>
+              <label>Suffix
+                <input type="text" id="nameSuffix" is="emby-input" placeholder="">
+              </label>
+            </div>
+
+            <div class="grid-2 mt">
+              <label>Tägliche Scan-Uhrzeit (24h)
+                <div class="grid-2">
+                  <input type="number" id="scanHour"   is="emby-input" min="0" max="23" value="4" placeholder="Stunde">
+                  <input type="number" id="scanMinute" is="emby-input" min="0" max="59" value="0" placeholder="Minute">
+                </div>
+              </label>
+
+              <div class="mt">
+                <button is="emby-button" class="raised button-submit" type="submit">Speichern</button>
+                <button is="emby-button" class="raised" id="runNow" type="button">Jetzt scannen</button>
+              </div>
+            </div>
+
+            <div class="mt">
+              <label>Pfad-Präfixe (Whitelist, eine pro Zeile)
+                <textarea id="prefixes" rows="4" is="emby-textarea" placeholder="/mnt/media/Filme
 /mnt/media/Serien"></textarea>
-            </label>
-          </div>
+              </label>
+            </div>
 
-          <div class="mt">
-            <label>Ignore-Patterns (Regex, eine pro Zeile)
-              <textarea id="ignores" rows="4" is="emby-textarea" placeholder="sample
+            <div class="mt">
+              <label>Ignore-Patterns (Regex, eine pro Zeile)
+                <textarea id="ignores" rows="4" is="emby-textarea" placeholder="sample
 extras
 \.ignore"></textarea>
-            </label>
-          </div>
-        </form>
+              </label>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
 
-    <!-- Jellyfin erwartet diesen zweiten Container -->
-    <div class="content-secondary"></div>
+      <!-- wird von Jellyfin benötigt, auch wenn leer -->
+      <div class="content-secondary"></div>
+    </div>
   </div>
 
+  <!-- Controller (AMD) -->
   <script src="config.js"></script>
 </body>
 </html>
