@@ -1,35 +1,28 @@
-using System;
-using System.Collections.Generic;
+// src/FolderCollections/Plugin.cs
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using MediaBrowser.Model.Web;
 
-namespace Jellyfin.Plugin.FolderCollections.GUI
+namespace FolderCollections;
+
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
-    public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
+    public override string Name => "Folder Collections";
+    public override Guid Id => new("YOUR-GUID-HERE-1234-5678-90AB-ABCDEF012345"); // fest lassen, nicht ändern
+
+    public Plugin(IApplicationPaths appPaths, IXmlSerializer xml)
+        : base(appPaths, xml) { }
+
+    public IEnumerable<PluginPageInfo> GetPages() => new[]
     {
-        public static Plugin? Instance { get; private set; }
-
-        public override string Name => "Folder Collections";
-        public override Guid Id { get; } = Guid.Parse("4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1");
-        public override string Description => "Group library items by parent folder into BoxSets (configurable).";
-
-        public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer)
-            : base(applicationPaths, xmlSerializer)
+        new PluginPageInfo
         {
-            Instance = this;
+            Name = "folderCollectionsConfigPage",
+            EmbeddedResourcePath = GetType().Namespace + ".Configuration.config.html",
+            // Jellyfin erkennt daran, dass es eine volle Plugin-Konfig-Seite ist:
+            PageType = PluginPageType.PluginConfiguration
         }
-
-        public IEnumerable<PluginPageInfo> GetPages()
-        {
-            var ns = GetType().Namespace;
-            return new[]
-            {
-              new PluginPageInfo { Name = "config",    EmbeddedResourcePath = ns + ".Web.Configuration.config.html" },
-              new PluginPageInfo { Name = "config.js", EmbeddedResourcePath = ns + ".Web.Configuration.config.js" }
-            };
-
-        }
-    }
+    };
 }
