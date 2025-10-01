@@ -1,29 +1,44 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>Jellyfin.Plugin.FolderCollections.GUI</AssemblyName>
-    <RootNamespace>Jellyfin.Plugin.FolderCollections.GUI</RootNamespace>
-    <Version>0.3.9</Version>
+
+    <AssemblyName>FolderCollections</AssemblyName>
+    <RootNamespace>FolderCollections</RootNamespace>
+
+    <!-- Passe Version/Autor nach Bedarf an -->
+    <Version>0.4.0</Version>
+    <Authors>Solas79</Authors>
+    <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
+
+    <!-- Hilft, alle Abhängigkeiten mitzuliefern, falls benötigt -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
+  <!-- Referenzen: Versionen zur Jellyfin-Server-Version passend halten -->
   <ItemGroup>
-    <!-- Bringen die MediaBrowser.*-Namespaces -->
-    <PackageReference Include="Jellyfin.Common" Version="10.9.0" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.9.0" />
-    <PackageReference Include="Jellyfin.Model" Version="10.9.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+    <PackageReference Include="MediaBrowser.Common" Version="10.10.7" />
+    <PackageReference Include="MediaBrowser.Controller" Version="10.10.7" />
+    <PackageReference Include="MediaBrowser.Model" Version="10.10.7" />
   </ItemGroup>
 
-  <!-- UI als Embedded Resources (für EmbeddedResourcePath) -->
+  <!-- Deine Web-UI als Embedded Resources, damit die Config-Seite NICHT „schwebt“ -->
   <ItemGroup>
-    <EmbeddedResource Include="Web/Configuration/config.html">
-      <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.html</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Web/Configuration/config.js">
-      <LogicalName>Jellyfin.Plugin.FolderCollections.GUI.Web.Configuration.config.js</LogicalName>
-    </EmbeddedResource>
+    <None Remove="Configuration\config.html" />
+    <None Remove="Configuration\config.js" />
+    <EmbeddedResource Include="Configuration\config.html" />
+    <EmbeddedResource Include="Configuration\config.js" />
+
+    <!-- Falls du Icons/Weitere Dateien einbettest -->
+    <!-- <EmbeddedResource Include="Resources\**\*" /> -->
   </ItemGroup>
+
+  <!-- (Optional) etwas strengeres Build-Setup -->
+  <PropertyGroup>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
 </Project>
