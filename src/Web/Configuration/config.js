@@ -44,6 +44,11 @@
 
     const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
     Dashboard.processPluginConfigurationUpdateResult(result);
+    // Kurzfeedback:
+    if (result?.IsUpdated === false) {
+      Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
+    } else {
+      Dashboard.alert("Gespeichert.");
   }
 
   // ➜ NEU: manueller Scan
@@ -85,21 +90,29 @@
 
 
   document.addEventListener("pageshow", (e) => {
-    if (e.target.id === "folderCollectionsConfigPage") load().catch(console.error);
-  });
+  if (e.target.id === "folderCollectionsConfigPage") {
+    // Buttons hier binden, damit sie sicher existieren
+    const saveBtn = document.getElementById("fcSave");
+    const cancelBtn = document.querySelector(".button-cancel");
+    const scanBtn = document.getElementById("fcManualScan");
 
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("button-submit")) {
-      e.preventDefault();
+    saveBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
       save().catch(console.error);
-    } else if (e.target.classList.contains("button-cancel")) {
-      e.preventDefault();
+    });
+
+    cancelBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
       history.back();
-    }
-    // ➜ NEU: Button-Klick abfangen
-    else if (e.target.id === "fcManualScan") {
-      e.preventDefault();
-      manualScan(e.target).catch(console.error);
-    }
-  });
+    });
+
+    scanBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      manualScan(ev.currentTarget).catch(console.error);
+    });
+
+    load().catch(console.error);
+  }
+});
+
 })();
