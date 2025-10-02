@@ -1,7 +1,7 @@
 <div id="folderCollectionsConfigPage"
      data-role="page"
      class="page type-interior pluginConfigurationPage"
-     data-require="emby-button,emby-input,emby-toggle,emby-select,emby-checkbox">
+     data-require="emby-button,emby-input,emby-select,emby-checkbox">
 
   <div class="content-primary">
     <div class="verticalSection">
@@ -9,12 +9,12 @@
 
       <div class="inputContainer">
         <label for="includeMovies">Filme einbeziehen</label>
-        <input is="emby-toggle" id="includeMovies" type="checkbox">
+        <input is="emby-checkbox" id="includeMovies" type="checkbox">
       </div>
 
       <div class="inputContainer">
         <label for="includeSeries">Serien einbeziehen</label>
-        <input is="emby-toggle" id="includeSeries" type="checkbox">
+        <input is="emby-checkbox" id="includeSeries" type="checkbox">
       </div>
 
       <div class="inputContainer">
@@ -52,9 +52,9 @@
       </div>
 
       <div class="buttons formButtons">
-        <button is="emby-button" class="raised button-cancel">Abbrechen</button>
-        <button is="emby-button" class="raised accent button-submit">Speichern</button>
-        <button is="emby-button" class="raised button-submit" id="fcManualScan">Manuell scannen</button>
+        <button is="emby-button" type="button" class="raised button-cancel" onclick="window.fcCancel()">Abbrechen</button>
+        <button is="emby-button" type="button" class="raised accent button-submit" id="fcSave" onclick="window.fcSave()">Speichern</button>
+        <button is="emby-button" type="button" class="raised" id="fcManualScan" onclick="window.fcManualScan(this)">Manuell scannen</button>
       </div>
     </div>
   </div>
