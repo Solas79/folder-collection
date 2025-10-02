@@ -30,7 +30,7 @@ namespace FolderCollections
             },
             new PluginPageInfo
             {
-                Name = "configjs",
+                Name = "configJs",
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.js"
             }
         };
