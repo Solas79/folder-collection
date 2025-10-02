@@ -31,15 +31,23 @@ jobs:
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      - name: Restore (nuget.org only, with retry)
+      - name: Restore (nuget + jellyfin, with retry)
         shell: bash
         run: |
           set -e
           for i in 0 1 2 3 4 5; do
             if dotnet restore src/FolderCollectionsPlugin.csproj \
-                 -s https://api.nuget.org/v3/index.json \
-                 --ignore-failed-sources --nologo; then
+               -s https://api.nuget.org/v3/index.json \
+               -s https://repo.jellyfin.org/releases/plugin/v1/index.json \
+               --ignore-failed-sources --nologo; then
               exit 0
+            fi
+            echo "Restore failed (attempt $((i+1))). Retrying..."
+            sleep $((2**i))
+          done
+          echo "Restore failed after retries."
+          exit 1
+
             fi
             echo "Restore failed (attempt $((i+1))). Retrying..."
             sleep $((2**i))
