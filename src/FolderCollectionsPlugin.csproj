@@ -9,34 +9,39 @@
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
 
-    <!-- Passe Version/Autor nach Bedarf an -->
-    <Version>0.4.3</Version>
+    <!-- Version anheben, wenn du neu releast -->
+    <Version>0.4.4</Version>
     <Authors>Solas79</Authors>
     <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
 
-    <!-- Hilft, alle Abhängigkeiten mitzuliefern, falls benötigt -->
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- WICHTIG: keine Fremd-DLLs automatisch mit ausliefern -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
-  <!-- Referenzen: Versionen zur Jellyfin-Server-Version passend halten -->
+  <!-- Referenzen passend zu deiner Serverversion; Runtime ausschließen -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
-    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Common" Version="10.10.7">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Jellyfin.Model" Version="10.10.7">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
   </ItemGroup>
 
-  <!-- Deine Web-UI als Embedded Resources, damit die Config-Seite NICHT „schwebt“ -->
+  <!-- Web-UI eingebettet (zeigt das Zahnrad) -->
   <ItemGroup>
     <None Remove="Web\Configuration\config.html" />
     <None Remove="Web\Configuration\config.js" />
     <EmbeddedResource Include="Web\Configuration\config.html" />
     <EmbeddedResource Include="Web\Configuration\config.js" />
-
-    <!-- Falls du Icons/Weitere Dateien einbettest -->
-    <!-- <EmbeddedResource Include="Resources\**\*" /> -->
   </ItemGroup>
 
-  <!-- (Optional) etwas strengeres Build-Setup -->
+  <!-- optional: etwas strenger -->
   <PropertyGroup>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
