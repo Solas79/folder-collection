@@ -32,22 +32,22 @@ jobs:
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      - name: Restore (with nuget.config + retry)
-        shell: bash
-        run: |
-          set -e
-          for i in 0 1 2 3 4 5; do
-            if dotnet restore src/FolderCollectionsPlugin.csproj \
-                 --configfile nuget.config \
-                 --nologo \
-                 --ignore-failed-sources; then
-              exit 0
-            fi
-            echo "Restore failed (attempt $((i+1))). Retrying..."
-            sleep $((2**i))
-          done
-          echo "Restore failed after retries."
-          exit 1
+      - name: Restore (nuget.org only, with retry)
+      shell: bash
+      run: |
+        set -e
+        for i in 0 1 2 3 4 5; do
+          if dotnet restore src/FolderCollectionsPlugin.csproj \
+             -s https://api.nuget.org/v3/index.json \
+             --ignore-failed-sources --nologo; then
+            exit 0
+          fi
+          echo "Restore failed (attempt $((i+1))). Retrying..."
+          sleep $((2**i))
+        done
+        echo "Restore failed after retries."
+        exit 1
+
 
       - name: Build (Release)
         run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
