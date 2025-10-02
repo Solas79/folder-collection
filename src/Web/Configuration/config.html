@@ -67,10 +67,11 @@
 
   <script>
   (() => {
+    // EXAKT deine GUID:
     const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
 
-    const toLines = arr => Array.isArray(arr) ? arr.join("\\n") : (arr || "");
-    const fromLines = txt => (txt || "").split("\\n").map(s => s.trim()).filter(Boolean);
+    const toLines = arr => Array.isArray(arr) ? arr.join("\n") : (arr || "");
+    const fromLines = txt => (txt || "").split("\n").map(s => s.trim()).filter(Boolean);
 
     async function load() {
       const cfg = await ApiClient.getPluginConfiguration(pluginId);
@@ -87,15 +88,18 @@
 
     async function save() {
       const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
       cfg.IncludeMovies = document.getElementById("includeMovies").checked;
       cfg.IncludeSeries = document.getElementById("includeSeries").checked;
       cfg.MinItems = parseInt(document.getElementById("minItems").value, 10) || 0;
       cfg.Prefix = document.getElementById("prefix").value.trim();
       cfg.Suffix = document.getElementById("suffix").value.trim();
+
       const hour = Math.min(23, Math.max(0, parseInt(document.getElementById("scanHour").value, 10) || 4));
       const minute = Math.min(59, Math.max(0, parseInt(document.getElementById("scanMinute").value, 10) || 0));
       cfg.ScanHour = hour;
       cfg.ScanMinute = minute;
+
       cfg.PathPrefixes = fromLines(document.getElementById("pathPrefixes").value);
       cfg.IgnorePatterns = fromLines(document.getElementById("ignorePatterns").value);
 
@@ -104,50 +108,72 @@
       Dashboard.alert(result?.IsUpdated === false ? "Konfiguration konnte nicht gespeichert werden." : "Gespeichert.");
     }
 
+    // Task manuell starten (offizielle Methode + Fallbacks)
     async function manualScan(btn) {
-       try {
-          btn?.setAttribute("disabled", "disabled");
-          btn?.classList.add("idleProcessing");
+      const tidyError = (err) => {
+        if (!err) return "Unbekannter Fehler";
+        if (typeof err === "string") return err;
+        if (err.status) return `${err.status} ${err.statusText || ""}`.trim();
+        if (err.message) return err.message;
+        try { return JSON.stringify(err); } catch { return String(err); }
+      };
 
-         // 1) Tasks laden
-         const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
+      let taskId = null;
 
-         // 2) Deinen Task finden
-         const t = tasks.find(x =>
-           x?.Key === "FolderCollections.DailyScan" ||
-           (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
-         );
-         if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
+      try {
+        btn?.setAttribute("disabled","disabled");
+        btn?.classList.add("idleProcessing");
 
-         // 3) Task starten – erst den üblichen Trigger versuchen …
-         const triggerUrl = ApiClient.getUrl(`ScheduledTasks/${t.Id}/Trigger`);
-         try {
-           await ApiClient.ajax({ type: "POST", url: triggerUrl });
-         } catch (e1) {
-          // … Fallback für ältere Routen
-          const legacyUrl = ApiClient.getUrl(`ScheduledTasks/Running/${t.Id}`);
-          await ApiClient.ajax({ type: "POST", url: legacyUrl });
-         }
+        // 1) Task-Liste holen
+        const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
+        const t = tasks.find(x =>
+          x?.Key === "FolderCollections.DailyScan" ||
+          (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
+        );
+        if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
+        taskId = t.Id;
 
-         Dashboard.alert("Manueller Scan gestartet!");
-       } catch (err) {
-         Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
-         console.error(err);
-       } finally {
-         btn?.removeAttribute("disabled");
-         btn?.classList.remove("idleProcessing");
-       }
-     }
+        // 2) Offiziell starten
+        await ApiClient.startScheduledTask(taskId);
 
+        Dashboard.alert("Manueller Scan gestartet!");
+      } catch (e1) {
+        try {
+          // Fallback-Route 1
+          if (taskId == null) throw e1;
+          const triggerUrl = ApiClient.getUrl(`ScheduledTasks/${taskId}/Trigger`);
+          await ApiClient.ajax({ type: "POST", url: triggerUrl });
+          Dashboard.alert("Manueller Scan gestartet (Fallback).");
+        } catch (e2) {
+          try {
+            // Fallback-Route 2 (sehr alt)
+            if (taskId == null) throw e2;
+            const legacyUrl = ApiClient.getUrl(`ScheduledTasks/Running/${taskId}`);
+            await ApiClient.ajax({ type: "POST", url: legacyUrl });
+            Dashboard.alert("Manueller Scan gestartet (Legacy).");
+          } catch (e3) {
+            Dashboard.alert("Fehler beim Starten des Scans: " + tidyError(e3));
+            console.error(e3);
+          }
+        }
+      } finally {
+        btn?.removeAttribute("disabled");
+        btn?.classList.remove("idleProcessing");
+      }
+    }
 
     function init() {
       const page = document.getElementById("folderCollectionsConfigPage");
       if (!page || page.dataset.initialized === "1") return;
       page.dataset.initialized = "1";
 
-      document.getElementById("fcForm")?.addEventListener("submit", e => { e.preventDefault(); save().catch(console.error); });
-      document.getElementById("fcCancel")?.addEventListener("click", e => { e.preventDefault(); history.back(); });
-      document.getElementById("fcManualScan")?.addEventListener("click", e => { e.preventDefault(); manualScan(e.currentTarget).catch(console.error); });
+      const form = document.getElementById("fcForm");
+      const cancelBtn = document.getElementById("fcCancel");
+      const scanBtn = document.getElementById("fcManualScan");
+
+      form?.addEventListener("submit", (e) => { e.preventDefault(); save().catch(console.error); });
+      cancelBtn?.addEventListener("click", (e) => { e.preventDefault(); history.back(); });
+      scanBtn?.addEventListener("click", (e) => { e.preventDefault(); manualScan(e.currentTarget).catch(console.error); });
 
       load().catch(console.error);
     }
