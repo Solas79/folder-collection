@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Entities;            // <- CollectionFolder ist hier
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Tasks;
@@ -59,7 +60,6 @@ namespace FolderCollections
                 .Cast<Regex>()
                 .ToArray();
 
-            // 1) Medien ziehen
             var types = new List<string>();
             if (cfg.IncludeMovies) types.Add(nameof(BaseItemKind.Movie));
             if (cfg.IncludeSeries) types.Add(nameof(BaseItemKind.Series));
@@ -70,7 +70,6 @@ namespace FolderCollections
                 return;
             }
 
-            // Jellyfin 10.10: InternalItemsQuery über ILibraryManager
             var items = _library.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = types.ToArray(),
@@ -78,13 +77,8 @@ namespace FolderCollections
                 IsVirtualItem = false
             });
 
-            // 2) Gruppieren nach Ordner
             var groups = items
-                .Select(i => new
-                {
-                    Item = i,
-                    FolderPath = SafeParentDir(i.Path)
-                })
+                .Select(i => new { Item = i, FolderPath = SafeParentDir(i.Path) })
                 .Where(x => !string.IsNullOrWhiteSpace(x.FolderPath))
                 .Where(x => PassesWhitelist(x.FolderPath!, allowRoots))
                 .Where(x => !ignoreRegexes.Any(r => r!.IsMatch(x.FolderPath!)))
@@ -111,14 +105,11 @@ namespace FolderCollections
 
                 try
                 {
-                    // 3) BoxSet holen oder erstellen
-                    var boxSet = await EnsureCollectionAsync(collectionName, cancellationToken);
+                    var collection = await EnsureCollectionAsync(collectionName, cancellationToken);
 
-                    // 4) Items rein
-                    await _collections.AddToCollectionAsync(boxSet.Id, itemIds, cancellationToken);
+                    await _collections.AddToCollectionAsync(collection.Id, itemIds, cancellationToken);
 
-                    // heuristisch „created/updated“
-                    if (boxSet.DateCreatedUtc > DateTime.UtcNow.AddMinutes(-2))
+                    if (collection.DateCreatedUtc > DateTime.UtcNow.AddMinutes(-2))
                         created++;
                     else
                         updated++;
@@ -154,7 +145,6 @@ namespace FolderCollections
         private static bool PassesWhitelist(string folderPath, string[] allowRoots)
         {
             if (allowRoots.Length == 0) return true;
-            // erlaubt, wenn Ordner unter einem der Präfixe liegt
             return allowRoots.Any(p => folderPath.StartsWith(p, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -165,13 +155,11 @@ namespace FolderCollections
             return string.Join(" ", new[] { left, core, right }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
 
-        private async Task<BoxSet> EnsureCollectionAsync(string name, CancellationToken ct)
+        private async Task<CollectionFolder> EnsureCollectionAsync(string name, CancellationToken ct)
         {
-            // Gibt’s schon?
             var exist = _collections.FindCollectionByName(name);
             if (exist != null) return exist;
 
-            // Sonst neu
             return await _collections.CreateCollectionAsync(name, ct);
         }
 
