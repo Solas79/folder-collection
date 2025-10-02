@@ -1,3 +1,4 @@
+// src/Plugin.cs
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -14,7 +15,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public Plugin(IApplicationPaths appPaths, IXmlSerializer xml) : base(appPaths, xml)
     {
-        Instance = this; // wichtig für Zugriff aus anderen Klassen
+        Instance = this;
     }
 
     public IEnumerable<PluginPageInfo> GetPages() => new[]
@@ -23,8 +24,6 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             Name = "folderCollectionsConfigPage",
             EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.config.html"
-            // KEIN PageType hier – verursacht den CS0117/CS0103 Fehler
         }
     };
 }
-
