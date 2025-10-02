@@ -8,6 +8,19 @@ using MediaBrowser.Model.Serialization;
 
 namespace FolderCollections
 {
+    public class PluginConfiguration : BasePluginConfiguration
+    {
+        public bool IncludeMovies { get; set; } = true;
+        public bool IncludeSeries { get; set; } = true;
+        public int MinItems { get; set; } = 2;
+        public string Prefix { get; set; } = "";
+        public string Suffix { get; set; } = "";
+        public int ScanHour { get; set; } = 4;
+        public int ScanMinute { get; set; } = 0;
+        public string[] PathPrefixes { get; set; } = Array.Empty<string>();
+        public string[] IgnorePatterns { get; set; } = Array.Empty<string>();
+    }
+
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         public static Plugin? Instance { get; private set; }
@@ -23,18 +36,18 @@ namespace FolderCollections
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
+            // Der Name "config" ist Pflicht, damit das Zahnrad angezeigt wird
             new PluginPageInfo
             {
-                Name = "folderCollectionsConfigPage",
+                Name = "config",
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.html"
             },
+            // JS-Resource ohne Punkt im Namen! (sonst versucht der Browser eine Datei-URL)
             new PluginPageInfo
             {
-                // KEIN Punkt im Namen!
-                Name = "folderCollectionsConfigJs",
+                Name = "configjs",
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.js"
             }
         };
-
     }
 }
