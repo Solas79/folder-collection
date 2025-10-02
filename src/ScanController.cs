@@ -1,41 +1,35 @@
-using MediaBrowser.Controller.Net;
-using MediaBrowser.Model.Services;
-using MediaBrowser.Model.Tasks;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Controller.Net;
+using MediaBrowser.Model.Services;
+using Microsoft.Extensions.Logging;
 
 namespace FolderCollections
 {
+    // POST /Plugins/{PluginId}/Scan
     [Route("/Plugins/{PluginId}/Scan", "POST", Summary = "Startet den FolderCollections-Scan manuell")]
     public class ManualScanRequest : IReturnVoid
     {
-        public string PluginId { get; set; }
+        public string PluginId { get; set; } = "";
     }
 
     public class ScanController : IService
     {
-        private readonly IScheduledTaskManager _taskManager;
+        private readonly ILoggerFactory _loggerFactory;
 
-        public ScanController(IScheduledTaskManager taskManager)
+        public ScanController(ILoggerFactory loggerFactory)
         {
-            _taskManager = taskManager;
+            _loggerFactory = loggerFactory;
         }
 
         public async Task Post(ManualScanRequest request)
         {
-            // Task nach Typ finden
-            var task = _taskManager.ScheduledTasks
-                .FirstOrDefault(t => t.ScheduledTask.GetType() == typeof(FolderCollectionsTask));
+            // Task direkt ausführen – ohne IScheduledTaskManager
+            var logger = _loggerFactory.CreateLogger<FolderCollectionsTask>();
+            var task = new FolderCollectionsTask(logger);
 
-            if (task == null)
-            {
-                throw new InvalidOperationException("FolderCollectionsTask wurde nicht gefunden.");
-            }
-
-            // Task manuell ausführen
-            await _taskManager.Execute(task.ScheduledTask, CancellationToken.None);
+            await task.ExecuteAsync(progress: null, cancellationToken: CancellationToken.None);
         }
     }
 }
