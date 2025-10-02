@@ -24,7 +24,6 @@ namespace FolderCollections
 
         public async Task Post(ManualScanRequest request)
         {
-            // Task direkt ausführen – ohne IScheduledTaskManager
             var logger = _loggerFactory.CreateLogger<FolderCollectionsTask>();
             var task = new FolderCollectionsTask(logger);
 
