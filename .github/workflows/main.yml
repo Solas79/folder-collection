@@ -3,6 +3,7 @@ name: Build Jellyfin FolderCollections Plugin
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -27,16 +28,19 @@ jobs:
           dotnet-version: '8.0.x'
           cache: true
           cache-dependency-path: |
-            nuget.config
+            NuGet.config
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      - name: Restore (with retry/backoff)
+      - name: Restore (with NuGet.config + retry)
         shell: bash
         run: |
           set -e
           for i in 0 1 2 3 4 5; do
-            if dotnet restore src/FolderCollectionsPlugin.csproj --nologo; then
+            if dotnet restore src/FolderCollectionsPlugin.csproj \
+                 --configfile NuGet.config \
+                 --nologo \
+                 --ignore-failed-sources; then
               exit 0
             fi
             echo "Restore failed (attempt $((i+1))). Retrying..."
@@ -48,21 +52,34 @@ jobs:
       - name: Build (Release)
         run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
 
-      - name: Publish AnyCPU (no build)
+      - name: Publish (framework-dependent, AnyCPU)
         run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
 
-      - name: Archive plugin
+      - name: Read version from csproj
+        id: get_version
+        shell: bash
+        run: |
+          ver=$(grep -oPm1 '(?<=<Version>)[^<]+' src/FolderCollectionsPlugin.csproj)
+          echo "version=$ver" >> $GITHUB_OUTPUT
+          echo "Detected version: $ver"
+
+      - name: Archive plugin (strip server core DLLs)
+        shell: bash
         run: |
           cd publish
-          zip -r FolderCollections_0.4.4.zip . \
-            -x "MediaBrowser.*.dll" "Jellyfin.*.dll" "Emby.*.dll"
- 
+          zipname="FolderCollections_${{ steps.get_version.outputs.version }}.zip"
+          rm -f MediaBrowser.*.dll Jellyfin.*.dll Emby.*.dll || true
+          zip -r "$zipname" . -q
+          mv "$zipname" ../
+          cd ..
+          echo "ZIP=$zipname" >> $GITHUB_ENV
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCollections
-          path: FolderCollections.zip
+          name: FolderCollections_${{ steps.get_version.outputs.version }}
+          path: ${{ env.ZIP }}
+          if-no-files-found: error
 
   release:
     needs: build
@@ -73,9 +90,34 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: FolderCollections
+          name: FolderCollections_${{ github.ref_name }}
+        continue-on-error: true
+
+      - name: "Fallback: download any artifact if version-name mismatch"
+        if: ${{ failure() }}
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Pick ZIP name
+        id: pick_zip
+        shell: bash
+        run: |
+          set -e
+          if compgen -G "*.zip" > /dev/null; then
+            zipfile=$(ls -1 *.zip | head -n1)
+          else
+            zipfile=$(ls -1 artifacts/**/*.zip | head -n1)
+            [ -z "$zipfile" ] && { echo "No zip found"; exit 1; }
+            cp "$zipfile" .
+            zipfile=$(basename "$zipfile")
+          fi
+          echo "zipfile=$zipfile" >> $GITHUB_OUTPUT
+          echo "Using ZIP: $zipfile"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: FolderCollections.zip
+          files: ${{ steps.pick_zip.outputs.zipfile }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
