@@ -7,55 +7,63 @@
     <div class="verticalSection">
       <h1>Folder Collections – Einstellungen</h1>
 
-      <div class="inputContainer">
-        <label for="includeMovies">Filme einbeziehen</label>
-        <input is="emby-checkbox" id="includeMovies" type="checkbox">
-      </div>
+      <form id="fcForm" class="form">
 
-      <div class="inputContainer">
-        <label for="includeSeries">Serien einbeziehen</label>
-        <input is="emby-checkbox" id="includeSeries" type="checkbox">
-      </div>
-
-      <div class="inputContainer">
-        <label for="minItems">Min. Items/Ordner</label>
-        <input is="emby-input" id="minItems" type="number" min="0" step="1" required>
-      </div>
-
-      <div class="inputContainer">
-        <label for="prefix">Prefix</label>
-        <input is="emby-input" id="prefix" type="text" placeholder="z.B. Box:">
-      </div>
-
-      <div class="inputContainer">
-        <label for="suffix">Suffix</label>
-        <input is="emby-input" id="suffix" type="text" placeholder="z.B. Collection">
-      </div>
-
-      <div class="inputContainer flex align-items-center">
-        <label for="scanHour">Tägliche Scan-Zeit</label>
-        <div class="flex" style="gap:.5rem; align-items:center;">
-          <input is="emby-input" id="scanHour" type="number" min="0" max="23" step="1" style="width:5rem;">
-          :
-          <input is="emby-input" id="scanMinute" type="number" min="0" max="59" step="1" style="width:5rem;">
+        <div class="inputContainer">
+          <label class="checkboxLabel">
+            <input is="emby-checkbox" id="includeMovies" type="checkbox" />
+            <span>Filme einbeziehen</span>
+          </label>
         </div>
-      </div>
 
-      <div class="inputContainer">
-        <label for="pathPrefixes">Pfad-Präfixe (Whitelist, eine pro Zeile)</label>
-        <textarea is="emby-input" id="pathPrefixes" rows="4"></textarea>
-      </div>
+        <div class="inputContainer">
+          <label class="checkboxLabel">
+            <input is="emby-checkbox" id="includeSeries" type="checkbox" />
+            <span>Serien einbeziehen</span>
+          </label>
+        </div>
 
-      <div class="inputContainer">
-        <label for="ignorePatterns">Ignore-Patterns (Regex, eine pro Zeile)</label>
-        <textarea is="emby-input" id="ignorePatterns" rows="4"></textarea>
-      </div>
+        <div class="inputContainer">
+          <label for="minItems">Min. Items/Ordner</label>
+          <input is="emby-input" id="minItems" type="number" min="0" step="1" required>
+        </div>
 
-      <div class="buttons formButtons">
-        <button is="emby-button" type="button" class="raised button-cancel" onclick="window.fcCancel()">Abbrechen</button>
-        <button is="emby-button" type="button" class="raised accent button-submit" id="fcSave" onclick="window.fcSave()">Speichern</button>
-        <button is="emby-button" type="button" class="raised" id="fcManualScan" onclick="window.fcManualScan(this)">Manuell scannen</button>
-      </div>
+        <div class="inputContainer">
+          <label for="prefix">Prefix</label>
+          <input is="emby-input" id="prefix" type="text" placeholder="z.B. Box:">
+        </div>
+
+        <div class="inputContainer">
+          <label for="suffix">Suffix</label>
+          <input is="emby-input" id="suffix" type="text" placeholder="z.B. Collection">
+        </div>
+
+        <div class="inputContainer flex align-items-center">
+          <label for="scanHour">Tägliche Scan-Zeit</label>
+          <div class="flex" style="gap:.5rem; align-items:center;">
+            <input is="emby-input" id="scanHour" type="number" min="0" max="23" step="1" style="width:5rem;">
+            :
+            <input is="emby-input" id="scanMinute" type="number" min="0" max="59" step="1" style="width:5rem;">
+          </div>
+        </div>
+
+        <div class="inputContainer">
+          <label for="pathPrefixes">Pfad-Präfixe (Whitelist, eine pro Zeile)</label>
+          <textarea is="emby-input" id="pathPrefixes" rows="4"></textarea>
+        </div>
+
+        <div class="inputContainer">
+          <label for="ignorePatterns">Ignore-Patterns (Regex, eine pro Zeile)</label>
+          <textarea is="emby-input" id="ignorePatterns" rows="4"></textarea>
+        </div>
+
+        <div class="buttons formButtons">
+          <button is="emby-button" type="button" class="raised button-cancel" id="fcCancel">Abbrechen</button>
+          <button is="emby-button" type="submit" class="raised accent button-submit" id="fcSave">Speichern</button>
+          <button is="emby-button" type="button" class="raised" id="fcManualScan">Manuell scannen</button>
+        </div>
+
+      </form>
     </div>
   </div>
 
