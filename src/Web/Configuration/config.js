@@ -46,6 +46,25 @@
     Dashboard.processPluginConfigurationUpdateResult(result);
   }
 
+  // ➜ NEU: manueller Scan
+  async function manualScan(btn) {
+    try {
+      btn?.setAttribute("disabled", "disabled");
+      btn?.classList.add("idleProcessing");
+
+      // POST auf deinen Plugin-Endpunkt
+      await ApiClient.fetchApi(`/Plugins/${pluginId}/Scan`, { method: "POST" });
+
+      Dashboard.alert("Manueller Scan gestartet!");
+    } catch (err) {
+      Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
+      // optional: console.error(err);
+    } finally {
+      btn?.removeAttribute("disabled");
+      btn?.classList.remove("idleProcessing");
+    }
+  }
+
   document.addEventListener("pageshow", (e) => {
     if (e.target.id === "folderCollectionsConfigPage") load().catch(console.error);
   });
@@ -57,6 +76,11 @@
     } else if (e.target.classList.contains("button-cancel")) {
       e.preventDefault();
       history.back();
+    }
+    // ➜ NEU: Button-Klick abfangen
+    else if (e.target.id === "fcManualScan") {
+      e.preventDefault();
+      manualScan(e.target).catch(console.error);
     }
   });
 })();
