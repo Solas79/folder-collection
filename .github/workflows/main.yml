@@ -54,7 +54,9 @@ jobs:
       - name: Archive plugin
         run: |
           cd publish
-          zip -r ../FolderCollections.zip .
+          zip -r FolderCollections_0.4.4.zip . \
+            -x "MediaBrowser.*.dll" "Jellyfin.*.dll" "Emby.*.dll"
+ 
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
