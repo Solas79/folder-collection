@@ -5,48 +5,65 @@
   function toLines(arr) { return Array.isArray(arr) ? arr.join("\n") : (arr || ""); }
   function fromLines(text) { return (text || "").split("\n").map(s => s.trim()).filter(Boolean); }
 
+  function getEl(id) { return document.getElementById(id); }
+
   async function load() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId);
 
-    document.getElementById("includeMovies").checked = !!cfg.IncludeMovies;
-    document.getElementById("includeSeries").checked = !!cfg.IncludeSeries;
-    document.getElementById("minItems").value = cfg.MinItems ?? 2;
-    document.getElementById("prefix").value = cfg.Prefix ?? "";
-    document.getElementById("suffix").value = cfg.Suffix ?? "";
-    document.getElementById("scanHour").value = cfg.ScanHour ?? 4;
-    document.getElementById("scanMinute").value = cfg.ScanMinute ?? 0;
-    document.getElementById("pathPrefixes").value = toLines(cfg.PathPrefixes);
-    document.getElementById("ignorePatterns").value = toLines(cfg.IgnorePatterns);
+    getEl("includeMovies").checked = !!cfg.IncludeMovies;
+    getEl("includeSeries").checked = !!cfg.IncludeSeries;
+    getEl("minItems").value = cfg.MinItems ?? 2;
+    getEl("prefix").value = cfg.Prefix ?? "";
+    getEl("suffix").value = cfg.Suffix ?? "";
+    getEl("scanHour").value = cfg.ScanHour ?? 4;
+    getEl("scanMinute").value = cfg.ScanMinute ?? 0;
+    getEl("pathPrefixes").value = toLines(cfg.PathPrefixes);
+    getEl("ignorePatterns").value = toLines(cfg.IgnorePatterns);
+
+    // NEU: Checkbox für "Basename als Sammlungsname"
+    if (getEl("useBasename")) {
+      getEl("useBasename").checked = !!cfg.UseBasenameAsCollectionName;
+    }
   }
 
   async function save() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId);
 
-    cfg.IncludeMovies = document.getElementById("includeMovies").checked;
-    cfg.IncludeSeries = document.getElementById("includeSeries").checked;
-    cfg.MinItems = parseInt(document.getElementById("minItems").value, 10) || 0;
-    cfg.Prefix = document.getElementById("prefix").value.trim();
-    cfg.Suffix = document.getElementById("suffix").value.trim();
+    cfg.IncludeMovies = getEl("includeMovies").checked;
+    cfg.IncludeSeries = getEl("includeSeries").checked;
+    cfg.MinItems = parseInt(getEl("minItems").value, 10) || 0;
+    cfg.Prefix = getEl("prefix").value.trim();
+    cfg.Suffix = getEl("suffix").value.trim();
 
-    const hour = Math.min(23, Math.max(0, parseInt(document.getElementById("scanHour").value, 10) || 4));
-    const minute = Math.min(59, Math.max(0, parseInt(document.getElementById("scanMinute").value, 10) || 0));
+    const hour = Math.min(23, Math.max(0, parseInt(getEl("scanHour").value, 10) || 4));
+    const minute = Math.min(59, Math.max(0, parseInt(getEl("scanMinute").value, 10) || 0));
     cfg.ScanHour = hour;
     cfg.ScanMinute = minute;
 
-    cfg.PathPrefixes = fromLines(document.getElementById("pathPrefixes").value);
-    cfg.IgnorePatterns = fromLines(document.getElementById("ignorePatterns").value);
+    cfg.PathPrefixes = fromLines(getEl("pathPrefixes").value);
+    cfg.IgnorePatterns = fromLines(getEl("ignorePatterns").value);
 
-    const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    Dashboard.processPluginConfigurationUpdateResult(result);
+    // NEU: Checkbox speichern
+    if (getEl("useBasename")) {
+      cfg.UseBasenameAsCollectionName = getEl("useBasename").checked;
+    }
 
-    if (result?.IsUpdated === false) {
-      Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
-    } else {
-      Dashboard.alert("Gespeichert.");
+    try {
+      const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
+      Dashboard.processPluginConfigurationUpdateResult(result);
+      if (result?.IsUpdated === false) {
+        Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
+      } else {
+        Dashboard.alert("Gespeichert.");
+      }
+    } catch (err) {
+      const msg = (err && (err.statusText || err.message)) || "Unbekannter Fehler";
+      Dashboard.alert("Speichern fehlgeschlagen: " + msg);
+      console.error(err);
     }
   }
 
-  // Manuell scannen via ScheduledTask-API (kein eigener Controller nötig)
+  // Manuell scannen via ScheduledTask-API (robust & saubere Errors)
   async function manualScan(btn) {
     try {
       btn?.setAttribute("disabled", "disabled");
@@ -59,15 +76,21 @@
       );
       if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
 
-      try {
-        await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
-      } catch {
-        await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" });
+      // Erst regulär triggern, bei 409/konkurrierend auf Running-Fallback
+      let resp = await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
+      if (!resp?.ok) {
+        // Fallback: evtl. Endpunkt-Variation (wie bei älteren Servern)
+        resp = await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" });
+        if (!resp?.ok) {
+          const txt = await safeReadBody(resp);
+          throw new Error(`${resp.status} ${resp.statusText || ""} ${txt}`.trim());
+        }
       }
 
       Dashboard.alert("Manueller Scan gestartet!");
     } catch (err) {
-      Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
+      const msg = buildErrorMessage(err);
+      Dashboard.alert("Fehler beim Starten des Scans: " + msg);
       console.error(err);
     } finally {
       btn?.removeAttribute("disabled");
@@ -75,15 +98,34 @@
     }
   }
 
+  // Hilfsfunktionen für robuste Fehlertexte
+  function buildErrorMessage(err) {
+    // ApiClient.fetchApi gibt bei Fehlern teils Response-ähnliche Objekte, teils Exceptions
+    if (!err) return "Unbekannter Fehler";
+    // Versuch: Status/StatusText
+    const statusTxt = err.statusText || err.status;
+    const msg = err.message || "";
+    if (statusTxt && msg) return `${statusTxt}: ${msg}`;
+    return statusTxt || msg || String(err);
+  }
+
+  async function safeReadBody(resp) {
+    try {
+      if (!resp || typeof resp.text !== "function") return "";
+      const t = await resp.text();
+      return (t || "").slice(0, 200); // nicht zu lang machen
+    } catch { return ""; }
+  }
+
   // Einmalige Initialisierung: auf Form-Submit hören (unkaputtbar)
   function init() {
-    const page = document.getElementById("folderCollectionsConfigPage");
+    const page = getEl("folderCollectionsConfigPage");
     if (!page || page.dataset.initialized === "1") return;
     page.dataset.initialized = "1";
 
-    const form = document.getElementById("fcForm");
-    const cancelBtn = document.getElementById("fcCancel");
-    const scanBtn = document.getElementById("fcManualScan");
+    const form = getEl("fcForm");
+    const cancelBtn = getEl("fcCancel");
+    const scanBtn = getEl("fcManualScan");
 
     form?.addEventListener("submit", (ev) => {
       ev.preventDefault();
