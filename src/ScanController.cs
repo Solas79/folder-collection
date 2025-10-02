@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
 using Microsoft.Extensions.Logging;
+using MediaBrowser.Model.Tasks;
 
 namespace FolderCollections
 {
