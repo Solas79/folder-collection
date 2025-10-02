@@ -109,58 +109,30 @@
     }
 
     // Task manuell starten (offizielle Methode + Fallbacks)
-    async function manualScan(btn) {
-      const tidyError = (err) => {
-        if (!err) return "Unbekannter Fehler";
-        if (typeof err === "string") return err;
-        if (err.status) return `${err.status} ${err.statusText || ""}`.trim();
-        if (err.message) return err.message;
-        try { return JSON.stringify(err); } catch { return String(err); }
-      };
+   async function manualScan(btn) {
+       const tidyError = (err) => {
+         if (!err) return "Unbekannter Fehler";
+         if (err.status) return `${err.status} ${err.statusText || ""}`.trim();
+         if (err.message) return err.message;
+         try { return JSON.stringify(err); } catch { return String(err); }
+       };
+       try {
+         btn?.setAttribute("disabled","disabled");
+         btn?.classList.add("idleProcessing");
 
-      let taskId = null;
+         // Controller-Endpunkt aufrufen
+         const url = ApiClient.getUrl("Plugins/FolderCollections/Scan");
+         await ApiClient.ajax({ type: "POST", url });
 
-      try {
-        btn?.setAttribute("disabled","disabled");
-        btn?.classList.add("idleProcessing");
-
-        // 1) Task-Liste holen
-        const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
-        const t = tasks.find(x =>
-          x?.Key === "FolderCollections.DailyScan" ||
-          (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
-        );
-        if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
-        taskId = t.Id;
-
-        // 2) Offiziell starten
-        await ApiClient.startScheduledTask(taskId);
-
-        Dashboard.alert("Manueller Scan gestartet!");
-      } catch (e1) {
-        try {
-          // Fallback-Route 1
-          if (taskId == null) throw e1;
-          const triggerUrl = ApiClient.getUrl(`ScheduledTasks/${taskId}/Trigger`);
-          await ApiClient.ajax({ type: "POST", url: triggerUrl });
-          Dashboard.alert("Manueller Scan gestartet (Fallback).");
-        } catch (e2) {
-          try {
-            // Fallback-Route 2 (sehr alt)
-            if (taskId == null) throw e2;
-            const legacyUrl = ApiClient.getUrl(`ScheduledTasks/Running/${taskId}`);
-            await ApiClient.ajax({ type: "POST", url: legacyUrl });
-            Dashboard.alert("Manueller Scan gestartet (Legacy).");
-          } catch (e3) {
-            Dashboard.alert("Fehler beim Starten des Scans: " + tidyError(e3));
-            console.error(e3);
-          }
-        }
-      } finally {
-        btn?.removeAttribute("disabled");
-        btn?.classList.remove("idleProcessing");
-      }
-    }
+         Dashboard.alert("Manueller Scan ausgeführt.");
+       } catch (e) {
+         Dashboard.alert("Fehler beim Starten: " + tidyError(e));
+         console.error(e);
+       } finally {
+         btn?.removeAttribute("disabled");
+         btn?.classList.remove("idleProcessing");
+       }
+     }
 
     function init() {
       const page = document.getElementById("folderCollectionsConfigPage");
