@@ -1,26 +1,25 @@
-<PropertyGroup>
-  <TargetFramework>net8.0</TargetFramework>
-  <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-  <SelfContained>false</SelfContained>
-  <PublishSingleFile>false</PublishSingleFile>
-</PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
 
-<ItemGroup>
-  <!-- Kern-APIs für Services/Route/IReturn/IService -->
-  <PackageReference Include="Jellyfin.Controller" Version="10.10.7">
-    <ExcludeAssets>runtime</ExcludeAssets>
-  </PackageReference>
-  <!-- Model enthält MediaBrowser.Model.Services + Tasks -->
-  <PackageReference Include="Jellyfin.Model" Version="10.10.7">
-    <ExcludeAssets>runtime</ExcludeAssets>
-  </PackageReference>
-  <!-- Common-Utilities/Abhängigkeiten (Logging, Serialization-Helfer, etc.) -->
-  <PackageReference Include="Jellyfin.Common" Version="10.10.7">
-    <ExcludeAssets>runtime</ExcludeAssets>
-  </PackageReference>
-</ItemGroup>
+    <AssemblyName>FolderCollections</AssemblyName>
+    <RootNamespace>FolderCollections</RootNamespace>
 
-  <!-- Referenzen passend zu deiner Serverversion; Runtime ausschließen -->
+    <Version>0.4.4</Version>
+    <Authors>Solas79</Authors>
+    <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
+
+    <!-- wichtig: keine Server-Core-DLLs automatisch mitkopieren -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <!-- Referenzen zur Jellyfin 10.10.7 API; Runtime ausschließen -->
   <ItemGroup>
     <PackageReference Include="Jellyfin.Common" Version="10.10.7">
       <ExcludeAssets>runtime</ExcludeAssets>
@@ -33,12 +32,12 @@
     </PackageReference>
   </ItemGroup>
 
-  <!-- Web-UI eingebettet (zeigt das Zahnrad) -->
+  <!-- Web-UI einbetten -->
   <ItemGroup>
-    <None Remove="Web\Configuration\config.html" />
-    <None Remove="Web\Configuration\config.js" />
-    <EmbeddedResource Include="Web\Configuration\config.html" />
-    <EmbeddedResource Include="Web\Configuration\config.js" />
+    <None Remove="Web/Configuration/config.html" />
+    <None Remove="Web/Configuration/config.js" />
+    <EmbeddedResource Include="Web/Configuration/config.html" />
+    <EmbeddedResource Include="Web/Configuration/config.js" />
   </ItemGroup>
 
   <!-- optional: etwas strenger -->
