@@ -2,7 +2,7 @@
   {
     "name": "Folder Collections",
     "guid": "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "targetAbi": "10.10.0.0",
     "framework": "net8.0",
     "overview": "Create collections (BoxSets) automatically by grouping library items per parent folder.",
@@ -16,8 +16,8 @@
     "assets": [
       {
         "name": "linux-x64",
-        "version": "0.4.5",
-        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.4.5/FolderCollections_0.4.5.zip"
+        "version": "0.4.6",
+        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.4.6/FolderCollections_0.4.6.zip"
       }
     ]
   }
