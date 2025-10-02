@@ -18,11 +18,17 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     public IEnumerable<PluginPageInfo> GetPages() => new[]
+{
+    new PluginPageInfo
     {
-        new PluginPageInfo
-        {
-            Name = "folderCollectionsConfigPage",
-            EmbeddedResourcePath = $"{GetType().Namespace}.Web.Configuration.config.html"
-        }
-    };
+        Name = "config",
+        EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.html"
+    },
+    new PluginPageInfo
+    {
+        Name = "config.js",
+        EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.js"
+    }
+};
+
 }
