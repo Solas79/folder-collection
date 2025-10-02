@@ -3,7 +3,7 @@
     "name": "Folder Collections",
     "guid": "4bb2a3d2-b8c6-4b3f-bf2c-d1a3e4e9b7a1",
     "version": "0.4.2",
-    "targetAbi": "10.9.0.0",
+    "targetAbi": "10.10.0.0",
     "framework": "net8.0",
     "overview": "Create collections (BoxSets) automatically by grouping library items per parent folder.",
     "description": "Groups Movies/Series by their parent folder into BoxSets. Configurable prefixes, ignore patterns, and minimum item count.",
