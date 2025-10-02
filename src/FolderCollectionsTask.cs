@@ -107,7 +107,7 @@ namespace FolderCollections
 
                 try
                 {
-                    var collection = await EnsureCollectionAsync(collectionName, cancellationToken);
+                    var collection = await EnsureCollectionAsync(collectionName /*, cancellationToken*/);
 
                     // Items hinzufügen – beide geläufigen Overloads abdecken
                     var ok = await TryAddById(collection, itemIds, cancellationToken)
@@ -196,13 +196,14 @@ namespace FolderCollections
         }
 
         /// <summary>Sichert, dass die Collection existiert (finden oder neu erstellen).</summary>
-        private async Task<CollectionFolder> EnsureCollectionAsync(string name, CancellationToken ct)
+        private async Task<CollectionFolder> EnsureCollectionAsync(string name /*, CancellationToken ct*/)
         {
             var exist = FindCollectionByName(name);
             if (exist != null)
                 return exist;
 
-            return await _collections.CreateCollectionAsync(name, ct);
+            // Jellyfin 10.10.7: CreateCollectionAsync hat KEINEN CancellationToken-Parameter
+            return await _collections.CreateCollectionAsync(name);
         }
 
         // Overload A: (Guid, IEnumerable<Guid>)
