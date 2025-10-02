@@ -30,18 +30,13 @@ namespace FolderCollections
                 cfg.IncludeMovies, cfg.IncludeSeries, cfg.MinItems, cfg.Prefix, cfg.Suffix, cfg.ScanHour, cfg.ScanMinute);
 
             progress?.Report(0);
-
-            // TODO: hier deine eigentliche Scan-/Erstell-Logik
+            // TODO: deine eigentliche Logik
             await Task.Delay(200, cancellationToken);
-
             progress?.Report(100);
+
             _logger.LogInformation("FolderCollectionsTask beendet.");
         }
 
-        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
-        {
-            // Standardmäßig keine Auto-Trigger setzen; Zeitplan im Dashboard konfigurieren
-            return Array.Empty<TaskTriggerInfo>();
-        }
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
     }
 }
