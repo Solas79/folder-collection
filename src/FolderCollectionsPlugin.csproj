@@ -13,13 +13,11 @@
     <Authors>Solas79</Authors>
     <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
 
-    <!-- wichtig: keine Server-Core-DLLs automatisch mitkopieren -->
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
-  <!-- Referenzen zur Jellyfin 10.10.7 API; Runtime ausschließen -->
   <ItemGroup>
     <PackageReference Include="Jellyfin.Common" Version="10.10.7">
       <ExcludeAssets>runtime</ExcludeAssets>
@@ -32,7 +30,6 @@
     </PackageReference>
   </ItemGroup>
 
-  <!-- Web-UI einbetten -->
   <ItemGroup>
     <None Remove="Web/Configuration/config.html" />
     <None Remove="Web/Configuration/config.js" />
@@ -40,7 +37,6 @@
     <EmbeddedResource Include="Web/Configuration/config.js" />
   </ItemGroup>
 
-  <!-- optional: etwas strenger -->
   <PropertyGroup>
     <WarningsAsErrors>nullable</WarningsAsErrors>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
