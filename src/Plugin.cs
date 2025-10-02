@@ -25,14 +25,16 @@ namespace FolderCollections
         {
             new PluginPageInfo
             {
-                Name = "config",
+                Name = "folderCollectionsConfigPage",
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.html"
             },
             new PluginPageInfo
             {
-                Name = "config.js",
+                // KEIN Punkt im Namen!
+                Name = "folderCollectionsConfigJs",
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.js"
             }
         };
+
     }
 }
