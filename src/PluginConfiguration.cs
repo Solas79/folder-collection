@@ -6,6 +6,7 @@ namespace FolderCollections
     {
         public bool IncludeMovies { get; set; } = true;
         public bool IncludeSeries { get; set; } = true;
+        public bool UseBasenameAsCollectionName { get; set; } - true;
         public int MinItems { get; set; } = 2;
         public string Prefix { get; set; } = "";
         public string Suffix { get; set; } = "";
