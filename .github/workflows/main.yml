@@ -15,43 +15,52 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout (shallow)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    steps:- name: Checkout (shallow)
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 1
 
-      - name: Setup .NET 8 (with NuGet cache)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-          cache: true
-          # passe die Pfade an dein Repo an – mehrere Pfade mit Zeilenumbruch:
-          cache-dependency-path: |
-            nuget.config
-            src/FolderCollectionsPlugin.csproj
-            **/packages.lock.json
+- name: Setup .NET 8 (with NuGet cache)
+  uses: actions/setup-dotnet@v4
+  with:
+    dotnet-version: '8.0.x'
+    cache: true
+    cache-dependency-path: |
+      nuget.config
+      src/FolderCollectionsPlugin.csproj
+      **/packages.lock.json
 
-      # Wenn du nuget.config im Repo hast, brauchst du den Add-Source-Step NICHT.
-      # Falls nicht vorhanden -> idempotente Variante:
-      - name: Ensure Jellyfin feed
-        shell: bash
-        run: |
-          if dotnet nuget list source | grep -q "^  jellyfin "; then
-            echo "NuGet source 'jellyfin' already exists."
-          else
-            dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json --name jellyfin
-          fi
+# Idempotent: Feed nur hinzufügen, falls nicht vorhanden
+- name: Ensure Jellyfin feed
+  shell: bash
+  run: |
+    if dotnet nuget list source | grep -q "^  jellyfin "; then
+      echo "NuGet source 'jellyfin' already exists."
+    else
+      dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json --name jellyfin
+    fi
 
-      - name: Restore
-        run: dotnet restore src/FolderCollectionsPlugin.csproj --nologo
+# Robust: Restore mit Exponential Backoff (hilft bei 503)
+- name: Restore (with retry)
+  shell: bash
+  run: |
+    set -e
+    for i in 0 1 2 3 4 5; do
+      if dotnet restore src/FolderCollectionsPlugin.csproj --nologo; then
+        exit 0
+      fi
+      echo "Restore failed (attempt $((i+1))). Retrying..."
+      sleep $((2**i))  # 1,2,4,8,16,32s
+    done
+    echo "Restore failed after retries."
+    exit 1
 
-      - name: Build (Release)
-        run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
+- name: Build (Release)
+  run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
 
-      # Kein zweiter Compile: publish nutzt das Build-Ergebnis
-      - name: Publish AnyCPU (no build)
-        run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
+- name: Publish AnyCPU (no build)
+  run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
+
 
       - name: Archive plugin
         run: |
