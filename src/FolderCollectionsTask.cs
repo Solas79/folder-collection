@@ -5,10 +5,10 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Data.Enums;                         // <- BaseItemKind
-using MediaBrowser.Controller.Collections;
+using Jellyfin.Data.Enums;                         // BaseItemKind (Movie, Series, BoxSet)
+using MediaBrowser.Controller.Collections;        // ICollectionManager
 using MediaBrowser.Controller.Entities;           // CollectionFolder
-using MediaBrowser.Controller.Library;            // ILibraryManager, InternalItemsQuery
+using MediaBrowser.Controller.Library;            // ILibraryManager
 using MediaBrowser.Model.Querying;                // InternalItemsQuery
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
@@ -60,7 +60,7 @@ namespace FolderCollections
                 .Cast<Regex>()
                 .ToArray();
 
-            // Welche Typen?
+            // Medientypen bestimmen (Jellyfin 10.10.x – BaseItemKind)
             var kinds = new List<BaseItemKind>();
             if (cfg.IncludeMovies) kinds.Add(BaseItemKind.Movie);
             if (cfg.IncludeSeries) kinds.Add(BaseItemKind.Series);
@@ -73,12 +73,12 @@ namespace FolderCollections
             // Medien abrufen
             var items = _library.GetItemList(new InternalItemsQuery
             {
-                IncludeItemTypes = kinds.ToArray(), // <- BaseItemKind[]
+                IncludeItemTypes = kinds.ToArray(),   // BaseItemKind[]
                 Recursive = true,
                 IsVirtualItem = false
             });
 
-            // Gruppieren nach Elternordner
+            // Nach Elternordner gruppieren
             var groups = items
                 .Select(i => new { Item = i, FolderPath = SafeParentDir(i.Path) })
                 .Where(x => !string.IsNullOrWhiteSpace(x.FolderPath))
@@ -87,7 +87,7 @@ namespace FolderCollections
                 .GroupBy(x => x.FolderPath!, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            int createdOrUpdated = 0, skipped = 0;
+            int changed = 0, skipped = 0;
             int done = 0, total = groups.Count;
 
             foreach (var g in groups)
@@ -109,20 +109,18 @@ namespace FolderCollections
                 {
                     var collection = await EnsureCollectionAsync(collectionName, cancellationToken);
 
-                    // Jellyfin 10.10.x: viele Builds haben Overloads ohne CancellationToken
-                    // 1) Versuche (Guid, IEnumerable<Guid>)
-                    // 2) Fallback (CollectionFolder, IEnumerable<Guid>)
+                    // Items hinzufügen – beide geläufigen Overloads abdecken
                     var ok = await TryAddById(collection, itemIds, cancellationToken)
                              || await TryAddByFolder(collection, itemIds, cancellationToken);
 
                     if (ok)
                     {
-                        createdOrUpdated++;
+                        changed++;
                         _logger.LogInformation("Collection '{Name}' -> {Count} Items", collectionName, itemIds.Length);
                     }
                     else
                     {
-                        _logger.LogWarning("Items konnten nicht zu '{Name}' hinzugefügt werden (keine passende Overload gefunden).", collectionName);
+                        _logger.LogWarning("Items konnten nicht zu '{Name}' hinzugefügt werden (keine passende Overload).", collectionName);
                     }
                 }
                 catch (Exception ex)
@@ -134,12 +132,12 @@ namespace FolderCollections
             }
 
             _logger.LogInformation("FolderCollectionsTask beendet. Collections geändert={Changed}, übersprungen={Skipped}",
-                createdOrUpdated, skipped);
+                changed, skipped);
         }
 
         public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
 
-        // ==== Helper ====
+        // ===== Helpers =====
 
         private static string SafeParentDir(string? path)
         {
@@ -165,40 +163,68 @@ namespace FolderCollections
             return string.Join(" ", new[] { left, core, right }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
 
+        /// <summary>Bestehende Collection per ILibraryManager finden (nach Name), sonst null.</summary>
+        private CollectionFolder? FindCollectionByName(string name)
+        {
+            try
+            {
+                // Primär gezielt nach BoxSets suchen
+                var q = new InternalItemsQuery
+                {
+                    IncludeItemTypes = new[] { BaseItemKind.BoxSet },
+                    Recursive = true,
+                    SearchTerm = name
+                };
+
+                return _library.GetItemList(q)
+                    .OfType<CollectionFolder>()
+                    .FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                // Fallback: ohne Type-Filter
+                var q2 = new InternalItemsQuery
+                {
+                    Recursive = true,
+                    SearchTerm = name
+                };
+
+                return _library.GetItemList(q2)
+                    .OfType<CollectionFolder>()
+                    .FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        /// <summary>Sichert, dass die Collection existiert (finden oder neu erstellen).</summary>
         private async Task<CollectionFolder> EnsureCollectionAsync(string name, CancellationToken ct)
         {
-            var exist = _collections.FindCollectionByName(name);
-            if (exist != null) return exist;
+            var exist = FindCollectionByName(name);
+            if (exist != null)
+                return exist;
+
             return await _collections.CreateCollectionAsync(name, ct);
         }
 
+        // Overload A: (Guid, IEnumerable<Guid>)
         private async Task<bool> TryAddById(CollectionFolder folder, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
         {
             try
             {
-                // viele Server haben: AddToCollectionAsync(Guid collectionId, IEnumerable<Guid> itemIds)
                 await _collections.AddToCollectionAsync(folder.Id, itemIds);
                 return true;
             }
-            catch
-            {
-                // ignorieren, im Fallback erneut versuchen
-                return false;
-            }
+            catch { return false; }
         }
 
+        // Overload B: (CollectionFolder, IEnumerable<Guid>)
         private async Task<bool> TryAddByFolder(CollectionFolder folder, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
         {
             try
             {
-                // alternative Builds: AddToCollectionAsync(CollectionFolder, IEnumerable<Guid>)
                 await _collections.AddToCollectionAsync(folder, itemIds);
                 return true;
             }
-            catch
-            {
-                return false;
-            }
+            catch { return false; }
         }
 
         private static double Percent(int done, int total) => total == 0 ? 100 : (done * 100.0 / total);
