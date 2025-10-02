@@ -8,17 +8,28 @@
  using System.Threading.Tasks;
  using MediaBrowser.Model.Tasks;
  using Microsoft.Extensions.Logging;
- 
- namespace FolderCollections
- {
-     public class FolderCollectionsTask : IScheduledTask
-     {
-         private readonly ILogger<FolderCollectionsTask> _logger;
- 
-         public FolderCollectionsTask(ILogger<FolderCollectionsTask> logger)
-         {
-             _logger = logger;
-         }
+ using MediaBrowser.Controller.Collections;
+ using MediaBrowser.Controller.Library;
+
+// ggf. für BoxSet:
+using MediaBrowser.Controller.Entities.Movies;
+
+public class FolderCollectionsTask : IScheduledTask
+{
+    private readonly ILogger<FolderCollectionsTask> _logger;
+
+    // NEU: Felder für Services
+    private ICollectionManager? _collections;
+    private ILibraryManager? _library;
+
+    public FolderCollectionsTask(ILogger<FolderCollectionsTask> logger)
+    {
+        _logger = logger;
+        // Auflösung über das Plugin (kein DI im ctor)
+        _collections = Plugin.Instance?.ApplicationHost?.Resolve<ICollectionManager>();
+        _library     = Plugin.Instance?.ApplicationHost?.Resolve<ILibraryManager>();
+    }
+
  
          public string Name => "Folder Collections: täglicher Scan";
          public string Key => "FolderCollections.DailyScan";
