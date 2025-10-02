@@ -1,37 +1,47 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using MediaBrowser.Controller.Net;
-using MediaBrowser.Model.Services;
 using MediaBrowser.Model.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace FolderCollections
 {
-    [Route("/Plugins/{PluginId}/Scan", "POST", Summary = "Startet den FolderCollections-Scan manuell")]
-    public class ManualScanRequest : IReturnVoid
+    public class FolderCollectionsTask : IScheduledTask
     {
-        public string PluginId { get; set; } = "";
-    }
+        private readonly ILogger<FolderCollectionsTask> _logger;
 
-    public class ScanController : IService
-    {
-        private readonly IScheduledTaskManager _taskManager;
-
-        public ScanController(IScheduledTaskManager taskManager)
+        public FolderCollectionsTask(ILogger<FolderCollectionsTask> logger)
         {
-            _taskManager = taskManager;
+            _logger = logger;
         }
 
-        public async Task Post(ManualScanRequest request)
+        public string Name => "Folder Collections: täglicher Scan";
+        public string Key => "FolderCollections.DailyScan";
+        public string Description => "Erstellt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.";
+        public string Category => "Library";
+
+        public async Task ExecuteAsync(IProgress<double>? progress, CancellationToken cancellationToken)
         {
-            var taskInfo = _taskManager.ScheduledTasks
-                .FirstOrDefault(t => t.ScheduledTask.GetType() == typeof(FolderCollectionsTask));
+            var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
-            if (taskInfo == null)
-                throw new InvalidOperationException("FolderCollectionsTask wurde nicht gefunden.");
+            _logger.LogInformation(
+                "FolderCollectionsTask gestartet. IncludeMovies={IncludeMovies}, IncludeSeries={IncludeSeries}, MinItems={MinItems}, Prefix='{Prefix}', Suffix='{Suffix}', Scan={Hour:D2}:{Minute:D2}",
+                cfg.IncludeMovies, cfg.IncludeSeries, cfg.MinItems, cfg.Prefix, cfg.Suffix, cfg.ScanHour, cfg.ScanMinute);
 
-            await _taskManager.Execute(taskInfo.ScheduledTask, CancellationToken.None);
+            progress?.Report(0);
+
+            // TODO: hier deine eigentliche Scan-/Erstell-Logik
+            await Task.Delay(200, cancellationToken);
+
+            progress?.Report(100);
+            _logger.LogInformation("FolderCollectionsTask beendet.");
+        }
+
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
+        {
+            // Standardmäßig keine Auto-Trigger setzen; Zeitplan im Dashboard konfigurieren
+            return Array.Empty<TaskTriggerInfo>();
         }
     }
 }
