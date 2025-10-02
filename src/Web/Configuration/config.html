@@ -105,26 +105,40 @@
     }
 
     async function manualScan(btn) {
-      try {
-        btn?.setAttribute("disabled","disabled");
-        btn?.classList.add("idleProcessing");
-        const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
-        const t = tasks.find(x => x?.Key === "FolderCollections.DailyScan" ||
-          (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections")));
-        if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
+       try {
+          btn?.setAttribute("disabled", "disabled");
+          btn?.classList.add("idleProcessing");
 
-        try { await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" }); }
-        catch { await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" }); }
+         // 1) Tasks laden
+         const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
 
-        Dashboard.alert("Manueller Scan gestartet!");
-      } catch (e) {
-        Dashboard.alert("Fehler beim Starten des Scans: " + (e?.message || e));
-        console.error(e);
-      } finally {
-        btn?.removeAttribute("disabled");
-        btn?.classList.remove("idleProcessing");
-      }
-    }
+         // 2) Deinen Task finden
+         const t = tasks.find(x =>
+           x?.Key === "FolderCollections.DailyScan" ||
+           (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
+         );
+         if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
+
+         // 3) Task starten – erst den üblichen Trigger versuchen …
+         const triggerUrl = ApiClient.getUrl(`ScheduledTasks/${t.Id}/Trigger`);
+         try {
+           await ApiClient.ajax({ type: "POST", url: triggerUrl });
+         } catch (e1) {
+          // … Fallback für ältere Routen
+          const legacyUrl = ApiClient.getUrl(`ScheduledTasks/Running/${t.Id}`);
+          await ApiClient.ajax({ type: "POST", url: legacyUrl });
+         }
+
+         Dashboard.alert("Manueller Scan gestartet!");
+       } catch (err) {
+         Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
+         console.error(err);
+       } finally {
+         btn?.removeAttribute("disabled");
+         btn?.classList.remove("idleProcessing");
+       }
+     }
+
 
     function init() {
       const page = document.getElementById("folderCollectionsConfigPage");
