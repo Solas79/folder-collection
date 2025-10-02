@@ -25,14 +25,10 @@ namespace FolderCollections
         {
             new PluginPageInfo
             {
-                Name = "config",
+                Name = "config", // Pflichtname für das Zahnrad
                 EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.html"
-            },
-            new PluginPageInfo
-            {
-                Name = "configJs",
-                EmbeddedResourcePath = "FolderCollections.Web.Configuration.config.js"
             }
         };
+
     }
 }
