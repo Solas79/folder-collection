@@ -2,33 +2,56 @@ name: Build Jellyfin FolderCollections Plugin
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
+
+# Optional: bricht laufende Jobs ab, wenn es einen neueren Commit auf dem gleichen Ref gibt
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout (shallow)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Setup .NET 8
+      - name: Setup .NET 8 (with NuGet cache)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+          cache: true
+          # passe die Pfade an dein Repo an – mehrere Pfade mit Zeilenumbruch:
+          cache-dependency-path: |
+            nuget.config
+            src/FolderCollectionsPlugin.csproj
+            **/packages.lock.json
 
-      - name: Restore dependencies
-        run: dotnet restore src/FolderCollectionsPlugin.csproj
+      # Wenn du nuget.config im Repo hast, brauchst du den Add-Source-Step NICHT.
+      # Falls nicht vorhanden -> idempotente Variante:
+      - name: Ensure Jellyfin feed
+        shell: bash
+        run: |
+          if dotnet nuget list source | grep -q "^  jellyfin "; then
+            echo "NuGet source 'jellyfin' already exists."
+          else
+            dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json --name jellyfin
+          fi
+
+      - name: Restore
+        run: dotnet restore src/FolderCollectionsPlugin.csproj --nologo
 
       - name: Build (Release)
-        run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore
+        run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
 
-      - name: Publish AnyCPU
-        run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore
+      # Kein zweiter Compile: publish nutzt das Build-Ergebnis
+      - name: Publish AnyCPU (no build)
+        run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
 
       - name: Archive plugin
         run: |
