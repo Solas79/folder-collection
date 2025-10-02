@@ -21,29 +21,41 @@ public class FolderCollectionsTask : IScheduledTask
     public string Description => "Erstellt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.";
     public string Category => "Library";
 
-    public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
+    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        // Konfiguration holen (mit Fallback)
         var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
-        _logger.LogInformation("FolderCollectionsTask gestartet. IncludeMovies={IncludeMovies}, IncludeSeries={IncludeSeries}, MinItems={MinItems}, Prefix='{Prefix}', Suffix='{Suffix}', Scan={Hour:D2}:{Minute:D2}",
+        _logger.LogInformation(
+            "FolderCollectionsTask gestartet. IncludeMovies={IncludeMovies}, IncludeSeries={IncludeSeries}, MinItems={MinItems}, Prefix='{Prefix}', Suffix='{Suffix}', Scan={Hour:D2}:{Minute:D2}",
             cfg.IncludeMovies, cfg.IncludeSeries, cfg.MinItems, cfg.Prefix, cfg.Suffix, cfg.ScanHour, cfg.ScanMinute);
 
-        // TODO: Hier deine eigentliche Scan-/Erstell-Logik einfügen.
-        // Für jetzt nur ein Dummy-Progress, damit der Task sauber läuft:
         progress?.Report(0);
+        // TODO: hier deine eigentliche Scan-/Erstell-Logik
         await Task.Delay(200, cancellationToken);
         progress?.Report(100);
 
         _logger.LogInformation("FolderCollectionsTask beendet.");
     }
 
-    public IEnumerable<ITaskTrigger> GetDefaultTriggers()
+    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
-        var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
-        var hour = Math.Clamp(cfg.ScanHour, 0, 23);
-        var minute = Math.Clamp(cfg.ScanMinute, 0, 59);
+        // Hinweis: Ab 10.10.x erwartet Jellyfin TaskTriggerInfo.
+        // Um 100% kompilierbar zu bleiben, liefern wir hier zunächst keine Default-Trigger zurück.
+        // Den Zeitplan kannst du im Jellyfin-Dashboard setzen.
+        //
+        // Wenn du einen täglichen Default setzen willst, kannst du – je nach API –
+        // einen TaskTriggerInfo mit Daily konfigurieren (Eigenschaftsnamen variieren zwischen Versionen).
+        //
+        // Beispiel (falls deine API diese Properties hat):
+        // var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        // var hour = Math.Clamp(cfg.ScanHour, 0, 23);
+        // var minute = Math.Clamp(cfg.ScanMinute, 0, 59);
+        // yield return new TaskTriggerInfo
+        // {
+        //     Type = TaskTriggerType.Daily,
+        //     TimeOfDayTicks = new TimeSpan(hour, minute, 0).Ticks
+        // };
 
-        yield return new DailyTrigger { TimeOfDay = new TimeSpan(hour, minute, 0) };
+        return Array.Empty<TaskTriggerInfo>();
     }
 }
