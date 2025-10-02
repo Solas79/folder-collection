@@ -1,11 +1,9 @@
 (() => {
-  // ✏️ WICHTIG: Genau deine Plugin-GUID eintragen (wie in Plugin.cs & manifest.json)
+  // GUID exakt wie in Plugin.cs & manifest.json
   const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
 
   function toLines(arr) { return Array.isArray(arr) ? arr.join("\n") : (arr || ""); }
-  function fromLines(text) {
-    return (text || "").split("\n").map(s => s.trim()).filter(Boolean);
-  }
+  function fromLines(text) { return (text || "").split("\n").map(s => s.trim()).filter(Boolean); }
 
   async function load() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId);
@@ -48,24 +46,19 @@
     }
   }
 
-  // „Manuell scannen“: vorhandene ScheduledTask starten (kein eigener Controller nötig)
+  // Manuell scannen via ScheduledTask-API (kein eigener Controller nötig)
   async function manualScan(btn) {
     try {
       btn?.setAttribute("disabled", "disabled");
       btn?.classList.add("idleProcessing");
 
-      // 1) Tasks laden
       const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
-
-      // 2) Deinen Task finden (per Key oder Name)
       const t = tasks.find(x =>
         x?.Key === "FolderCollections.DailyScan" ||
         (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
       );
-
       if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
 
-      // 3) Triggern (Endpoint variiert je nach Jellyfin)
       try {
         await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
       } catch {
@@ -82,24 +75,36 @@
     }
   }
 
-  // Einmalige Initialisierung – robust für verschiedene Jellyfin-Events
+  // Einmalige Initialisierung: auf Form-Submit hören (unkaputtbar)
   function init() {
     const page = document.getElementById("folderCollectionsConfigPage");
     if (!page || page.dataset.initialized === "1") return;
     page.dataset.initialized = "1";
 
-    const saveBtn = document.getElementById("fcSave");        // <button id="fcSave">Speichern</button>
-    const cancelBtn = page.querySelector(".button-cancel");   // Abbrechen
-    const scanBtn = document.getElementById("fcManualScan");  // <button id="fcManualScan">Manuell scannen</button>
+    const form = document.getElementById("fcForm");
+    const cancelBtn = document.getElementById("fcCancel");
+    const scanBtn = document.getElementById("fcManualScan");
 
-    saveBtn?.addEventListener("click", (ev) => { ev.preventDefault(); save().catch(console.error); });
-    cancelBtn?.addEventListener("click", (ev) => { ev.preventDefault(); history.back(); });
-    scanBtn?.addEventListener("click", (ev) => { ev.preventDefault(); manualScan(ev.currentTarget).catch(console.error); });
+    form?.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      save().catch(console.error);
+    });
+
+    cancelBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      history.back();
+    });
+
+    scanBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      manualScan(ev.currentTarget).catch(console.error);
+    });
 
     load().catch(console.error);
   }
 
+  // Robust für alle Jellyfin-Frontends
   document.addEventListener("DOMContentLoaded", init);
-  document.addEventListener("viewshow", init);   // neuere Jellyfin-Views
-  document.addEventListener("pageshow", init);   // ältere/klassische Views
+  document.addEventListener("viewshow", init);
+  document.addEventListener("pageshow", init);
 })();
