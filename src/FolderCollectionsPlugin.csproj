@@ -9,7 +9,7 @@
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
 
-    <Version>0.4.4</Version>
+    <Version>0.4.5</Version>
     <Authors>Solas79</Authors>
     <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
 
