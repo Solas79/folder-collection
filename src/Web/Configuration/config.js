@@ -1,118 +1,105 @@
 (() => {
-  const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a"; // exakt wie in Plugin.cs
+  // ✏️ WICHTIG: Genau deine Plugin-GUID eintragen (wie in Plugin.cs & manifest.json)
+  const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
 
-  function toLines(arr) {
-    return Array.isArray(arr) ? arr.join("\n") : (arr || "");
-  }
+  function toLines(arr) { return Array.isArray(arr) ? arr.join("\n") : (arr || ""); }
   function fromLines(text) {
-    return (text || "")
-      .split("\n")
-      .map(s => s.trim())
-      .filter(Boolean);
+    return (text || "").split("\n").map(s => s.trim()).filter(Boolean);
   }
 
   async function load() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId);
 
-    document.querySelector("#includeMovies").checked = !!cfg.IncludeMovies;
-    document.querySelector("#includeSeries").checked = !!cfg.IncludeSeries;
-    document.querySelector("#minItems").value = cfg.MinItems ?? 2;
-    document.querySelector("#prefix").value = cfg.Prefix ?? "";
-    document.querySelector("#suffix").value = cfg.Suffix ?? "";
-    document.querySelector("#scanHour").value = cfg.ScanHour ?? 4;
-    document.querySelector("#scanMinute").value = cfg.ScanMinute ?? 0;
-    document.querySelector("#pathPrefixes").value = toLines(cfg.PathPrefixes);
-    document.querySelector("#ignorePatterns").value = toLines(cfg.IgnorePatterns);
+    document.getElementById("includeMovies").checked = !!cfg.IncludeMovies;
+    document.getElementById("includeSeries").checked = !!cfg.IncludeSeries;
+    document.getElementById("minItems").value = cfg.MinItems ?? 2;
+    document.getElementById("prefix").value = cfg.Prefix ?? "";
+    document.getElementById("suffix").value = cfg.Suffix ?? "";
+    document.getElementById("scanHour").value = cfg.ScanHour ?? 4;
+    document.getElementById("scanMinute").value = cfg.ScanMinute ?? 0;
+    document.getElementById("pathPrefixes").value = toLines(cfg.PathPrefixes);
+    document.getElementById("ignorePatterns").value = toLines(cfg.IgnorePatterns);
   }
 
   async function save() {
     const cfg = await ApiClient.getPluginConfiguration(pluginId);
 
-    cfg.IncludeMovies = document.querySelector("#includeMovies").checked;
-    cfg.IncludeSeries = document.querySelector("#includeSeries").checked;
-    cfg.MinItems = parseInt(document.querySelector("#minItems").value, 10) || 0;
-    cfg.Prefix = document.querySelector("#prefix").value.trim();
-    cfg.Suffix = document.querySelector("#suffix").value.trim();
+    cfg.IncludeMovies = document.getElementById("includeMovies").checked;
+    cfg.IncludeSeries = document.getElementById("includeSeries").checked;
+    cfg.MinItems = parseInt(document.getElementById("minItems").value, 10) || 0;
+    cfg.Prefix = document.getElementById("prefix").value.trim();
+    cfg.Suffix = document.getElementById("suffix").value.trim();
 
-    const hour = Math.min(23, Math.max(0, parseInt(document.querySelector("#scanHour").value, 10) || 4));
-    const minute = Math.min(59, Math.max(0, parseInt(document.querySelector("#scanMinute").value, 10) || 0));
+    const hour = Math.min(23, Math.max(0, parseInt(document.getElementById("scanHour").value, 10) || 4));
+    const minute = Math.min(59, Math.max(0, parseInt(document.getElementById("scanMinute").value, 10) || 0));
     cfg.ScanHour = hour;
     cfg.ScanMinute = minute;
 
-    cfg.PathPrefixes = fromLines(document.querySelector("#pathPrefixes").value);
-    cfg.IgnorePatterns = fromLines(document.querySelector("#ignorePatterns").value);
+    cfg.PathPrefixes = fromLines(document.getElementById("pathPrefixes").value);
+    cfg.IgnorePatterns = fromLines(document.getElementById("ignorePatterns").value);
 
     const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
     Dashboard.processPluginConfigurationUpdateResult(result);
-    // Kurzfeedback:
+
     if (result?.IsUpdated === false) {
       Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
     } else {
       Dashboard.alert("Gespeichert.");
+    }
   }
 
-  // ➜ NEU: manueller Scan
+  // „Manuell scannen“: vorhandene ScheduledTask starten (kein eigener Controller nötig)
   async function manualScan(btn) {
-  try {
-    btn?.setAttribute("disabled", "disabled");
-    btn?.classList.add("idleProcessing");
-
-    // 1) Alle Scheduled Tasks holen
-    const tasks = await ApiClient.getJSON(ApiClient.getUrl('ScheduledTasks'));
-
-    // 2) Deinen Task finden (per Key oder Name)
-    const t = tasks.find(x =>
-      x?.Key === 'FolderCollections.DailyScan' ||
-      (typeof x?.Name === 'string' && x.Name.toLowerCase().includes('folder collections'))
-    );
-
-    if (!t?.Id) {
-      throw new Error('FolderCollections-Task nicht gefunden.');
-    }
-
-    // 3) Task starten – erst Trigger-Endpoint probieren, sonst Fallback
     try {
-      await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: 'POST' });
-    } catch (e1) {
-      // Ältere/abweichende Server – Fallback
-      await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: 'POST' });
+      btn?.setAttribute("disabled", "disabled");
+      btn?.classList.add("idleProcessing");
+
+      // 1) Tasks laden
+      const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
+
+      // 2) Deinen Task finden (per Key oder Name)
+      const t = tasks.find(x =>
+        x?.Key === "FolderCollections.DailyScan" ||
+        (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
+      );
+
+      if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
+
+      // 3) Triggern (Endpoint variiert je nach Jellyfin)
+      try {
+        await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
+      } catch {
+        await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" });
+      }
+
+      Dashboard.alert("Manueller Scan gestartet!");
+    } catch (err) {
+      Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
+      console.error(err);
+    } finally {
+      btn?.removeAttribute("disabled");
+      btn?.classList.remove("idleProcessing");
     }
-
-    Dashboard.alert('Manueller Scan gestartet!');
-  } catch (err) {
-    Dashboard.alert('Fehler beim Starten des Scans: ' + (err?.message || err));
-    console.error(err);
-  } finally {
-    btn?.removeAttribute("disabled");
-    btn?.classList.remove("idleProcessing");
   }
-}
 
+  // Einmalige Initialisierung – robust für verschiedene Jellyfin-Events
+  function init() {
+    const page = document.getElementById("folderCollectionsConfigPage");
+    if (!page || page.dataset.initialized === "1") return;
+    page.dataset.initialized = "1";
 
-  document.addEventListener("pageshow", (e) => {
-  if (e.target.id === "folderCollectionsConfigPage") {
-    // Buttons hier binden, damit sie sicher existieren
-    const saveBtn = document.getElementById("fcSave");
-    const cancelBtn = document.querySelector(".button-cancel");
-    const scanBtn = document.getElementById("fcManualScan");
+    const saveBtn = document.getElementById("fcSave");        // <button id="fcSave">Speichern</button>
+    const cancelBtn = page.querySelector(".button-cancel");   // Abbrechen
+    const scanBtn = document.getElementById("fcManualScan");  // <button id="fcManualScan">Manuell scannen</button>
 
-    saveBtn?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      save().catch(console.error);
-    });
-
-    cancelBtn?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      history.back();
-    });
-
-    scanBtn?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      manualScan(ev.currentTarget).catch(console.error);
-    });
+    saveBtn?.addEventListener("click", (ev) => { ev.preventDefault(); save().catch(console.error); });
+    cancelBtn?.addEventListener("click", (ev) => { ev.preventDefault(); history.back(); });
+    scanBtn?.addEventListener("click", (ev) => { ev.preventDefault(); manualScan(ev.currentTarget).catch(console.error); });
 
     load().catch(console.error);
   }
-});
 
+  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("viewshow", init);   // neuere Jellyfin-Views
+  document.addEventListener("pageshow", init);   // ältere/klassische Views
 })();
