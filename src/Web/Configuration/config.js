@@ -48,21 +48,41 @@
 
   // ➜ NEU: manueller Scan
   async function manualScan(btn) {
-    try {
-      btn?.setAttribute("disabled", "disabled");
-      btn?.classList.add("idleProcessing");
+  try {
+    btn?.setAttribute("disabled", "disabled");
+    btn?.classList.add("idleProcessing");
 
-      await ApiClient.fetchApi(`/Plugins/${pluginId}/Scan`, { method: "POST" });
+    // 1) Alle Scheduled Tasks holen
+    const tasks = await ApiClient.getJSON(ApiClient.getUrl('ScheduledTasks'));
 
-      Dashboard.alert("Manueller Scan gestartet!");
-    } catch (err) {
-      Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
-      console.error(err);
-    } finally {
-      btn?.removeAttribute("disabled");
-      btn?.classList.remove("idleProcessing");
+    // 2) Deinen Task finden (per Key oder Name)
+    const t = tasks.find(x =>
+      x?.Key === 'FolderCollections.DailyScan' ||
+      (typeof x?.Name === 'string' && x.Name.toLowerCase().includes('folder collections'))
+    );
+
+    if (!t?.Id) {
+      throw new Error('FolderCollections-Task nicht gefunden.');
     }
+
+    // 3) Task starten – erst Trigger-Endpoint probieren, sonst Fallback
+    try {
+      await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: 'POST' });
+    } catch (e1) {
+      // Ältere/abweichende Server – Fallback
+      await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: 'POST' });
+    }
+
+    Dashboard.alert('Manueller Scan gestartet!');
+  } catch (err) {
+    Dashboard.alert('Fehler beim Starten des Scans: ' + (err?.message || err));
+    console.error(err);
+  } finally {
+    btn?.removeAttribute("disabled");
+    btn?.classList.remove("idleProcessing");
   }
+}
+
 
   document.addEventListener("pageshow", (e) => {
     if (e.target.id === "folderCollectionsConfigPage") load().catch(console.error);
