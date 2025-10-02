@@ -2,13 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;                       // <- BaseItemKind
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;   // BoxSet, Movie
-using MediaBrowser.Controller.Entities.TV;       // Series, Episode (falls später nötig)
+using MediaBrowser.Controller.Entities.Movies;   // Movie, BoxSet (als Entity-Type)
+using MediaBrowser.Controller.Entities.TV;       // Series
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Tasks;
@@ -17,8 +19,9 @@ using Microsoft.Extensions.Logging;
 namespace FolderCollections
 {
     /// <summary>
-    /// Täglicher Scan: erzeugt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.
-    /// Arbeitet über Jellyfins Library (AncestorIds). Stabil für Jellyfin 10.10.7.
+    /// Täglicher Scan: erstellt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.
+    /// Arbeitet Library-basiert (AncestorIds) und vermeidet harte Abhängigkeiten auf
+    /// Collection-API-Signaturen (nutzt Reflection für Create/Add).
     /// </summary>
     public class FolderCollectionsTask : IScheduledTask
     {
@@ -26,7 +29,6 @@ namespace FolderCollections
         private readonly ICollectionManager _collections;
         private readonly ILibraryManager _library;
 
-        // Services per DI
         public FolderCollectionsTask(
             ILogger<FolderCollectionsTask> logger,
             ICollectionManager collections,
@@ -138,20 +140,13 @@ namespace FolderCollections
             var boxSet = FindBoxSetByName(collectionName);
             if (boxSet == null)
             {
-                // Jellyfin 10.10.x: Name zuerst, KEINE anfängliche Itemliste
-                boxSet = await _collections.CreateCollection(collectionName, null, ct);
-                _logger.LogInformation("Collection erstellt: {Name}", collectionName);
-
+                boxSet = await CreateCollectionCompatAsync(collectionName, ct);
                 if (boxSet == null)
                 {
-                    // Sollte nicht passieren, aber sicherheitshalber
-                    boxSet = FindBoxSetByName(collectionName);
-                    if (boxSet == null)
-                    {
-                        _logger.LogWarning("Collection nach Erstellung nicht auffindbar: {Name}", collectionName);
-                        return;
-                    }
+                    _logger.LogWarning("Collection konnte nicht erstellt werden (CreateCollection* nicht gefunden): {Name}", collectionName);
+                    return;
                 }
+                _logger.LogInformation("Collection erstellt: {Name}", collectionName);
             }
 
             // Items via InternalItemsQuery (AncestorIds)
@@ -166,8 +161,11 @@ namespace FolderCollections
 
             if (itemIds.Count > 0)
             {
-                await _collections.AddToCollection(boxSet.Id, itemIds, ct);
-                _logger.LogInformation("Collection '{Name}' aktualisiert (+{Count} Items).", collectionName, itemIds.Count);
+                var ok = await AddToCollectionCompatAsync(boxSet.Id, itemIds, ct);
+                if (ok)
+                    _logger.LogInformation("Collection '{Name}' aktualisiert (+{Count} Items).", collectionName, itemIds.Count);
+                else
+                    _logger.LogWarning("Konnte Items nicht hinzufügen: AddToCollection* nicht gefunden (API-Version).");
             }
         }
 
@@ -175,7 +173,7 @@ namespace FolderCollections
         {
             var result = _library.GetItemList(new InternalItemsQuery
             {
-                IncludeItemTypes = new[] { nameof(BoxSet) },
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet },
                 Name = name,
                 Limit = 1
             });
@@ -191,7 +189,7 @@ namespace FolderCollections
             {
                 var movies = _library.GetItemList(new InternalItemsQuery
                 {
-                    IncludeItemTypes = new[] { nameof(Movie) },
+                    IncludeItemTypes = new[] { BaseItemKind.Movie },
                     AncestorIds = new[] { folderItem.Id },
                     Recursive = true
                 }).OfType<Movie>();
@@ -204,7 +202,7 @@ namespace FolderCollections
             {
                 var series = _library.GetItemList(new InternalItemsQuery
                 {
-                    IncludeItemTypes = new[] { nameof(Series) },
+                    IncludeItemTypes = new[] { BaseItemKind.Series },
                     AncestorIds = new[] { folderItem.Id },
                     Recursive = true
                 }).OfType<Series>();
@@ -284,6 +282,82 @@ namespace FolderCollections
                 }
             }
             return list;
+        }
+
+        // -------- Reflection-Compat-Layer für ICollectionManager --------
+
+        private async Task<BoxSet?> CreateCollectionCompatAsync(string name, CancellationToken ct)
+        {
+            // Mögliche Signaturen in verschiedenen Jellyfin-Versionen:
+            // Task<BoxSet> CreateCollection(string name, string? parentId, CancellationToken ct)
+            // Task<BoxSet> CreateCollection(string name, Guid? parentId, CancellationToken ct)
+            // Task<BoxSet> CreateCollectionAsync(string name, string? parentId, CancellationToken ct)
+            // Task<BoxSet> CreateCollectionAsync(string name, Guid? parentId, CancellationToken ct)
+
+            var t = _collections.GetType();
+
+            var candidates = new[]
+            {
+                ("CreateCollection",  new Type[] { typeof(string), typeof(string), typeof(CancellationToken) }),
+                ("CreateCollection",  new Type[] { typeof(string), typeof(Guid?),  typeof(CancellationToken) }),
+                ("CreateCollectionAsync", new Type[] { typeof(string), typeof(string), typeof(CancellationToken) }),
+                ("CreateCollectionAsync", new Type[] { typeof(string), typeof(Guid?),  typeof(CancellationToken) })
+            };
+
+            foreach (var (nameMethod, sig) in candidates)
+            {
+                var mi = t.GetMethod(nameMethod, BindingFlags.Instance | BindingFlags.Public, null, sig, null);
+                if (mi == null) continue;
+
+                object? parentArg = sig[1] == typeof(string) ? null : (Guid?)null;
+
+                var res = mi.Invoke(_collections, new object?[] { name, parentArg, ct });
+                if (res is Task task)
+                {
+                    await task.ConfigureAwait(false);
+                    var prop = task.GetType().GetProperty("Result");
+                    if (prop != null && prop.PropertyType.IsAssignableTo(typeof(BaseItem)))
+                    {
+                        return prop.GetValue(task) as BoxSet;
+                    }
+                }
+                else if (res is BoxSet bs)
+                {
+                    return bs;
+                }
+            }
+
+            return null;
+        }
+
+        private async Task<bool> AddToCollectionCompatAsync(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
+        {
+            // Mögliche Signaturen:
+            // Task AddToCollection(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
+            // Task AddToCollectionAsync(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
+
+            var t = _collections.GetType();
+
+            var candidates = new[]
+            {
+                ("AddToCollection",      new Type[] { typeof(Guid), typeof(IEnumerable<Guid>), typeof(CancellationToken) }),
+                ("AddToCollectionAsync", new Type[] { typeof(Guid), typeof(IEnumerable<Guid>), typeof(CancellationToken) })
+            };
+
+            foreach (var (nameMethod, sig) in candidates)
+            {
+                var mi = t.GetMethod(nameMethod, BindingFlags.Instance | BindingFlags.Public, null, sig, null);
+                if (mi == null) continue;
+
+                var res = mi.Invoke(_collections, new object?[] { collectionId, itemIds, ct });
+                if (res is Task task)
+                {
+                    await task.ConfigureAwait(false);
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
