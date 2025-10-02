@@ -27,10 +27,10 @@
 
   <!-- Deine Web-UI als Embedded Resources, damit die Config-Seite NICHT „schwebt“ -->
   <ItemGroup>
-    <None Remove="Configuration\config.html" />
-    <None Remove="Configuration\config.js" />
-    <EmbeddedResource Include="Configuration\config.html" />
-    <EmbeddedResource Include="Configuration\config.js" />
+    <None Remove="Web\Configuration\config.html" />
+    <None Remove="Web\Configuration\config.js" />
+    <EmbeddedResource Include="Web\Configuration\config.html" />
+    <EmbeddedResource Include="Web\Configuration\config.js" />
 
     <!-- Falls du Icons/Weitere Dateien einbettest -->
     <!-- <EmbeddedResource Include="Resources\**\*" /> -->
