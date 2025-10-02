@@ -1,4 +1,3 @@
-// src/Plugin.cs
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
