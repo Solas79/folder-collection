@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;
-using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Entities.Movies;   // BoxSet, Movie
+using MediaBrowser.Controller.Entities.TV;       // Series, Episode (falls später nötig)
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Tasks;
@@ -138,14 +138,19 @@ namespace FolderCollections
             var boxSet = FindBoxSetByName(collectionName);
             if (boxSet == null)
             {
-                await _collections.CreateCollection(new List<Guid>(), collectionName, null, ct);
+                // Jellyfin 10.10.x: Name zuerst, KEINE anfängliche Itemliste
+                boxSet = await _collections.CreateCollection(collectionName, null, ct);
                 _logger.LogInformation("Collection erstellt: {Name}", collectionName);
 
-                boxSet = FindBoxSetByName(collectionName);
                 if (boxSet == null)
                 {
-                    _logger.LogWarning("Collection nach Erstellung nicht auffindbar: {Name}", collectionName);
-                    return;
+                    // Sollte nicht passieren, aber sicherheitshalber
+                    boxSet = FindBoxSetByName(collectionName);
+                    if (boxSet == null)
+                    {
+                        _logger.LogWarning("Collection nach Erstellung nicht auffindbar: {Name}", collectionName);
+                        return;
+                    }
                 }
             }
 
@@ -166,7 +171,7 @@ namespace FolderCollections
             }
         }
 
-        private BaseItem? FindBoxSetByName(string name)
+        private BoxSet? FindBoxSetByName(string name)
         {
             var result = _library.GetItemList(new InternalItemsQuery
             {
@@ -175,7 +180,7 @@ namespace FolderCollections
                 Limit = 1
             });
 
-            return result.FirstOrDefault();
+            return result.OfType<BoxSet>().FirstOrDefault();
         }
 
         private List<Guid> GetLibraryItemIdsUnderFolder(BaseItem folderItem, PluginConfiguration cfg)
