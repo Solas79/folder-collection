@@ -19,6 +19,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="src/**/PluginConfiguration*.cs.bak" />
+    <Compile Remove="src/**/PluginConfiguration_old.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Jellyfin.Common" Version="10.10.7">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
