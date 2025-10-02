@@ -22,7 +22,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         new PluginPageInfo
         {
             Name = "folderCollectionsConfigPage",
-            EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.config.html"
+            EmbeddedResourcePath = $"{GetType().Namespace}.Web.Configuration.config.html"
         }
     };
 }
