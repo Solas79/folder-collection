@@ -22,6 +22,16 @@
           </label>
         </div>
 
+       <div class="inputContainer">
+          <label class="checkboxLabel">
+            <input id="useBasename" type="checkbox" />
+            Basename als Sammlungsname verwenden
+          </label>
+          <div class="fieldDescription">
+            Nimmt den letzten Ordnernamen; wenn aus, wird der komplette Pfad verwendet.
+          </div>
+       </div>
+
         <div class="inputContainer">
           <label for="minItems">Min. Items/Ordner</label>
           <input is="emby-input" id="minItems" type="number" min="0" step="1" required>
