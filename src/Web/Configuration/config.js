@@ -52,13 +52,12 @@
       btn?.setAttribute("disabled", "disabled");
       btn?.classList.add("idleProcessing");
 
-      // POST auf deinen Plugin-Endpunkt
       await ApiClient.fetchApi(`/Plugins/${pluginId}/Scan`, { method: "POST" });
 
       Dashboard.alert("Manueller Scan gestartet!");
     } catch (err) {
       Dashboard.alert("Fehler beim Starten des Scans: " + (err?.message || err));
-      // optional: console.error(err);
+      console.error(err);
     } finally {
       btn?.removeAttribute("disabled");
       btn?.classList.remove("idleProcessing");
