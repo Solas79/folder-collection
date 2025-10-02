@@ -28,17 +28,17 @@ jobs:
           dotnet-version: '8.0.x'
           cache: true
           cache-dependency-path: |
-            NuGet.config
+            nuget.config
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      - name: Restore (with NuGet.config + retry)
+      - name: Restore (with nuget.config + retry)
         shell: bash
         run: |
           set -e
           for i in 0 1 2 3 4 5; do
             if dotnet restore src/FolderCollectionsPlugin.csproj \
-                 --configfile NuGet.config \
+                 --configfile nuget.config \
                  --nologo \
                  --ignore-failed-sources; then
               exit 0
