@@ -22,37 +22,35 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup .NET 8 (with NuGet cache)
+      - name: Setup .NET 8 (with cache)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
           cache: true
           cache-dependency-path: |
-            nuget.config
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
       - name: Restore (nuget.org only, with retry)
-      shell: bash
-      run: |
-        set -e
-        for i in 0 1 2 3 4 5; do
-          if dotnet restore src/FolderCollectionsPlugin.csproj \
-             -s https://api.nuget.org/v3/index.json \
-             --ignore-failed-sources --nologo; then
-            exit 0
-          fi
-          echo "Restore failed (attempt $((i+1))). Retrying..."
-          sleep $((2**i))
-        done
-        echo "Restore failed after retries."
-        exit 1
-
+        shell: bash
+        run: |
+          set -e
+          for i in 0 1 2 3 4 5; do
+            if dotnet restore src/FolderCollectionsPlugin.csproj \
+                 -s https://api.nuget.org/v3/index.json \
+                 --ignore-failed-sources --nologo; then
+              exit 0
+            fi
+            echo "Restore failed (attempt $((i+1))). Retrying..."
+            sleep $((2**i))
+          done
+          echo "Restore failed after retries."
+          exit 1
 
       - name: Build (Release)
         run: dotnet build src/FolderCollectionsPlugin.csproj -c Release --no-restore --nologo
 
-      - name: Publish (framework-dependent, AnyCPU)
+      - name: Publish (framework-dependent)
         run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
 
       - name: Read version from csproj
@@ -67,8 +65,8 @@ jobs:
         shell: bash
         run: |
           cd publish
-          zipname="FolderCollections_${{ steps.get_version.outputs.version }}.zip"
           rm -f MediaBrowser.*.dll Jellyfin.*.dll Emby.*.dll || true
+          zipname="FolderCollections_${{ steps.get_version.outputs.version }}.zip"
           zip -r "$zipname" . -q
           mv "$zipname" ../
           cd ..
@@ -87,31 +85,18 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: FolderCollections_${{ github.ref_name }}
-        continue-on-error: true
-
-      - name: "Fallback: download any artifact if version-name mismatch"
-        if: ${{ failure() }}
+      - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Pick ZIP name
+      - name: Pick ZIP
         id: pick_zip
         shell: bash
         run: |
           set -e
-          if compgen -G "*.zip" > /dev/null; then
-            zipfile=$(ls -1 *.zip | head -n1)
-          else
-            zipfile=$(ls -1 artifacts/**/*.zip | head -n1)
-            [ -z "$zipfile" ] && { echo "No zip found"; exit 1; }
-            cp "$zipfile" .
-            zipfile=$(basename "$zipfile")
-          fi
+          zipfile=$(ls -1 artifacts/**/FolderCollections_*.zip | head -n1)
+          [ -z "$zipfile" ] && { echo "No zip found"; exit 1; }
           echo "zipfile=$zipfile" >> $GITHUB_OUTPUT
           echo "Using ZIP: $zipfile"
 
