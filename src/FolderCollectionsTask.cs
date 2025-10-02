@@ -16,23 +16,23 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderCollections
 {
-    /// <summary>
-    /// Täglicher Scan: erzeugt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.
-    /// Arbeitet rein über Jellyfins Library (AncestorIds), nicht über Dateisystem-Mapping.
-    /// Stabil für Jellyfin 10.10.7.
-    /// </summary>
     public class FolderCollectionsTask : IScheduledTask
     {
         private readonly ILogger<FolderCollectionsTask> _logger;
+        private readonly ICollectionManager _collections;
+        private readonly ILibraryManager _library;
 
-        // Lazy über Plugin.Instance aufgelöste Services (kein DI im ctor notwendig)
-        private ICollectionManager? _collections;
-        private ILibraryManager? _library;
-
-        public FolderCollectionsTask(ILogger<FolderCollectionsTask> logger)
+        // <-- NEUER Konstruktor mit DI
+        public FolderCollectionsTask(
+            ILogger<FolderCollectionsTask> logger,
+            ICollectionManager collections,
+            ILibraryManager library)
         {
             _logger = logger;
+            _collections = collections;
+            _library = library;
         }
+
 
         public string Name => "Folder Collections: täglicher Scan";
         public string Key => "FolderCollections.DailyScan";
@@ -42,9 +42,7 @@ namespace FolderCollections
         public async Task ExecuteAsync(IProgress<double>? progress, CancellationToken cancellationToken)
         {
             // Services sicherstellen
-            _collections ??= Plugin.Instance?.ApplicationHost?.Resolve<ICollectionManager>();
-            _library     ??= Plugin.Instance?.ApplicationHost?.Resolve<ILibraryManager>();
-
+            
             if (_collections is null || _library is null)
                 throw new InvalidOperationException("Jellyfin-Services nicht verfügbar (ICollectionManager/ILibraryManager).");
 
@@ -301,7 +299,7 @@ namespace FolderCollections
             var list = new List<Func<string, bool>>();
             foreach (var raw in patterns)
             {
-                var p = (raw ?? "").trim();
+                var p = (raw ?? "").Trim();
                 if (string.IsNullOrEmpty(p)) continue;
 
                 if (p.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
