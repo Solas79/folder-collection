@@ -31,18 +31,21 @@ jobs:
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      # Quelle(n) explizit setzen – robust selbst ohne nuget.config im Repo
-      - name: Configure NuGet sources
+      # Optional: alle anderen Quellen entfernen, damit nichts „dazwischenfunkt“
+      - name: Ensure only nuget.org is used
         shell: bash
         run: |
           set -euo pipefail
+          for name in $(dotnet nuget list source | awk '/Enabled/{print prev} {prev=$0}' | sed 's/^[ *]*//'); do
+            if [ "$name" != "nuget.org" ] && [ "$name" != "nuget" ]; then
+              dotnet nuget remove source "$name" || true
+            fi
+          done
           dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget || true
-          dotnet nuget add source https://repo.jellyfin.org/releases/server/v1/index.json -n jellyfin-server || true
-          dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json -n jellyfin-plugin || true
           echo "=== Active NuGet sources ==="
           dotnet nuget list source
 
-      - name: Restore (nuget + jellyfin-server + plugin, with retry)
+      - name: Restore (nuget.org only, with retry)
         shell: bash
         run: |
           set -euo pipefail
@@ -50,9 +53,7 @@ jobs:
           for i in $(seq 1 $attempts); do
             if dotnet restore src/FolderCollectionsPlugin.csproj \
                  --no-cache --nologo --ignore-failed-sources \
-                 -s https://api.nuget.org/v3/index.json \
-                 -s https://repo.jellyfin.org/releases/server/v1/index.json \
-                 -s https://repo.jellyfin.org/releases/plugin/v1/index.json; then
+                 -s https://api.nuget.org/v3/index.json; then
               echo "Restore succeeded on attempt $i"
               exit 0
             fi
