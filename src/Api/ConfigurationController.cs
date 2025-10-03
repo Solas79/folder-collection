@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Controller.Configuration;
 
 namespace FolderCollections.Api
 {
@@ -10,28 +9,24 @@ namespace FolderCollections.Api
     [Route("FolderCollections/Configuration")]
     public class ConfigurationController : ControllerBase
     {
-        private readonly IServerConfigurationManager _config;
         private readonly ILogger<ConfigurationController> _logger;
 
-        public ConfigurationController(
-            IServerConfigurationManager config,
-            ILogger<ConfigurationController> logger)
+        public ConfigurationController(ILogger<ConfigurationController> logger)
         {
-            _config = config;
             _logger = logger;
         }
 
         [HttpGet]
         public ActionResult Get()
         {
-            var cfg = _config.GetConfiguration<PluginConfiguration>("FolderCollections");
+            var cfg = Plugin.Instance.Configuration;
             return Ok(cfg);
         }
 
         [HttpPost]
         public ActionResult Update([FromBody] PluginConfiguration cfg)
         {
-            _config.SaveConfiguration("FolderCollections", cfg);
+            Plugin.Instance.UpdateConfiguration(cfg);
             _logger.LogInformation("FolderCollections configuration saved: {@cfg}", cfg);
             return NoContent();
         }
