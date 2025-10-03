@@ -1,12 +1,13 @@
+using System.Collections.Generic;
 using MediaBrowser.Model.Plugins;
 
 namespace FolderCollections.Web
 {
-    public sealed class PluginPages : IPluginConfigurationPage
+    // Jellyfin 10.10.x
+    public sealed class PluginPages : IHasWebPages
     {
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // kleiner Launcher, der /FolderCollections/ui im Top-Level öffnet
             yield return new PluginPageInfo
             {
                 Name = "config",
