@@ -1,28 +1,28 @@
 using System;
-using MediaBrowser.Model.Plugins; // <- wichtig
+using System.Collections.Generic;
+using MediaBrowser.Model.Plugins;
 
 namespace FolderCollections
 {
-    // Muss von BasePluginConfiguration erben
-    public class PluginConfiguration : BasePluginConfiguration
+    public sealed class PluginConfiguration : BasePluginConfiguration
     {
-        public bool IncludeMovies { get; set; } = true;
-        public bool IncludeSeries { get; set; } = false;
+        public List<string> IncludeFolders { get; set; } = new();
+        public List<string> ExcludeFolders { get; set; } = new();
 
-        public int MinItems { get; set; } = 2;
+        public string? CollectionNamePrefix { get; set; } = "";
+        public string? CollectionNameSuffix { get; set; } = "";
 
-        public string? Prefix { get; set; } = "";
-        public string? Suffix { get; set; } = "";
+        public int MinItemsPerFolder { get; set; } = 2;
 
-        public int ScanHour { get; set; } = 4;
-        public int ScanMinute { get; set; } = 0;
+        public bool EnableDailyScan { get; set; } = false;
 
-        public string[] PathPrefixes { get; set; } = Array.Empty<string>();
-        public string[] IgnorePatterns { get; set; } = Array.Empty<string>();
+        // Beides für Backwards-Compat: feste Uhrzeit als "HH:mm" und getrennte Felder
+        public string DailyScanTime { get; set; } = "03:00";
+        public int DailyScanHour { get; set; } = 3;
+        public int DailyScanMinute { get; set; } = 0;
 
-        public bool UseBasenameAsCollectionName { get; set; } = true;
-
-        // Parameterloser Ctor empfohlen
-        public PluginConfiguration() : base() { }
+        public PluginConfiguration()
+        {
+        }
     }
 }
