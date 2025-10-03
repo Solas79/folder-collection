@@ -15,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Jellyfin.Controller" Version="10.10.*" PrivateAssets="all" />
     <PackageReference Include="Jellyfin.Model"      Version="10.10.*" PrivateAssets="all" />
+    <PackageReference Include="Jellyfin.Date"      Version="10.10.*" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- Die HTML-Seite als EmbeddedResource einbinden -->
