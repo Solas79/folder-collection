@@ -1,6 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <script>
+  // --- HARD SHIM: neutralize behavior:null bugs in Jellyfin bundles ---
+  (function () {
+    function sanitizeOptions(arg) {
+      if (arg && typeof arg === 'object') {
+        const o = Object.assign({}, arg);
+        if ('behavior' in o && (o.behavior == null || o.behavior === 'null')) {
+          o.behavior = 'auto';
+        }
+        return o;
+      }
+      return arg;
+    }
+    function wrap(host, method) {
+      if (!host || !host[method]) return;
+      const orig = host[method].bind(host);
+      try {
+        host[method] = function (...args) {
+          if (args[0] && typeof args[0] === 'object') {
+            args[0] = sanitizeOptions(args[0]);
+          }
+          try {
+            return orig(...args);
+          } catch (e) {
+            // Fallback auf Koordinaten-Form
+            if (args[0] && typeof args[0] === 'object') {
+              const left = Number(args[0].left || 0);
+              const top  = Number(args[0].top  || 0);
+              return orig(left, top);
+            }
+            // Letzter Notnagel: Fehler schlucken
+            return;
+          }
+        };
+      } catch (_) {}
+    }
+    // Patch alle relevanten Prototypen/Objekte
+    try {
+      wrap(window, 'scrollTo');
+      wrap(Window.prototype, 'scrollTo');
+    } catch (_) {}
+    try {
+      wrap(Document.prototype, 'scrollTo');
+    } catch (_) {}
+    try {
+      wrap(Element.prototype, 'scrollTo');
+      // scrollIntoView hat auch options.behavior
+      const sIV = Element.prototype.scrollIntoView;
+      if (sIV) {
+        Element.prototype.scrollIntoView = function (arg) {
+          if (arg && typeof arg === 'object') arg = sanitizeOptions(arg);
+          try { return sIV.call(this, arg); } catch (e) { return; }
+        };
+      }
+    } catch (_) {}
+
+    // Falls doch irgendwo ein Promise platzt: nicht alles abbrechen lassen
+    window.addEventListener('unhandledrejection', (ev) => {
+      const msg = String(ev.reason || '');
+      if (msg.includes("ScrollOptions") || msg.includes("scrollTo")) {
+        ev.preventDefault();
+        // console.warn('[Shim] swallowed scrollTo rejection:', msg);
+      }
+    });
+  })();
+  </script>
+
   <meta charset="utf-8" />
   <title>Folder Collections – Konfiguration</title>
   <style>
