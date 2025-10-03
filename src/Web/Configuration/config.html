@@ -158,94 +158,43 @@
        var $=function(i){return document.getElementById(i)};
        var split=function(t){return (t||'').split('\n').map(function(s){return s.trim()}).filter(Boolean)};
 
-       function findToken(){
-         try{
-           // 1) direkte Keys
-           var k=['accessToken','AccessToken','token','Token']; 
-           for(var i=0;i<localStorage.length;i++){var n=localStorage.key(i),v=localStorage.getItem(n); if(!v) continue;
-             if(k.indexOf(n)>=0 && v.length>15) return v;
-             if(v.indexOf && v.indexOf('AccessToken')>=0){
-               try{
-                 var o=JSON.parse(v);
-                 if(o && typeof o==='object'){
-                   if(o.AccessToken) return o.AccessToken;
-                   if(Array.isArray(o.Servers) && o.Servers[0] && o.Servers[0].AccessToken) return o.Servers[0].AccessToken;
-                 }
-               }catch(_){
-                 var m=/\"AccessToken\"\s*:\s*\"([^\"]+)\"/.exec(v); if(m) return m[1];
-               }
-             }
-           }
-           for(var j=0;j<sessionStorage.length;j++){var n2=sessionStorage.key(j),v2=sessionStorage.getItem(n2); if(!v2) continue;
-             if(k.indexOf(n2)>=0 && v2.length>15) return v2;
-             if(v2.indexOf && v2.indexOf('AccessToken')>=0){ var m2=/\"AccessToken\"\s*:\s*\"([^\"]+)\"/.exec(v2); if(m2) return m2[1]; }
-           }
-         }catch(e){}
-         return null;
+       function req(method,path,body){
+         var headers={'Accept':'application/json'};
+         var opts={method:method,headers:headers,credentials:'same-origin'};
+         if(body!=null){headers['Content-Type']='application/json;charset=UTF-8';opts.body=JSON.stringify(body);}
+         return fetch(path,opts).then(function(r){if(!r.ok){var e=new Error('HTTP '+r.status);e.status=r.status;throw e;}return r;});
        }
+       function getCfg(){return req('GET','/Plugins/'+pid+'/Configuration').then(function(r){return r.json()});}
+       function saveCfg(cfg){return req('POST','/Plugins/'+pid+'/Configuration',cfg);}
 
-       function req(method, path, body, useToken){
-         var url = path;
-         var headers = {'Accept':'application/json'};
-         var opts = {method:method, headers:headers, credentials:'same-origin'};
-         if(body!=null){ headers['Content-Type']='application/json;charset=UTF-8'; opts.body=JSON.stringify(body); }
-         if(useToken){
-           var t=findToken();
-           if(t){ url += (url.indexOf('?')>=0?'&':'?') + 'api_key='+encodeURIComponent(t); }
-         }
-         return fetch(url, opts).then(function(r){ if(!r.ok) { var e=new Error('HTTP '+r.status); e.status=r.status; throw e; } return r; });
-       }
-
-       function getCfg(useToken){
-         return req('GET','/Plugins/'+pid+'/Configuration',null,useToken).then(function(r){return r.json()});
-       }
-       function saveCfg(cfg,useToken){
-         return req('POST','/Plugins/'+pid+'/Configuration',cfg,useToken);
-       }
-
-       // 1) ohne Token versuchen
-       getCfg(false).catch(function(e){
-         if(e && (e.status===401 || e.status===403)) return getCfg(true);
-         throw e;
-       }).then(function(cfg){
-         // 2) UI -> cfg
-         cfg.IncludeMovies = !!$('includeMovies').checked;
-         cfg.IncludeSeries = !!$('includeSeries').checked;
-         cfg.MinItems = parseInt($('minItems').value,10)||0;
-         cfg.Prefix = ( $('prefix').value || '' ).trim();
-         cfg.Suffix = ( $('suffix').value || '' ).trim();
-         var h = Math.min(23, Math.max(0, parseInt($('scanHour').value,10)||4));
-         var m = Math.min(59, Math.max(0, parseInt($('scanMinute').value,10)||0));
-         cfg.ScanHour = h; cfg.ScanMinute = m;
-         cfg.PathPrefixes   = split($('pathPrefixes').value);
-         cfg.IgnorePatterns = split($('ignorePatterns').value);
-         cfg.UseBasenameAsCollectionName = !!$('useBasename').checked;
-
-         // 3) speichern – erst ohne Token, bei 401/403 mit Token
-         return saveCfg(cfg,false).catch(function(e){
-           if(e && (e.status===401 || e.status===403)) return saveCfg(cfg,true);
-           throw e;
-         });
-       }).then(function(){
-         // 4) roundtrip prüfen
-         return getCfg(false).catch(function(e){
-           if(e && (e.status===401 || e.status===403)) return getCfg(true);
-           throw e;
-         });
-       }).then(function(v){
-         var want = !!$('useBasename').checked;
-         if (!!v.UseBasenameAsCollectionName !== want){
-           (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('Gespeichert, aber „Basename“ wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.cs (Property-Name).');
-           console.warn('Roundtrip mismatch', v);
-         } else {
+       getCfg().then(function(cfg){
+         cfg.IncludeMovies=!!$('includeMovies').checked;
+         cfg.IncludeSeries=!!$('includeSeries').checked;
+         cfg.MinItems=parseInt($('minItems').value,10)||0;
+         cfg.Prefix=($('prefix').value||'').trim();
+         cfg.Suffix=($('suffix').value||'').trim();
+         var h=Math.min(23,Math.max(0,parseInt($('scanHour').value,10)||4));
+         var m=Math.min(59,Math.max(0,parseInt($('scanMinute').value,10)||0));
+         cfg.ScanHour=h; cfg.ScanMinute=m;
+         cfg.PathPrefixes=split($('pathPrefixes').value);
+         cfg.IgnorePatterns=split($('ignorePatterns').value);
+         cfg.UseBasenameAsCollectionName=!!$('useBasename').checked;
+         return saveCfg(cfg);
+       }).then(function(){return getCfg();}).then(function(v){
+         var want=!!$('useBasename').checked;
+         if(!!v.UseBasenameAsCollectionName!==want){
+           (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('Gespeichert, aber Basename wurde serverseitig nicht übernommen (Property-Namen prüfen).');
+           console.warn('Roundtrip mismatch',v);
+         }else{
            (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('Gespeichert.');
          }
        }).catch(function(err){
-         var msg=(err&&(err.message||err.statusText||(err.status?('HTTP '+err.status):'')))||'Unbekannter Fehler';
+         var msg=(err&&(err.message||(err.status?'HTTP '+err.status:'')))||'Unbekannter Fehler';
          (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('Speichern fehlgeschlagen: '+msg);
          console.error(err);
        });
      })();">Speichern</button>
+
 
 
 
