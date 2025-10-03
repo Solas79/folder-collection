@@ -1,42 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
-    <Version>1.0.4</Version> <!-- bumpen, damit Jellyfin neu lädt -->
-    <JellyfinVersion>10.10.7</JellyfinVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
-  <!-- ASP.NET Core APIs (nur Ref via FrameworkReference) -->
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.9.0" />
+    <PackageReference Include="MediaBrowser.Common" Version="10.9.0" />
+    <PackageReference Include="Microsoft.AspNetCore.App.Ref" Version="8.0.7" />
   </ItemGroup>
 
-  <!-- Jellyfin APIs passend zu 10.10.7 -->
+  <!-- Eingebettete Web-Ressourcen -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Common"     Version="$(JellyfinVersion)" />
-    <PackageReference Include="Jellyfin.Model"      Version="$(JellyfinVersion)" />
-    <PackageReference Include="Jellyfin.Controller" Version="$(JellyfinVersion)" />
+    <EmbeddedResource Include="Web\configPage.html" LogicalName="FolderCollections.Web.configPage.html" />
+    <EmbeddedResource Include="Web\configPage.js"   LogicalName="FolderCollections.Web.configPage.js" />
   </ItemGroup>
 
-  <!-- Standalone-UI als Embedded Resource -->
+  <!-- Manifest mit kopieren -->
   <ItemGroup>
-    <EmbeddedResource Include="Web/redirect/launch.html" />
- <EmbeddedResource Include="Web/ui/config.html" />
+    <None Include="manifest.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
-
-  <!-- falls irgendwo Altdateien liegen sollten, kill sie explizit:
-  <ItemGroup>
-    <Compile Remove="Controllers/**" />
-    <Compile Remove="WebSupport/**" />
-    <Compile Remove="PluginPages.cs" />
-  </ItemGroup>
-  -->
-
 </Project>
