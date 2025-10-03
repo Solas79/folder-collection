@@ -243,7 +243,6 @@ namespace FolderCollections
         {
             var q = new InternalItemsQuery
             {
-                IncludeItemTypes = new[] { BaseItemKind.BoxSet }, // WICHTIG: Enum statt string
                 Name = name,
                 Recursive = true
             };
