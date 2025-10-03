@@ -1,7 +1,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace FolderCollections   // <— Root! nicht .Web
+namespace FolderCollections
 {
     internal static class Embedded
     {
