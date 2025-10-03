@@ -76,7 +76,14 @@ jobs:
       - name: Read version from manifest.json
         id: ver
         shell: bash
-        run: echo "ver=$(grep -oPm1 '(?<=\"version\": \")[^\"]+' src/manifest.json)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          ver=$(jq -r '.version' src/manifest.json)
+          if [ -z "$ver" ] || [ "$ver" = "null" ]; then
+          echo "No version in manifest.json"; exit 1
+          fi
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $ver"
 
       - name: Archive plugin (strip server core DLLs)
         shell: bash
