@@ -6,11 +6,8 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Data.Enums;                       // <- BaseItemKind
-using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Entities.Movies;   // Movie, BoxSet (als Entity-Type)
-using MediaBrowser.Controller.Entities.TV;       // Series
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Tasks;
@@ -18,25 +15,21 @@ using Microsoft.Extensions.Logging;
 
 namespace FolderCollections
 {
-    /// <summary>
-    /// Täglicher Scan: erstellt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.
-    /// Arbeitet Library-basiert (AncestorIds) und vermeidet harte Abhängigkeiten auf
-    /// Collection-API-Signaturen (nutzt Reflection für Create/Add).
-    /// </summary>
     public class FolderCollectionsTask : IScheduledTask
     {
         private readonly ILogger<FolderCollectionsTask> _logger;
-        private readonly ICollectionManager _collections;
         private readonly ILibraryManager _library;
+        // Jellyfin 10.10.7 hat ICollectionManager – wir referenzieren ihn, speichern aber als object für Reflection-Flexibilität
+        private readonly object _collectionManager;
 
         public FolderCollectionsTask(
             ILogger<FolderCollectionsTask> logger,
-            ICollectionManager collections,
-            ILibraryManager library)
+            ILibraryManager libraryManager,
+            MediaBrowser.Controller.Collections.ICollectionManager collectionManager)
         {
             _logger = logger;
-            _collections = collections;
-            _library = library;
+            _library = libraryManager;
+            _collectionManager = collectionManager; // as object
         }
 
         public string Name => "Folder Collections: täglicher Scan";
@@ -44,319 +37,352 @@ namespace FolderCollections
         public string Description => "Erstellt/aktualisiert Sammlungen basierend auf der Ordnerstruktur.";
         public string Category => "Library";
 
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
+            => Array.Empty<TaskTriggerInfo>();
+
         public async Task ExecuteAsync(IProgress<double>? progress, CancellationToken cancellationToken)
         {
             var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
             _logger.LogInformation(
-                "FolderCollectionsTask gestartet. IncludeMovies={IncludeMovies}, IncludeSeries={IncludeSeries}, MinItems={MinItems}, Prefix='{Prefix}', Suffix='{Suffix}', UseBasename={UseBase}, Scan={Hour:D2}:{Minute:D2}",
+                "FolderCollectionsTask gestartet. IncludeMovies={IncludeMovies}, IncludeSeries={IncludeSeries}, MinItems={MinItems}, Prefix='{Prefix}', Suffix='{Suffix}', UseBasename={UseBasename}, Scan={Hour:D2}:{Minute:D2}",
                 cfg.IncludeMovies, cfg.IncludeSeries, cfg.MinItems, cfg.Prefix, cfg.Suffix, cfg.UseBasenameAsCollectionName, cfg.ScanHour, cfg.ScanMinute);
 
-            progress?.Report(0);
+            progress?.Report(1);
 
-            // 1) Verzeichnisse sammeln
-            var roots = cfg.PathPrefixes ?? Array.Empty<string>();
+            // 1) Roots/Ignore vorbereiten
+            var roots = (cfg.PathPrefixes ?? Array.Empty<string>())
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
             var ignore = PrepareIgnoreMatchers(cfg.IgnorePatterns ?? Array.Empty<string>());
-            var allDirs = new List<string>();
 
+            _logger.LogInformation("FolderCollections: konfigurierte Roots: {Count} -> {Roots}",
+                roots.Length, string.Join(" | ", roots));
+
+            // 2) Verzeichnisse sammeln (Root + rekursiv)
+            var allDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var root in roots)
-            {
-                if (string.IsNullOrWhiteSpace(root)) continue;
-
-                try
-                {
-                    if (!Directory.Exists(root))
-                    {
-                        _logger.LogWarning("Konfigurierter Pfad existiert nicht: {Root}", root);
-                        continue;
-                    }
-                    CollectDirectoriesRecursive(root, allDirs, ignore, cancellationToken);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Fehler beim Durchlaufen von Root {Root}", root);
-                }
-            }
-
-            progress?.Report(40);
-
-            // 2) Für jeden Ordner: Namen bilden & Collection anlegen/füllen
-            var total = allDirs.Count;
-            var done = 0;
-
-            foreach (var dir in allDirs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var name = BuildCollectionName(dir, cfg);
-                if (string.IsNullOrWhiteSpace(name))
+                if (!Directory.Exists(root))
                 {
-                    _logger.LogDebug("Überspringe leeren Namen für Pfad: {Dir}", dir);
+                    _logger.LogWarning("Konfigurierter Pfad existiert nicht (übersprungen): {Root}", root);
                     continue;
                 }
 
-                try
+                if (!IsIgnored(root, ignore))
+                    allDirs.Add(Path.TrimEndingDirectorySeparator(root));
+
+                CollectDirectoriesRecursive(root, allDirs, ignore, cancellationToken);
+            }
+
+            _logger.LogInformation("FolderCollections: gesammelte Verzeichnisse: {Count}", allDirs.Count);
+            progress?.Report(20);
+
+            // 3) Für jedes Verzeichnis die Items ermitteln und ggf. Collection erzeugen
+            int processed = 0, created = 0, updated = 0, skipped = 0;
+            foreach (var dir in allDirs.OrderBy(s => s, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                processed++;
+
+                // Filme/Serien unterhalb dieses Ordners holen (wir mappen Pfade -> BaseItems)
+                var filePaths = EnumerateMediaFiles(dir, cfg.IncludeMovies, cfg.IncludeSeries);
+                if (filePaths.Count < cfg.MinItems)
                 {
-                    await EnsureCollectionAsync(name, dir, cfg, cancellationToken);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Fehler bei Collection '{Name}' für Pfad '{Dir}'", name, dir);
+                    skipped++;
+                    continue;
                 }
 
-                done++;
-                if (done % 20 == 0 || done == total)
+                // Collection-Name aufbauen
+                string name = cfg.UseBasenameAsCollectionName
+                    ? GetBasename(dir)
+                    : dir;
+
+                if (!string.IsNullOrWhiteSpace(cfg.Prefix)) name = cfg.Prefix + name;
+                if (!string.IsNullOrWhiteSpace(cfg.Suffix)) name = name + cfg.Suffix;
+
+                // Library-Items auflösen
+                var items = new List<BaseItem>();
+                foreach (var p in filePaths)
                 {
-                    var pct = 40 + (int)Math.Round(55.0 * done / Math.Max(1, total));
-                    progress?.Report(Math.Min(95, pct));
+                    var bi = _library.FindByPath(p, null); // null => jede Library
+                    if (bi != null) items.Add(bi);
                 }
+
+                if (items.Count < cfg.MinItems)
+                {
+                    _logger.LogDebug("Ordner {Dir}: zu wenige indizierte Items ({Count} < {Min}), übersprungen.", dir, items.Count, cfg.MinItems);
+                    skipped++;
+                    continue;
+                }
+
+                // Collection sicherstellen
+                var box = await EnsureCollectionAsync(name, cancellationToken);
+                if (box == null)
+                {
+                    _logger.LogWarning("Collection konnte nicht erstellt werden (Create/Ensure nicht gefunden): \"{Name}\"", name);
+                    continue;
+                }
+
+                var ok = await AddItemsToCollectionAsync(box, items, cancellationToken);
+                if (!ok)
+                {
+                    _logger.LogWarning("Items konnten nicht zur Collection hinzugefügt werden (AddToCollection* nicht gefunden): \"{Name}\"", name);
+                    continue;
+                }
+
+                // Erfolg grob klassifizieren
+                if (box.DateCreatedUtc.AddMinutes(1) > DateTime.UtcNow) created++;
+                else updated++;
             }
+
+            _logger.LogInformation("FolderCollectionsTask beendet. Verarbeitete Ordner: {Processed}, erstellt: {Created}, aktualisiert: {Updated}, übersprungen: {Skipped}",
+                processed, created, updated, skipped);
 
             progress?.Report(100);
-            _logger.LogInformation("FolderCollectionsTask beendet. Verarbeitete Ordner: {Count}", total);
         }
 
-        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
+        // ===== Helpers =====
+
+        private static string GetBasename(string path)
         {
-            // Standardmäßig keine Auto-Trigger; Zeitplan im Dashboard konfigurieren
-            return Array.Empty<TaskTriggerInfo>();
+            var t = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var name = Path.GetFileName(t);
+            return string.IsNullOrWhiteSpace(name) ? t : name;
         }
 
-        // ---------- Implementierung ----------
-
-        private async Task EnsureCollectionAsync(string collectionName, string sourceDir, PluginConfiguration cfg, CancellationToken ct)
-        {
-            // Ordner im Jellyfin-Index finden
-            var folderItem = _library.FindByPath(sourceDir, null);
-            if (folderItem == null)
-            {
-                _logger.LogWarning("Ordner nicht in der Jellyfin-Library gefunden (übersprungen): {Dir}", sourceDir);
-                return;
-            }
-
-            // Collection finden/erstellen
-            var boxSet = FindBoxSetByName(collectionName);
-            if (boxSet == null)
-            {
-                boxSet = await CreateCollectionCompatAsync(collectionName, ct);
-                if (boxSet == null)
-                {
-                    _logger.LogWarning("Collection konnte nicht erstellt werden (CreateCollection* nicht gefunden): {Name}", collectionName);
-                    return;
-                }
-                _logger.LogInformation("Collection erstellt: {Name}", collectionName);
-            }
-
-            // Items via InternalItemsQuery (AncestorIds)
-            var itemIds = GetLibraryItemIdsUnderFolder(folderItem, cfg);
-
-            // MinItems prüfen
-            if (itemIds.Count < Math.Max(0, cfg.MinItems))
-            {
-                _logger.LogDebug("Zu wenige Items ({Count}/{Min}) für '{Name}' – überspringe.", itemIds.Count, cfg.MinItems, collectionName);
-                return;
-            }
-
-            if (itemIds.Count > 0)
-            {
-                var ok = await AddToCollectionCompatAsync(boxSet.Id, itemIds, ct);
-                if (ok)
-                    _logger.LogInformation("Collection '{Name}' aktualisiert (+{Count} Items).", collectionName, itemIds.Count);
-                else
-                    _logger.LogWarning("Konnte Items nicht hinzufügen: AddToCollection* nicht gefunden (API-Version).");
-            }
-        }
-
-        private BoxSet? FindBoxSetByName(string name)
-        {
-            var result = _library.GetItemList(new InternalItemsQuery
-            {
-                IncludeItemTypes = new[] { BaseItemKind.BoxSet },
-                Name = name,
-                Limit = 1
-            });
-
-            return result.OfType<BoxSet>().FirstOrDefault();
-        }
-
-        private List<Guid> GetLibraryItemIdsUnderFolder(BaseItem folderItem, PluginConfiguration cfg)
-        {
-            var ids = new HashSet<Guid>();
-
-            if (cfg.IncludeMovies)
-            {
-                var movies = _library.GetItemList(new InternalItemsQuery
-                {
-                    IncludeItemTypes = new[] { BaseItemKind.Movie },
-                    AncestorIds = new[] { folderItem.Id },
-                    Recursive = true
-                }).OfType<Movie>();
-
-                foreach (var m in movies)
-                    ids.Add(m.Id);
-            }
-
-            if (cfg.IncludeSeries)
-            {
-                var series = _library.GetItemList(new InternalItemsQuery
-                {
-                    IncludeItemTypes = new[] { BaseItemKind.Series },
-                    AncestorIds = new[] { folderItem.Id },
-                    Recursive = true
-                }).OfType<Series>();
-
-                foreach (var s in series)
-                    ids.Add(s.Id);
-            }
-
-            return ids.ToList();
-        }
-
-        private static string BuildCollectionName(string directoryPath, PluginConfiguration cfg)
-        {
-            if (string.IsNullOrWhiteSpace(directoryPath)) return string.Empty;
-
-            var trimmed = Path.TrimEndingDirectorySeparator(directoryPath);
-            var baseName = Path.GetFileName(trimmed);
-
-            var name = cfg.UseBasenameAsCollectionName
-                ? (string.IsNullOrEmpty(baseName) ? trimmed : baseName)
-                : trimmed;
-
-            if (!string.IsNullOrWhiteSpace(cfg.Prefix)) name = $"{cfg.Prefix}{name}";
-            if (!string.IsNullOrWhiteSpace(cfg.Suffix)) name = $"{name}{cfg.Suffix}";
-            return name;
-        }
-
-        private static void CollectDirectoriesRecursive(string root, List<string> bag, List<Func<string, bool>> ignore, CancellationToken ct)
+        private static void CollectDirectoriesRecursive(
+            string root,
+            HashSet<string> bag,
+            List<Func<string, bool>> ignore,
+            CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-
             try
             {
                 foreach (var sub in Directory.GetDirectories(root))
                 {
                     ct.ThrowIfCancellationRequested();
+                    if (IsIgnored(sub, ignore)) continue;
 
-                    if (IsIgnored(sub, ignore))
-                        continue;
-
-                    bag.Add(sub);
-                    CollectDirectoriesRecursive(sub, bag, ignore, ct);
+                    var cleaned = Path.TrimEndingDirectorySeparator(sub);
+                    if (bag.Add(cleaned))
+                        CollectDirectoriesRecursive(sub, bag, ignore, ct);
                 }
             }
             catch (UnauthorizedAccessException) { }
             catch (PathTooLongException) { }
+            catch (DirectoryNotFoundException) { }
         }
 
-        private static bool IsIgnored(string path, List<Func<string, bool>> ignore)
+        private static bool IsIgnored(string path, List<Func<string, bool>> matchers)
         {
-            foreach (var f in ignore)
-            {
-                try { if (f(path)) return true; } catch { }
-            }
+            foreach (var m in matchers)
+                if (m(path)) return true;
             return false;
         }
 
         private static List<Func<string, bool>> PrepareIgnoreMatchers(IEnumerable<string> patterns)
         {
             var list = new List<Func<string, bool>>();
-            foreach (var raw in patterns)
+
+            foreach (var raw in patterns.Where(p => !string.IsNullOrWhiteSpace(p)))
             {
-                var p = (raw ?? "").Trim();
-                if (string.IsNullOrEmpty(p)) continue;
+                var p = raw.Trim();
 
                 if (p.StartsWith("re:", StringComparison.OrdinalIgnoreCase))
                 {
-                    var re = p.Substring(3);
-                    var rx = new Regex(re, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                    list.Add(path => rx.IsMatch(path));
+                    var rx = new Regex(p.Substring(3), RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                    list.Add(s => rx.IsMatch(s));
                 }
                 else
                 {
+                    // Wildcards * ? -> Regex
                     var esc = Regex.Escape(p).Replace(@"\*", ".*").Replace(@"\?", ".");
-                    var rx = new Regex("^" + esc + "$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                    list.Add(path => rx.IsMatch(path));
+                    var rx = new Regex("^" + esc + "$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                    list.Add(s => rx.IsMatch(s));
                 }
             }
+
             return list;
         }
 
-        // -------- Reflection-Compat-Layer für ICollectionManager --------
-
-        private async Task<BoxSet?> CreateCollectionCompatAsync(string name, CancellationToken ct)
+        private static readonly string[] MovieExt =
         {
-            // Mögliche Signaturen in verschiedenen Jellyfin-Versionen:
-            // Task<BoxSet> CreateCollection(string name, string? parentId, CancellationToken ct)
-            // Task<BoxSet> CreateCollection(string name, Guid? parentId, CancellationToken ct)
-            // Task<BoxSet> CreateCollectionAsync(string name, string? parentId, CancellationToken ct)
-            // Task<BoxSet> CreateCollectionAsync(string name, Guid? parentId, CancellationToken ct)
+            ".mkv",".mp4",".m4v",".mov",".avi",".wmv",".mpg",".mpeg",".ts",".m2ts",".webm",".flv",".3gp"
+        };
 
-            var t = _collections.GetType();
+        private static readonly string[] EpisodeExt = MovieExt; // falls Episoden – gleiche Exts
 
-            var candidates = new[]
+        private static List<string> EnumerateMediaFiles(string dir, bool includeMovies, bool includeSeries)
+        {
+            var files = new List<string>();
+            try
             {
-                ("CreateCollection",  new Type[] { typeof(string), typeof(string), typeof(CancellationToken) }),
-                ("CreateCollection",  new Type[] { typeof(string), typeof(Guid?),  typeof(CancellationToken) }),
-                ("CreateCollectionAsync", new Type[] { typeof(string), typeof(string), typeof(CancellationToken) }),
-                ("CreateCollectionAsync", new Type[] { typeof(string), typeof(Guid?),  typeof(CancellationToken) })
-            };
-
-            foreach (var (nameMethod, sig) in candidates)
-            {
-                var mi = t.GetMethod(nameMethod, BindingFlags.Instance | BindingFlags.Public, null, sig, null);
-                if (mi == null) continue;
-
-                object? parentArg = sig[1] == typeof(string) ? null : (Guid?)null;
-
-                var res = mi.Invoke(_collections, new object?[] { name, parentArg, ct });
-                if (res is Task task)
+                // einfache Heuristik: alle Video-Dateien im Baum
+                foreach (var f in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
                 {
-                    await task.ConfigureAwait(false);
-                    var prop = task.GetType().GetProperty("Result");
-                    if (prop != null && prop.PropertyType.IsAssignableTo(typeof(BaseItem)))
-                    {
-                        return prop.GetValue(task) as BoxSet;
-                    }
-                }
-                else if (res is BoxSet bs)
-                {
-                    return bs;
+                    var ext = Path.GetExtension(f);
+                    if (string.IsNullOrEmpty(ext)) continue;
+
+                    if (includeMovies && MovieExt.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                        files.Add(f);
+                    else if (includeSeries && EpisodeExt.Contains(ext, StringComparer.OrdinalIgnoreCase))
+                        files.Add(f);
                 }
             }
+            catch (Exception) { /* ignorieren */ }
 
-            return null;
+            return files;
         }
 
-        private async Task<bool> AddToCollectionCompatAsync(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
+        private BoxSet? FindBoxSetByName(string name)
         {
-            // Mögliche Signaturen:
-            // Task AddToCollection(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
-            // Task AddToCollectionAsync(Guid collectionId, IEnumerable<Guid> itemIds, CancellationToken ct)
-
-            var t = _collections.GetType();
-
-            var candidates = new[]
+            var q = new InternalItemsQuery
             {
-                ("AddToCollection",      new Type[] { typeof(Guid), typeof(IEnumerable<Guid>), typeof(CancellationToken) }),
-                ("AddToCollectionAsync", new Type[] { typeof(Guid), typeof(IEnumerable<Guid>), typeof(CancellationToken) })
+                IncludeItemTypes = new[] { nameof(BoxSet) },
+                Name = name,
+                Recursive = true,
             };
+            var list = _library.GetItemList(q);
+            return list.OfType<BoxSet>().FirstOrDefault();
+        }
 
-            foreach (var (nameMethod, sig) in candidates)
-            {
-                var mi = t.GetMethod(nameMethod, BindingFlags.Instance | BindingFlags.Public, null, sig, null);
-                if (mi == null) continue;
+        private async Task<BoxSet?> EnsureCollectionAsync(string collectionName, CancellationToken ct)
+        {
+            // bereits vorhanden?
+            var existing = FindBoxSetByName(collectionName);
+            if (existing != null) return existing;
 
-                var res = mi.Invoke(_collections, new object?[] { collectionId, itemIds, ct });
-                if (res is Task task)
+            var cmType = _collectionManager.GetType();
+            var method = cmType
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(m =>
                 {
+                    var n = m.Name;
+                    if (!(n.Contains("CreateCollection", StringComparison.OrdinalIgnoreCase)
+                          || n.Contains("EnsureCollection", StringComparison.OrdinalIgnoreCase)))
+                        return false;
+
+                    var ps = m.GetParameters();
+                    return ps.Length >= 1 && ps[0].ParameterType == typeof(string);
+                });
+
+            if (method == null)
+            {
+                _logger.LogWarning("Keine Create*/Ensure*-Methode am ICollectionManager gefunden.");
+                return null;
+            }
+
+            object? result;
+            var ps = method.GetParameters();
+            var args = new object?[ps.Length];
+            args[0] = collectionName;
+
+            for (int i = 1; i < ps.Length; i++)
+            {
+                var p = ps[i].ParameterType;
+                if (p == typeof(CancellationToken)) args[i] = ct;
+                else if (!p.IsValueType) args[i] = null;
+                else args[i] = Activator.CreateInstance(p);
+            }
+
+            try
+            {
+                if (typeof(Task).IsAssignableFrom(method.ReturnType))
+                {
+                    var task = (Task)method.Invoke(_collectionManager, args)!;
                     await task.ConfigureAwait(false);
+                    var retProp = method.ReturnType.GetProperty("Result");
+                    result = retProp != null ? retProp.GetValue(task) : null;
+                }
+                else
+                {
+                    result = method.Invoke(_collectionManager, args);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Erstellen der Collection '{Name}' via {Method} fehlgeschlagen.", collectionName, method.Name);
+                return null;
+            }
+
+            if (result is BoxSet bs) return bs;
+
+            // Nach Anlage erneut suchen
+            return FindBoxSetByName(collectionName);
+        }
+
+        private async Task<bool> AddItemsToCollectionAsync(BoxSet collection, IEnumerable<BaseItem> items, CancellationToken ct)
+        {
+            var list = items?.Where(i => i != null).ToList() ?? new List<BaseItem>();
+            if (list.Count == 0) return true;
+
+            var cmType = _collectionManager.GetType();
+            var methods = cmType.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(m => m.Name.Contains("AddToCollection", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var m in methods)
+            {
+                var ps = m.GetParameters();
+
+                bool matchA = ps.Length >= 2
+                              && typeof(BoxSet).IsAssignableFrom(ps[0].ParameterType)
+                              && typeof(IEnumerable<BaseItem>).IsAssignableFrom(ps[1].ParameterType);
+
+                bool matchB = ps.Length >= 2
+                              && ps[0].ParameterType == typeof(Guid)
+                              && typeof(IEnumerable<Guid>).IsAssignableFrom(ps[1].ParameterType);
+
+                if (!matchA && !matchB) continue;
+
+                var args = new object?[ps.Length];
+                if (matchA)
+                {
+                    args[0] = collection;
+                    args[1] = list;
+                }
+                else
+                {
+                    args[0] = collection.Id;
+                    args[1] = list.Select(i => i.Id).ToList();
+                }
+
+                for (int i = 2; i < ps.Length; i++)
+                {
+                    var p = ps[i].ParameterType;
+                    if (p == typeof(CancellationToken)) args[i] = ct;
+                    else if (!p.IsValueType) args[i] = null;
+                    else args[i] = Activator.CreateInstance(p);
+                }
+
+                try
+                {
+                    if (typeof(Task).IsAssignableFrom(m.ReturnType))
+                    {
+                        var t = (Task)m.Invoke(_collectionManager, args)!;
+                        await t.ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m.Invoke(_collectionManager, args);
+                    }
+
                     return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "AddToCollection via {Method} fehlgeschlagen – versuche nächste Variante.", m.Name);
                 }
             }
 
+            _logger.LogWarning("Keine passende AddToCollection*-Methode auf ICollectionManager gefunden.");
             return false;
         }
     }
