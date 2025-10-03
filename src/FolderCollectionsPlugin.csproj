@@ -33,12 +33,13 @@
 
   <!-- Standalone-UI als Embedded Resources -->
   <ItemGroup>
+    <EmbeddedResource Include="Web/redirect/launch.html"
+                      LogicalName="FolderCollections.Web.redirect.launch.html" />
     <EmbeddedResource Include="Web/ui/config.html"
                       LogicalName="FolderCollections.Web.ui.config.html" />
     <EmbeddedResource Include="Web/ui/fc-config.js"
                       LogicalName="FolderCollections.Web.ui.fc-config.js" />
-    <EmbeddedResource Include="Web/redirect/launch.html"
-                      LogicalName="FolderCollections.Web.redirect.launch.html" />
   </ItemGroup>
+
 
 </Project>
