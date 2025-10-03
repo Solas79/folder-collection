@@ -152,61 +152,52 @@
           Manuellen Scan starten
         </button>
 
-       <!-- Speichern (mit Wrapper + Fallback + Roundtrip) -->
-       <button is="emby-button" type="button" class="raised button-submit"
-       onclick="(function(){
+      <button is="emby-button" type="button" class="raised button-submit"
+      onclick="(function(){
        var pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
        var $=function(i){return document.getElementById(i)};
-       var fromLines=function(t){return (t||'').split('\n').map(function(s){return s.trim()}).filter(Boolean)};
-
-       // 1) aktuelle Config holen → Felder rein → erst WRAPPER probieren
-       ApiClient.getPluginConfiguration(pid).then(function(cfg){
-         cfg.IncludeMovies = !!$('includeMovies').checked;
-         cfg.IncludeSeries = !!$('includeSeries').checked;
-         cfg.MinItems = parseInt($('minItems').value,10)||0;
-         cfg.Prefix = ($('prefix').value||'').trim();
-         cfg.Suffix = ($('suffix').value||'').trim();
-
-         var h = Math.min(23, Math.max(0, parseInt($('scanHour').value,10)||4));
-         var m = Math.min(59, Math.max(0, parseInt($('scanMinute').value,10)||0));
-         cfg.ScanHour = h; cfg.ScanMinute = m;
-
-         cfg.PathPrefixes   = fromLines($('pathPrefixes').value);
-         cfg.IgnorePatterns = fromLines($('ignorePatterns').value);
-         cfg.UseBasenameAsCollectionName = !!$('useBasename').checked;
-
-         // WRAPPER-Versuch
-         return ApiClient.updatePluginConfiguration(pid, cfg).catch(function(err){
-           // 2) Fallback: Roh-POST
-           return ApiClient.ajax({
-             type:'POST',
-             url: ApiClient.getUrl('Plugins/'+pid+'/Configuration'),
-             data: JSON.stringify(cfg),
-             contentType:'application/json;charset=UTF-8',
-             dataType:'json'
-           }).catch(function(e){
-             // Manche Builds geben kein JSON zurück -> trotzdem OK, außer echter HTTP-Fehler
-             if (e && e.status && e.status >= 400) throw e;
-           });
+       ApiClient.getPluginConfiguration(pid)
+         .then(function(cfg){
+           cfg.IncludeMovies = !!$('includeMovies').checked;
+           cfg.IncludeSeries = !!$('includeSeries').checked;
+           cfg.MinItems = parseInt($('minItems').value,10)||0;
+           cfg.Prefix = ( $('prefix').value || '' ).trim();
+           cfg.Suffix = ( $('suffix').value || '' ).trim();
+           var h = Math.min(23, Math.max(0, parseInt($('scanHour').value,10)||4));
+           var m = Math.min(59, Math.max(0, parseInt($('scanMinute').value,10)||0));
+           cfg.ScanHour = h; cfg.ScanMinute = m;
+           var split=function(t){return (t||'').split('\n').map(function(s){return s.trim()}).filter(Boolean)};
+           cfg.PathPrefixes   = split($('pathPrefixes').value);
+           cfg.IgnorePatterns = split($('ignorePatterns').value);
+           cfg.UseBasenameAsCollectionName = !!$('useBasename').checked;
+           return ApiClient.updatePluginConfiguration(pid, cfg)
+             .catch(function(){
+               return ApiClient.ajax({
+                 type:'POST',
+                 url:ApiClient.getUrl('Plugins/'+pid+'/Configuration'),
+                 data:JSON.stringify(cfg),
+                 contentType:'application/json;charset=UTF-8',
+                 dataType:'json'
+               }).catch(function(e){ if(e&&e.status>=400) throw e; });
+             });
+         })
+         .then(function(){ return ApiClient.getPluginConfiguration(pid); })
+         .then(function(v){
+           var want = !!$('useBasename').checked;
+           if (!!v.UseBasenameAsCollectionName !== want) {
+             Dashboard.alert('Gespeichert, aber „Basename“ nicht übernommen. Prüfe PluginConfiguration.cs (Property-Name).');
+             console.warn('Roundtrip mismatch', v);
+           } else {
+             Dashboard.alert('Gespeichert.');
+           }
+         })
+         .catch(function(err){
+           var msg = (err && (err.message || err.statusText || (err.status?('HTTP '+err.status):''))) || 'Unbekannter Fehler';
+           Dashboard.alert('Speichern fehlgeschlagen: ' + msg);
+           console.error(err);
          });
-       }).then(function(){
-         // 3) Roundtrip
-         return ApiClient.getPluginConfiguration(pid);
-       }).then(function(v){
-         var want = !!$('useBasename').checked;
-         var got  = !!v.UseBasenameAsCollectionName;
-         if (want !== got){
-           Dashboard.alert('Hinweis: "Basename als Sammlungsname" wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.cs');
-           console.warn('Roundtrip mismatch', {want:want, got:got, server:v});
-         } else {
-           Dashboard.alert('Gespeichert.');
-         }
-       }).catch(function(err){
-         var msg = (err && (err.message || err.statusText || (err.status ? ('HTTP '+err.status) : ''))) || 'Unbekannter Fehler';
-         Dashboard.alert('Speichern fehlgeschlagen: ' + msg);
-         console.error(err);
-       });
      })();">Speichern</button>
+
 
 
 
