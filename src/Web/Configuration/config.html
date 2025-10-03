@@ -1,163 +1,238 @@
-<div id="folderCollectionsConfigPage"
-     data-role="page"
-     class="page type-interior pluginConfigurationPage"
-     data-require="emby-button,emby-input,emby-select,emby-checkbox">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Folder Collections – Konfiguration</title>
+  <style>
+    .inputContainer { margin: 12px 0; }
+    .checkboxLabel { display: flex; gap: 8px; align-items: center; }
+    .fieldDescription { color: #888; font-size: 0.9em; margin-left: 26px; }
+    .actions { margin-top: 16px; display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div id="folderCollectionsConfigPage">
+    <form id="fcForm">
+      <div class="inputContainer">
+        <label class="checkboxLabel">
+          <input id="includeMovies" type="checkbox" />
+          Filme berücksichtigen
+        </label>
+      </div>
 
-  <div class="content-primary">
-    <div class="verticalSection">
-      <h1>Folder Collections – Einstellungen</h1>
+      <div class="inputContainer">
+        <label class="checkboxLabel">
+          <input id="includeSeries" type="checkbox" />
+          Serien berücksichtigen
+        </label>
+      </div>
 
-      <form id="fcForm" class="form">
-        <div class="inputContainer">
-          <label class="checkboxLabel">
-            <input is="emby-checkbox" id="includeMovies" type="checkbox" />
-            <span>Filme einbeziehen</span>
-          </label>
+      <div class="inputContainer">
+        <label for="minItems">Mindestanzahl Items</label><br/>
+        <input id="minItems" type="number" min="0" step="1" />
+        <div class="fieldDescription">Nur wenn mindestens so viele Items gefunden werden, wird eine Sammlung erstellt/aktualisiert.</div>
+      </div>
+
+      <div class="inputContainer">
+        <label for="prefix">Prefix</label><br/>
+        <input id="prefix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="suffix">Suffix</label><br/>
+        <input id="suffix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label>Scan-Uhrzeit</label><br/>
+        <input id="scanHour" type="number" min="0" max="23" style="width:80px" /> :
+        <input id="scanMinute" type="number" min="0" max="59" style="width:80px" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="pathPrefixes">Wurzelpfade (je Zeile)</label><br/>
+        <textarea id="pathPrefixes" rows="5" style="width:100%"></textarea>
+      </div>
+
+      <div class="inputContainer">
+        <label for="ignorePatterns">Ignore-Muster (je Zeile)</label><br/>
+        <textarea id="ignorePatterns" rows="4" style="width:100%"></textarea>
+        <div class="fieldDescription">Wildcards (*, ?) – oder Regex mit Präfix <code>re:</code></div>
+      </div>
+
+      <!-- NEU: Basename-Checkbox -->
+      <div class="inputContainer">
+        <label class="checkboxLabel">
+          <input id="useBasename" type="checkbox" />
+          Basename als Sammlungsname verwenden
+        </label>
+        <div class="fieldDescription">
+          Wenn aktiv: letzter Ordnername als Sammlungsname; sonst kompletter Pfad.
         </div>
+      </div>
 
-        <div class="inputContainer">
-          <label class="checkboxLabel">
-            <input is="emby-checkbox" id="includeSeries" type="checkbox" />
-            <span>Serien einbeziehen</span>
-          </label>
-        </div>
-
-       <div class="inputContainer">
-          <label class="checkboxLabel">
-            <input id="useBasename" type="checkbox" />
-            Basename als Sammlungsname verwenden
-          </label>
-          <div class="fieldDescription">
-            Nimmt den letzten Ordnernamen; wenn aus, wird der komplette Pfad verwendet.
-          </div>
-       </div>
-
-        <div class="inputContainer">
-          <label for="minItems">Min. Items/Ordner</label>
-          <input is="emby-input" id="minItems" type="number" min="0" step="1" required>
-        </div>
-
-        <div class="inputContainer">
-          <label for="prefix">Prefix</label>
-          <input is="emby-input" id="prefix" type="text" placeholder="z.B. Box:">
-        </div>
-
-        <div class="inputContainer">
-          <label for="suffix">Suffix</label>
-          <input is="emby-input" id="suffix" type="text" placeholder="z.B. Collection">
-        </div>
-
-        <div class="inputContainer flex align-items-center">
-          <label for="scanHour">Tägliche Scan-Zeit</label>
-          <div class="flex" style="gap:.5rem; align-items:center;">
-            <input is="emby-input" id="scanHour" type="number" min="0" max="23" step="1" style="width:5rem;">
-            :
-            <input is="emby-input" id="scanMinute" type="number" min="0" max="59" step="1" style="width:5rem;">
-          </div>
-        </div>
-
-        <div class="inputContainer">
-          <label for="pathPrefixes">Pfad-Präfixe (Whitelist, eine pro Zeile)</label>
-          <textarea is="emby-input" id="pathPrefixes" rows="4"></textarea>
-        </div>
-
-        <div class="inputContainer">
-          <label for="ignorePatterns">Ignore-Patterns (Regex, eine pro Zeile)</label>
-          <textarea is="emby-input" id="ignorePatterns" rows="4"></textarea>
-        </div>
-
-        <div class="buttons formButtons">
-          <button is="emby-button" type="button" class="raised button-cancel" id="fcCancel">Abbrechen</button>
-          <button is="emby-button" type="submit" class="raised accent button-submit" id="fcSave">Speichern</button>
-          <button is="emby-button" type="button" class="raised" id="fcManualScan">Manuell scannen</button>
-        </div>
-      </form>
-    </div>
+      <div class="actions">
+        <button id="fcManualScan" class="raised button-submit" type="button">Manuellen Scan starten</button>
+        <button class="raised button-submit" type="submit">Speichern</button>
+        <button id="fcCancel" class="raised button-cancel" type="button">Abbrechen</button>
+      </div>
+    </form>
   </div>
 
   <script>
   (() => {
-    // EXAKT deine GUID:
     const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
+    const $ = (id) => document.getElementById(id);
+    const toLines   = (arr)  => Array.isArray(arr) ? arr.join("\\n") : (arr || "");
+    const fromLines = (text) => (text || "").split("\\n").map(s => s.trim()).filter(Boolean);
 
-    const toLines = arr => Array.isArray(arr) ? arr.join("\n") : (arr || "");
-    const fromLines = txt => (txt || "").split("\n").map(s => s.trim()).filter(Boolean);
+    function buildErrorMessage(err) {
+      try {
+        if (err == null) return "Unbekannter Fehler";
+        if (typeof err === "string") return err;
+        const status     = typeof err.status !== "undefined" ? err.status : null;
+        const statusText = typeof err.statusText === "string" ? err.statusText : "";
+        const message    = typeof err.message === "string" ? err.message : "";
+        if (status || statusText) {
+          const head = status ? \`HTTP \${status}\${statusText ? " " : ""}\${statusText}\` : statusText;
+          return message ? \`\${head} – \${message}\` : head;
+        }
+        if (message) return message;
+        return JSON.stringify(err);
+      } catch { return "Unbekannter Fehler"; }
+    }
+
+    async function safeReadBody(resp) {
+      try {
+        if (!resp || typeof resp.text !== "function") return "";
+        const t = await resp.text();
+        return (t || "").slice(0, 200);
+      } catch { return ""; }
+    }
 
     async function load() {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
-      document.getElementById("includeMovies").checked = !!cfg.IncludeMovies;
-      document.getElementById("includeSeries").checked = !!cfg.IncludeSeries;
-      document.getElementById("minItems").value = cfg.MinItems ?? 2;
-      document.getElementById("prefix").value = cfg.Prefix ?? "";
-      document.getElementById("suffix").value = cfg.Suffix ?? "";
-      document.getElementById("scanHour").value = cfg.ScanHour ?? 4;
-      document.getElementById("scanMinute").value = cfg.ScanMinute ?? 0;
-      document.getElementById("pathPrefixes").value = toLines(cfg.PathPrefixes);
-      document.getElementById("ignorePatterns").value = toLines(cfg.IgnorePatterns);
+      try {
+        const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+        $("includeMovies").checked = !!cfg.IncludeMovies;
+        $("includeSeries").checked = !!cfg.IncludeSeries;
+        $("minItems").value  = cfg.MinItems  ?? 2;
+        $("prefix").value    = cfg.Prefix    ?? "";
+        $("suffix").value    = cfg.Suffix    ?? "";
+        $("scanHour").value  = cfg.ScanHour  ?? 4;
+        $("scanMinute").value= cfg.ScanMinute?? 0;
+        $("pathPrefixes").value  = toLines(cfg.PathPrefixes);
+        $("ignorePatterns").value= toLines(cfg.IgnorePatterns);
+        $("useBasename").checked = !!cfg.UseBasenameAsCollectionName;
+      } catch (err) {
+        Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err));
+        console.error(err);
+      }
     }
 
     async function save() {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
+      try {
+        const cfg = await ApiClient.getPluginConfiguration(pluginId);
 
-      cfg.IncludeMovies = document.getElementById("includeMovies").checked;
-      cfg.IncludeSeries = document.getElementById("includeSeries").checked;
-      cfg.MinItems = parseInt(document.getElementById("minItems").value, 10) || 0;
-      cfg.Prefix = document.getElementById("prefix").value.trim();
-      cfg.Suffix = document.getElementById("suffix").value.trim();
+        cfg.IncludeMovies = $("includeMovies").checked;
+        cfg.IncludeSeries = $("includeSeries").checked;
+        cfg.MinItems = parseInt($("minItems").value, 10) || 0;
+        cfg.Prefix   = $("prefix").value.trim();
+        cfg.Suffix   = $("suffix").value.trim();
 
-      const hour = Math.min(23, Math.max(0, parseInt(document.getElementById("scanHour").value, 10) || 4));
-      const minute = Math.min(59, Math.max(0, parseInt(document.getElementById("scanMinute").value, 10) || 0));
-      cfg.ScanHour = hour;
-      cfg.ScanMinute = minute;
+        const hour   = Math.min(23, Math.max(0, parseInt($("scanHour").value, 10)   || 4));
+        const minute = Math.min(59, Math.max(0, parseInt($("scanMinute").value, 10) || 0));
+        cfg.ScanHour   = hour;
+        cfg.ScanMinute = minute;
 
-      cfg.PathPrefixes = fromLines(document.getElementById("pathPrefixes").value);
-      cfg.IgnorePatterns = fromLines(document.getElementById("ignorePatterns").value);
+        cfg.PathPrefixes   = fromLines($("pathPrefixes").value);
+        cfg.IgnorePatterns = fromLines($("ignorePatterns").value);
 
-      const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
-      Dashboard.processPluginConfigurationUpdateResult(result);
-      Dashboard.alert(result?.IsUpdated === false ? "Konfiguration konnte nicht gespeichert werden." : "Gespeichert.");
+        cfg.UseBasenameAsCollectionName = !!$("useBasename").checked;
+
+        const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
+        Dashboard.processPluginConfigurationUpdateResult(result);
+
+        // Direkt prüfen, was der Server jetzt zurückliefert
+        const verify = await ApiClient.getPluginConfiguration(pluginId);
+        const want = !!$("useBasename").checked;
+        const got  = !!verify.UseBasenameAsCollectionName;
+
+        if (result?.IsUpdated === false) {
+          Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
+        } else if (want !== got) {
+          Dashboard.alert("Hinweis: 'Basename als Sammlungsname' wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.");
+          console.warn("Roundtrip mismatch: wanted", want, "got", got, verify);
+        } else {
+          Dashboard.alert("Gespeichert.");
+        }
+      } catch (err) {
+        Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err));
+        console.error(err);
+      }
     }
 
-    // Task manuell starten (offizielle Methode + Fallbacks)
-   async function manualScan(btn) {
-       const tidyError = (err) => {
-         if (!err) return "Unbekannter Fehler";
-         if (err.status) return `${err.status} ${err.statusText || ""}`.trim();
-         if (err.message) return err.message;
-         try { return JSON.stringify(err); } catch { return String(err); }
-       };
-       try {
-         btn?.setAttribute("disabled","disabled");
-         btn?.classList.add("idleProcessing");
+    async function manualScan(btn) {
+      try {
+        btn?.setAttribute("disabled", "disabled");
+        btn?.classList.add("idleProcessing");
 
-         // Controller-Endpunkt aufrufen
-         const url = ApiClient.getUrl("Plugins/FolderCollections/Scan");
-         await ApiClient.ajax({ type: "POST", url });
+        const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
+        const t = tasks.find(x =>
+          x?.Key === "FolderCollections.DailyScan" ||
+          (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
+        );
+        if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
 
-         Dashboard.alert("Manueller Scan ausgeführt.");
-       } catch (e) {
-         Dashboard.alert("Fehler beim Starten: " + tidyError(e));
-         console.error(e);
-       } finally {
-         btn?.removeAttribute("disabled");
-         btn?.classList.remove("idleProcessing");
-       }
-     }
+        let resp = await ApiClient.fetchApi(\`/ScheduledTasks/\${t.Id}/Trigger\`, { method: "POST" });
+        if (!resp?.ok) {
+          resp = await ApiClient.fetchApi(\`/ScheduledTasks/Running/\${t.Id}\`, { method: "POST" });
+          if (!resp?.ok) {
+            const txt = await safeReadBody(resp);
+            throw new Error(\`\${resp?.status || ""} \${resp?.statusText || ""} \${txt}\`.trim());
+          }
+        }
+
+        Dashboard.alert("Manueller Scan gestartet!");
+      } catch (err) {
+        Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err));
+        console.error(err);
+      } finally {
+        btn?.removeAttribute("disabled");
+        btn?.classList.remove("idleProcessing");
+      }
+    }
 
     function init() {
-      const page = document.getElementById("folderCollectionsConfigPage");
+      const page = $("folderCollectionsConfigPage");
       if (!page || page.dataset.initialized === "1") return;
       page.dataset.initialized = "1";
 
-      const form = document.getElementById("fcForm");
-      const cancelBtn = document.getElementById("fcCancel");
-      const scanBtn = document.getElementById("fcManualScan");
+      $("fcForm")?.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        save().catch((err) => {
+          Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err));
+          console.error(err);
+        });
+      });
 
-      form?.addEventListener("submit", (e) => { e.preventDefault(); save().catch(console.error); });
-      cancelBtn?.addEventListener("click", (e) => { e.preventDefault(); history.back(); });
-      scanBtn?.addEventListener("click", (e) => { e.preventDefault(); manualScan(e.currentTarget).catch(console.error); });
+      $("fcCancel")?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        history.back();
+      });
 
-      load().catch(console.error);
+      $("fcManualScan")?.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        manualScan(ev.currentTarget).catch((err) => {
+          Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err));
+          console.error(err);
+        });
+      });
+
+      load().catch((err) => {
+        Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err));
+        console.error(err);
+      });
     }
 
     document.addEventListener("DOMContentLoaded", init);
@@ -165,4 +240,5 @@
     document.addEventListener("pageshow", init);
   })();
   </script>
-</div>
+</body>
+</html>
