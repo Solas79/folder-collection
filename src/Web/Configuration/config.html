@@ -3,92 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <title>Folder Collections – Konfiguration</title>
-
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     .sectionTitle{font-weight:600;margin:16px 0 8px}
     .inputContainer{margin:8px 0}
     .inputLabel{display:block;margin-bottom:4px}
-    textarea,input,select,button{width:100%;max-width:860px;box-sizing:border-box}
+    textarea,input,button{width:100%;max-width:860px;box-sizing:border-box}
     textarea{min-height:120px}
     .buttonRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
     .buttonRow button{width:auto;padding:8px 14px}
-    .fieldDescription{opacity:.75;font-size:.92em;margin-top:4px}
+    .hint{opacity:.75;font-size:.92em;margin-top:4px}
   </style>
-
-  <!-- 1) SUPER-SHIM: neutralisiert behavior:null in scroll APIs & unterdrückt unhandled rejections -->
-  <script>
-  (function () {
-    function sanitizeOptions(arg) {
-      if (arg && typeof arg === 'object') {
-        const o = Object.assign({}, arg);
-        if ('behavior' in o && (o.behavior == null || o.behavior === 'null')) o.behavior = 'auto';
-        return o;
-      }
-      return arg;
-    }
-    function hardWrap(host, method) {
-      if (!host) return;
-      const orig = host[method];
-      if (typeof orig !== 'function') return;
-      const bound = orig.bind(host);
-      try {
-        host[method] = function (...args) {
-          if (args[0] && typeof args[0] === 'object') args[0] = sanitizeOptions(args[0]);
-          try {
-            return bound(...args);
-          } catch (e) {
-            // Fallback: Koordinatenform
-            if (args[0] && typeof args[0] === 'object') {
-              const left = Number(args[0].left || 0);
-              const top  = Number(args[0].top  || 0);
-              return bound(left, top);
-            }
-            return; // Fehler hart schlucken
-          }
-        };
-      } catch(_) {}
-    }
-
-    // window/document/element scrollTo
-    try { hardWrap(window,   'scrollTo'); } catch(_) {}
-    try { hardWrap(Window.prototype, 'scrollTo'); } catch(_) {}
-    try { hardWrap(Document.prototype, 'scrollTo'); } catch(_) {}
-    try { hardWrap(Element.prototype,  'scrollTo'); } catch(_) {}
-
-    // scrollIntoView hat ebenfalls options.behavior
-    try {
-      const origSIV = Element.prototype.scrollIntoView;
-      if (origSIV) {
-        Element.prototype.scrollIntoView = function (arg) {
-          if (arg && typeof arg === 'object') arg = sanitizeOptions(arg);
-          try { return origSIV.call(this, arg); } catch (_) { return; }
-        };
-      }
-    } catch(_) {}
-
-    // „Notbremse“: Scroll-Fehler nicht die Seite killen lassen
-    window.addEventListener('unhandledrejection', (ev) => {
-      const msg = String(ev.reason || '');
-      if (msg.includes('ScrollOptions') || msg.includes('scrollTo') || msg.includes('scrollIntoView')) {
-        ev.preventDefault();
-      }
-    }, {capture:true});
-  })();
-  </script>
 </head>
-
 <body>
-  <div id="FolderCollectionsConfigurationPage"
-       data-role="page"
-       class="page type-interior pluginConfigurationPage"
-       data-title="Folder Collections">
+  <div id="FolderCollectionsConfigurationPage" class="page type-interior pluginConfigurationPage"
+       data-role="page" data-title="Folder Collections">
 
     <div data-role="content">
       <div class="content-primary">
         <form id="fcForm">
 
           <div class="sectionTitle">Quellordner</div>
+
           <div class="inputContainer">
             <label class="inputLabel" for="fcIncludeFolders">Ordner scannen (ein Pfad pro Zeile)</label>
             <textarea id="fcIncludeFolders" placeholder="/media/filme
@@ -100,11 +36,11 @@
             <textarea id="fcExcludeFolders" placeholder="/media/filme/Extras
 **/Sample
 **/*.srt"></textarea>
-            <div class="fieldDescription">Exakte Pfade oder Patterns – so wie es dein Plugin serverseitig interpretiert.</div>
+            <div class="hint">Exakte Pfade oder Patterns – so, wie dein Plugin es interpretiert.</div>
           </div>
 
           <div class="sectionTitle">Sammlungsname</div>
-          <div class="fieldDescription">Wird serverseitig gebaut als: <code>Präfix + basename(Ordner) + Suffix</code></div>
+          <div class="hint">Server baut: <code>Präfix + basename(Ordner) + Suffix</code></div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcNamePrefix">Präfix</label>
@@ -119,10 +55,11 @@
           <div class="inputContainer">
             <label class="inputLabel" for="fcMinItemsPerFolder">Mindest-Items pro Ordner</label>
             <input id="fcMinItemsPerFolder" type="number" min="0" step="1" placeholder="2">
-            <div class="fieldDescription">Erst ab dieser Anzahl wird eine Sammlung erzeugt/aktualisiert.</div>
+            <div class="hint">Unterhalb dieses Werts wird keine Sammlung erzeugt/aktualisiert.</div>
           </div>
 
           <div class="sectionTitle">Automatisierung</div>
+
           <div class="inputContainer">
             <label><input id="fcEnableDailyScan" type="checkbox"> Täglichen Scan aktivieren</label>
           </div>
@@ -130,7 +67,7 @@
           <div class="inputContainer">
             <label class="inputLabel" for="fcDailyTime">Uhrzeit für täglichen Scan</label>
             <input id="fcDailyTime" type="time">
-            <div class="fieldDescription">Format HH:MM (Serverzeit).</div>
+            <div class="hint">Format HH:MM (Serverzeit).</div>
           </div>
 
           <div class="buttonRow">
@@ -138,162 +75,12 @@
             <button id="fcReload"  type="button">Neu laden</button>
             <button id="fcSave"    type="submit">Speichern</button>
           </div>
+
         </form>
       </div>
     </div>
   </div>
 
-  <!-- 2) KONFIG-LOGIK (kein is="emby-*", nur offizielle ApiClient-Calls) -->
-  <script>
-  (function () {
-    'use strict';
-
-    const pluginId = '9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
-
-    const $ = (sel) => document.querySelector(sel);
-    const S = {
-      page:   '#FolderCollectionsConfigurationPage',
-      form:   '#fcForm',
-      include:'#fcIncludeFolders',
-      exclude:'#fcExcludeFolders',
-      prefix: '#fcNamePrefix',
-      suffix: '#fcNameSuffix',
-      minIt:  '#fcMinItemsPerFolder',
-      enable: '#fcEnableDailyScan',
-      time:   '#fcDailyTime',
-      save:   '#fcSave',
-      reload: '#fcReload',
-      scan:   '#fcScanNow'
-    };
-
-    const DEFAULTS = {
-      IncludeFolders: [],
-      ExcludeFolders: [],
-      CollectionNamePrefix: '',
-      CollectionNameSuffix: '',
-      MinItemsPerFolder: 2,
-      EnableDailyScan: false,
-      DailyScanTime: '03:00',
-      // Back-Compat:
-      DailyScanHour: 3,
-      DailyScanMinute: 0
-    };
-
-    const toast=(m)=>{ try{Dashboard.alert(m);}catch{alert(m);} };
-    const parseLines=(t)=>(t||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    const joinLines =(a)=>Array.isArray(a)?a.join('\n'):'';
-
-    function normalize(cIn){
-      const c = Object.assign({}, DEFAULTS, cIn||{});
-      if ((!c.DailyScanTime || !/^\d{2}:\d{2}$/.test(c.DailyScanTime)) && typeof c.DailyScanHour==='number') {
-        const h=String(c.DailyScanHour).padStart(2,'0');
-        const m=String(c.DailyScanMinute||0).padStart(2,'0');
-        c.DailyScanTime = `${h}:${m}`;
-      }
-      if (!Array.isArray(c.IncludeFolders)) c.IncludeFolders=[];
-      if (!Array.isArray(c.ExcludeFolders)) c.ExcludeFolders=[];
-      if (!Number.isFinite(c.MinItemsPerFolder)) c.MinItemsPerFolder = DEFAULTS.MinItemsPerFolder;
-      return c;
-    }
-
-    function applyToForm(c){
-      $(S.include).value = joinLines(c.IncludeFolders);
-      $(S.exclude).value = joinLines(c.ExcludeFolders);
-      $(S.prefix).value  = c.CollectionNamePrefix || '';
-      $(S.suffix).value  = c.CollectionNameSuffix || '';
-      $(S.minIt).value   = String(c.MinItemsPerFolder ?? DEFAULTS.MinItemsPerFolder);
-      $(S.enable).checked= !!c.EnableDailyScan;
-      $(S.time).value    = (/^\d{2}:\d{2}$/.test(c.DailyScanTime||'')) ? c.DailyScanTime : DEFAULTS.DailyScanTime;
-    }
-
-    function readFromForm(base){
-      const out = Object.assign({}, base||{});
-      out.IncludeFolders        = parseLines($(S.include).value);
-      out.ExcludeFolders        = parseLines($(S.exclude).value);
-      out.CollectionNamePrefix  = $(S.prefix).value || '';
-      out.CollectionNameSuffix  = $(S.suffix).value || '';
-      const mi = Number($(S.minIt).value);
-      out.MinItemsPerFolder     = Number.isFinite(mi) ? Math.max(0, Math.trunc(mi)) : DEFAULTS.MinItemsPerFolder;
-      out.EnableDailyScan       = $(S.enable).checked;
-      const t = ($(S.time).value||'').trim();
-      if (/^\d{2}:\d{2}$/.test(t)) {
-        out.DailyScanTime = t;
-        const [h,m] = t.split(':').map(n=>parseInt(n,10));
-        out.DailyScanHour = h; out.DailyScanMinute = m;
-      }
-      return out;
-    }
-
-    async function loadConfig(){
-      try {
-        const cfg = await ApiClient.getPluginConfiguration(pluginId);
-        applyToForm(normalize(cfg));
-      } catch (e) {
-        console.error('[FolderCollections] Laden fehlgeschlagen:', e);
-        applyToForm(normalize(null));
-        toast('Konfiguration konnte nicht geladen werden. Defaults angezeigt.');
-      }
-      // Sicherheitsnetz: evtl. hängende Spinner ausblenden
-      setTimeout(()=>{ try{Dashboard.hideLoadingMsg();}catch{} }, 10);
-    }
-
-    async function saveConfig(ev){
-      if (ev) ev.preventDefault();
-      try {
-        const current = await ApiClient.getPluginConfiguration(pluginId);
-        const merged  = readFromForm(normalize(current));
-        const result  = await ApiClient.updatePluginConfiguration(pluginId, merged);
-        try { Dashboard.processPluginConfigurationUpdateResult(result); } catch {}
-        toast('Konfiguration gespeichert.');
-      } catch (e) {
-        console.error('[FolderCollections] Speichern fehlgeschlagen:', e);
-        toast('Speichern fehlgeschlagen – siehe Konsole.');
-      }
-    }
-
-    async function scanNow(){
-      try {
-        const token = ApiClient._serverInfo?.AccessToken || '';
-        const post  = async (path)=>fetch(ApiClient.getUrl(path), { method:'POST', headers:{'X-Emby-Token':token}});
-        let r = await post('FolderCollections/ScanNow');
-        if (!r.ok && r.status===404) r = await post('FolderCollections/Scan');
-        if (!r.ok) throw new Error('HTTP '+r.status);
-        toast('Scan gestartet.');
-      } catch (e) {
-        console.error('[FolderCollections] ScanNow fehlgeschlagen:', e);
-        toast('Scan konnte nicht gestartet werden – siehe Konsole.');
-      }
-    }
-
-    function wire(){
-      const page = $(S.page);
-      if (!page) return;
-
-      // Beide Events unterstützen
-      const onShow = ()=>loadConfig();
-      page.addEventListener('pageshow', onShow);
-      page.addEventListener('viewshow', onShow);
-
-      $(S.form)?.addEventListener('submit', saveConfig);
-      $(S.reload)?.addEventListener('click', loadConfig);
-      $(S.scan)?.addEventListener('click', scanNow);
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', wire);
-    } else {
-      wire();
-    }
-  })();
-  </script>
-
-  <!-- 3) Falls ein altes Overlay dennoch hängen bleibt: hard hide -->
-  <script>
-    setTimeout(() => {
-      try { Dashboard.hideLoadingMsg(); } catch(_) {}
-      const stuck = document.querySelector('.dialogContainer, .mdl-spinner');
-      if (stuck) stuck.style.display = 'none';
-    }, 50);
-  </script>
+  <script src="FolderCollections.Web.Configuration.config.js"></script>
 </body>
 </html>
