@@ -17,14 +17,17 @@ namespace FolderCollections
 
         public Plugin(IApplicationPaths appPaths, IXmlSerializer xml) : base(appPaths, xml) {}
 
-        // WICHTIG: Name = "config" → Einstellungen-Button funktioniert
         public IEnumerable<PluginPageInfo> GetPages()
         {
             yield return new PluginPageInfo
             {
+                // WICHTIG: genau "config", damit der Einstellungen-Button in 10.10.7 greift
                 Name = "config",
-                // DIREKT die UI-HTML als Embedded-Seite ausliefern
-                EmbeddedResourcePath = "FolderCollections.Web.ui.config.html",
+
+                // Launcher-HTML (s.u.) – leitet nach /FolderCollections/ui um
+                EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
+
+                // zusätzlich Eintrag im linken Menü
                 EnableInMainMenu = true
             };
         }
