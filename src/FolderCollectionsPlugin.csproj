@@ -27,7 +27,8 @@
 
   <!-- Standalone-UI als Embedded Resource -->
   <ItemGroup>
-    <EmbeddedResource Include="Web/ui/config.html" />
+    <EmbeddedResource Include="Web/redirect/launch.html" />
+ <EmbeddedResource Include="Web/ui/config.html" />
   </ItemGroup>
 
   <!-- falls irgendwo Altdateien liegen sollten, kill sie explizit:
