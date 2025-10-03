@@ -19,16 +19,16 @@ namespace FolderCollections
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // Manifestname dynamisch aus dem Root-Namespace ableiten:
-            var resourcePath = typeof(Plugin).Namespace + ".Web.ui.config.html";
+            // dynamisch aus dem Root-Namespace gebaut:
+            var launcher = typeof(Plugin).Namespace + ".Web.redirect.launch.html";
 
             yield return new PluginPageInfo
             {
-                // WICHTIG: exakt "config", damit der Einstellungen-Button funktioniert
-                Name = "config",
-                EmbeddedResourcePath = resourcePath,
+                Name = "config",                 // wichtig für den Einstellungen-Button
+                EmbeddedResourcePath = launcher, // <<< Launcher statt config.html
                 EnableInMainMenu = true
             };
         }
+
     }
 }
