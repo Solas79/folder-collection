@@ -1,3 +1,4 @@
+sudo tee /var/lib/jellyfin/plugins/FolderCollections/manifest.json >/dev/null <<'JSON'
 {
   "name": "FolderCollections",
   "guid": "9f4f2c47-b3c5-4b13-9b1f-1c2d3e4f5a60",
@@ -6,3 +7,7 @@
   "targetAbi": "10.10.0.0",
   "framework": "net8.0"
 }
+JSON
+
+sudo chown jellyfin:jellyfin /var/lib/jellyfin/plugins/FolderCollections/manifest.json
+sudo chmod 644 /var/lib/jellyfin/plugins/FolderCollections/manifest.json
