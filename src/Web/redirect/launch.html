@@ -1,14 +1,28 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>Folder Collections</title></head>
-<body style="padding:24px;font-family:system-ui">
+<head>
+  <meta charset="utf-8">
+  <title>Folder Collections – Start</title>
+  <!-- Fallback-Redirect nach 1 Sekunde -->
+  <meta http-equiv="refresh" content="1; url=/FolderCollections/ui">
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px}
+    a.btn{display:inline-block;padding:10px 14px;border:1px solid #888;border-radius:8px;text-decoration:none}
+  </style>
+</head>
+<body>
   <h2>Folder Collections – Konfiguration</h2>
-  <p>
-    <a href="/FolderCollections/ui" target="_top"
-       style="padding:8px 12px;border:1px solid #999;border-radius:6px;text-decoration:none">
-      Standalone-Konfiguration öffnen
-    </a>
-  </p>
-  <script>try{ top.location='/FolderCollections/ui'; }catch(e){ /* Link als Fallback */ }</script>
+  <p>Falls keine automatische Weiterleitung erfolgt:</p>
+  <p><a class="btn" href="/FolderCollections/ui" target="_top">Konfiguration öffnen</a></p>
+
+  <script>
+    // sofort & robust das ganze Top-Window umlenken (raus aus dem SPA)
+    try { window.top.location.href = '/FolderCollections/ui'; } catch(e) {}
+    // weitere Fallbacks
+    setTimeout(function(){
+      try { window.parent.location.href = '/FolderCollections/ui'; } catch(e){}
+      try { window.location.href = '/FolderCollections/ui'; } catch(e){}
+    }, 200);
+  </script>
 </body>
 </html>
