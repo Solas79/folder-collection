@@ -119,7 +119,6 @@
   async function loadCfg(){
     if (!window.ApiClient){ alertMsg("ApiClient nicht verfügbar. Seite im Jellyfin-UI öffnen."); return; }
     try{
-      // Cache-Busting falls UI gecached ist
       var url = ApiClient.getUrl("Plugins/"+pid+"/Configuration") + "?ts="+Date.now();
       var cfg = await ApiClient.ajax({ type:"GET", url:url, dataType:"json" });
       fillUI(cfg);
@@ -145,7 +144,6 @@
         contentType: "application/json;charset=UTF-8",
         dataType: "json"
       }).catch(function(e){ if(e && e.status && e.status>=400) throw e; });
-      // Roundtrip prüfen
       var url = ApiClient.getUrl("Plugins/"+pid+"/Configuration")+"?ts="+Date.now();
       var serverCfg = await ApiClient.ajax({type:"GET", url:url, dataType:"json"});
       fillUI(serverCfg);
@@ -167,7 +165,6 @@
       });
       if (!t || !t.Id) throw new Error("FolderCollections-Task nicht gefunden.");
 
-      // regulär triggern, Fallback für ältere Server
       try{
         var r = await ApiClient.fetchApi("/ScheduledTasks/"+t.Id+"/Trigger", { method:"POST" });
         if (!r || !r.ok) throw new Error("Trigger fehlgeschlagen");
@@ -185,7 +182,6 @@
     }
   }
 
-  // Button-Handler binden
   document.addEventListener("DOMContentLoaded", function(){
     var loadBtn = $("fcLoad");
     var saveBtn = $("fcSave");
@@ -204,9 +200,7 @@
     }, 50);
   });
 
-  // Jellyfin-seitige Navigations-Events (einige Skins verwenden viewshow/pageshow)
   document.addEventListener("viewshow", function(){ if (!$("fcLoad") || $("fcLoad").dataset.loaded==="1") return; loadCfg().catch(console.error); });
   document.addEventListener("pageshow", function(){ if (!$("fcLoad") || $("fcLoad").dataset.loaded==="1") return; loadCfg().catch(console.error); });
-
 })();
 </script>
