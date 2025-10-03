@@ -6,7 +6,55 @@
   <div class="content-primary">
     <h1>Folder Collections – Einstellungen</h1>
 
-    <form id="fcForm" class="emby-form" onsubmit="return window.FolderCollections.save(event)">
+    <!-- SAVE läuft komplett im onsubmit-Attribut -->
+    <form id="fcForm" class="emby-form"
+          onsubmit="(async function(ev){
+            ev && ev.preventDefault && ev.preventDefault();
+            const pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
+            try{
+              const $=id=>document.getElementById(id);
+              const fromLines=t=>(t||'').split('\n').map(s=>s.trim()).filter(Boolean);
+              const cfg=await ApiClient.getPluginConfiguration(pid);
+
+              cfg.IncludeMovies = $('includeMovies').checked;
+              cfg.IncludeSeries = $('includeSeries').checked;
+              cfg.MinItems = parseInt($('minItems').value,10) || 0;
+              cfg.Prefix = $('prefix').value.trim();
+              cfg.Suffix = $('suffix').value.trim();
+
+              const h=Math.min(23,Math.max(0,parseInt($('scanHour').value,10)||4));
+              const m=Math.min(59,Math.max(0,parseInt($('scanMinute').value,10)||0));
+              cfg.ScanHour=h; cfg.ScanMinute=m;
+
+              cfg.PathPrefixes   = fromLines($('pathPrefixes').value);
+              cfg.IgnorePatterns = fromLines($('ignorePatterns').value);
+
+              cfg.UseBasenameAsCollectionName = !!$('useBasename').checked;
+
+              const result = await ApiClient.updatePluginConfiguration(pid,cfg);
+              Dashboard.processPluginConfigurationUpdateResult(result);
+
+              // Roundtrip-Check
+              const verify = await ApiClient.getPluginConfiguration(pid);
+              const want = !!$('useBasename').checked;
+              const got  = !!verify.UseBasenameAsCollectionName;
+
+              if(result && result.IsUpdated===false){
+                Dashboard.alert('Konfiguration konnte nicht gespeichert werden.');
+              }else if(want!==got){
+                Dashboard.alert('Hinweis: \"Basename als Sammlungsname\" wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.cs');
+                console.warn('Roundtrip mismatch', {want,got,verify});
+              }else{
+                Dashboard.alert('Gespeichert.');
+              }
+            }catch(err){
+              const s = (err && (err.message||err.statusText||('HTTP '+(err.status||'')))) || 'Unbekannter Fehler';
+              Dashboard.alert('Speichern fehlgeschlagen: '+s);
+              console.error(err);
+            }
+            return false;
+          })(event); return false;">
+
       <div class="checkboxContainer">
         <label class="emby-checkbox-label">
           <input id="includeMovies" type="checkbox" is="emby-checkbox" />
@@ -66,9 +114,41 @@
       </div>
 
       <div class="formButtons">
+        <!-- MANUAL SCAN komplett im onclick-Attribut -->
         <button id="fcManualScan" is="emby-button" type="button" class="raised button-submit"
-                onclick="window.FolderCollections.manualScan(this)">Manuellen Scan starten</button>
+          onclick="(async function(btn){
+            btn && btn.setAttribute && btn.setAttribute('disabled','disabled');
+            btn && btn.classList && btn.classList.add('idleProcessing');
+            const pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
+            try{
+              const tasks = await ApiClient.getJSON(ApiClient.getUrl('ScheduledTasks'));
+              const t = tasks && tasks.find && tasks.find(x => (x && (x.Key==='FolderCollections.DailyScan' || (x.Name||'').toLowerCase().includes('folder collections'))));
+              if(!t || !t.Id) throw new Error('FolderCollections-Task nicht gefunden.');
+
+              let resp = await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method:'POST' });
+              if(!resp || !resp.ok){
+                resp = await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method:'POST' });
+                if(!resp || !resp.ok){
+                  let txt=''; try{ txt = await resp.text(); }catch(_){}
+                  throw new Error(`${(resp&&resp.status)||''} ${(resp&&resp.statusText)||''} ${txt}`.trim());
+                }
+              }
+              Dashboard.alert('Manueller Scan gestartet!');
+            }catch(err){
+              const s = (err && (err.message||err.statusText||('HTTP '+(err.status||'')))) || 'Unbekannter Fehler';
+              Dashboard.alert('Fehler beim Starten des Scans: '+s);
+              console.error(err);
+            }finally{
+              btn && btn.removeAttribute && btn.removeAttribute('disabled');
+              btn && btn.classList && btn.classList.remove('idleProcessing');
+            }
+          })(this)">
+          Manuellen Scan starten
+        </button>
+
         <button is="emby-button" type="submit" class="raised button-submit">Speichern</button>
+
+        <!-- Abbrechen funktioniert weiterhin -->
         <button id="fcCancel" is="emby-button" type="button" class="raised button-cancel"
                 onclick="history.back()">Abbrechen</button>
       </div>
@@ -76,129 +156,27 @@
   </div>
 </div>
 
-<script>
-(() => {
-  const pluginId = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
-  const $ = (id) => document.getElementById(id);
-  const toLines = (arr) => Array.isArray(arr) ? arr.join("\\n") : (arr || "");
-  const fromLines = (text) => (text || "").split("\\n").map(s => s.trim()).filter(Boolean);
+<!-- LOAD beim Aufruf: direkt in onload-Attribut der Seite -->
+<div style="display:none" onload="(async function(){
+  try{
+    const pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
+    const $=id=>document.getElementById(id);
+    const toLines=arr=>Array.isArray(arr)?arr.join('\n'):(arr||'');
+    const cfg=await ApiClient.getPluginConfiguration(pid);
 
-  function buildErrorMessage(err) {
-    try {
-      if (err == null) return "Unbekannter Fehler";
-      if (typeof err === "string") return err;
-      const status     = typeof err.status !== "undefined" ? err.status : null;
-      const statusText = typeof err.statusText === "string" ? err.statusText : "";
-      const message    = typeof err.message === "string" ? err.message : "";
-      if (status || statusText) {
-        const head = status ? `HTTP ${status}${statusText ? " " : ""}${statusText}` : statusText;
-        return message ? `${head} – ${message}` : head;
-      }
-      if (message) return message;
-      return JSON.stringify(err);
-    } catch { return "Unbekannter Fehler"; }
+    $('includeMovies').checked = !!cfg.IncludeMovies;
+    $('includeSeries').checked = !!cfg.IncludeSeries;
+    $('minItems').value  = (cfg.MinItems ?? 2);
+    $('prefix').value    = (cfg.Prefix ?? '');
+    $('suffix').value    = (cfg.Suffix ?? '');
+    $('scanHour').value  = (cfg.ScanHour ?? 4);
+    $('scanMinute').value= (cfg.ScanMinute ?? 0);
+    $('pathPrefixes').value   = toLines(cfg.PathPrefixes);
+    $('ignorePatterns').value = toLines(cfg.IgnorePatterns);
+    $('useBasename').checked  = !!cfg.UseBasenameAsCollectionName;
+  }catch(err){
+    const s=(err && (err.message||err.statusText||('HTTP '+(err.status||'')))) || 'Unbekannter Fehler';
+    Dashboard.alert('Konfiguration konnte nicht geladen werden: '+s);
+    console.error(err);
   }
-  async function safeReadBody(resp) {
-    try {
-      if (!resp || typeof resp.text !== "function") return "";
-      const t = await resp.text();
-      return (t || "").slice(0, 200);
-    } catch { return ""; }
-  }
-
-  async function load() {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId);
-
-    $("includeMovies").checked = !!cfg.IncludeMovies;
-    $("includeSeries").checked = !!cfg.IncludeSeries;
-    $("minItems").value  = cfg.MinItems  ?? 2;
-    $("prefix").value    = cfg.Prefix    ?? "";
-    $("suffix").value    = cfg.Suffix    ?? "";
-    $("scanHour").value  = cfg.ScanHour  ?? 4;
-    $("scanMinute").value= cfg.ScanMinute?? 0;
-    $("pathPrefixes").value  = toLines(cfg.PathPrefixes);
-    $("ignorePatterns").value= toLines(cfg.IgnorePatterns);
-    $("useBasename").checked = !!cfg.UseBasenameAsCollectionName;
-  }
-
-  async function saveImpl() {
-    const cfg = await ApiClient.getPluginConfiguration(pluginId);
-
-    cfg.IncludeMovies = $("includeMovies").checked;
-    cfg.IncludeSeries = $("includeSeries").checked;
-    cfg.MinItems = parseInt($("minItems").value, 10) || 0;
-    cfg.Prefix   = $("prefix").value.trim();
-    cfg.Suffix   = $("suffix").value.trim();
-
-    const hour   = Math.min(23, Math.max(0, parseInt($("scanHour").value, 10)   || 4));
-    const minute = Math.min(59, Math.max(0, parseInt($("scanMinute").value, 10) || 0));
-    cfg.ScanHour   = hour;
-    cfg.ScanMinute = minute;
-
-    cfg.PathPrefixes   = fromLines($("pathPrefixes").value);
-    cfg.IgnorePatterns = fromLines($("ignorePatterns").value);
-    cfg.UseBasenameAsCollectionName = !!$("useBasename").checked;
-
-    const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
-    Dashboard.processPluginConfigurationUpdateResult(result);
-
-    const verify = await ApiClient.getPluginConfiguration(pluginId);
-    const want = !!$("useBasename").checked;
-    const got  = !!verify.UseBasenameAsCollectionName;
-
-    if (result?.IsUpdated === false) {
-      Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
-    } else if (want !== got) {
-      Dashboard.alert("Hinweis: 'Basename als Sammlungsname' wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.");
-      console.warn("Roundtrip mismatch: wanted", want, "got", got, verify);
-    } else {
-      Dashboard.alert("Gespeichert.");
-    }
-  }
-
-  async function manualScanImpl(btn) {
-    btn?.setAttribute("disabled", "disabled");
-    btn?.classList.add("idleProcessing");
-    try {
-      const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
-      const t = tasks.find(x =>
-        x?.Key === "FolderCollections.DailyScan" ||
-        (typeof x?.Name === "string" && x.Name.toLowerCase().includes("folder collections"))
-      );
-      if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
-
-      let resp = await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
-      if (!resp?.ok) {
-        resp = await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" });
-        if (!resp?.ok) {
-          const txt = await safeReadBody(resp);
-          throw new Error(`${resp?.status || ""} ${resp?.statusText || ""} ${txt}`.trim());
-        }
-      }
-      Dashboard.alert("Manueller Scan gestartet!");
-    } finally {
-      btn?.removeAttribute("disabled");
-      btn?.classList.remove("idleProcessing");
-    }
-  }
-
-  // Global verfügbar machen, damit onclick/onsubmit IMMER greifen
-  window.FolderCollections = {
-    async save(ev) {
-      try { ev?.preventDefault?.(); await saveImpl(); }
-      catch (err) { Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err)); console.error(err); }
-      return false;
-    },
-    async manualScan(btn) {
-      try { await manualScanImpl(btn); }
-      catch (err) { Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err)); console.error(err); }
-    }
-  };
-
-  // zusätzlich versuchen wir automatisch zu laden
-  const tryInit = () => load().catch(err => { Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err)); console.error(err); });
-  document.addEventListener("DOMContentLoaded", tryInit);
-  document.addEventListener("viewshow", tryInit);
-  document.addEventListener("pageshow", tryInit);
-})();
-</script>
+})()"></div>
