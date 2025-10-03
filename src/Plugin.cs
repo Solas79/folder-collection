@@ -21,13 +21,10 @@ namespace FolderCollections
         {
             yield return new PluginPageInfo
             {
-                // WICHTIG: genau "config", damit der Einstellungen-Button in 10.10.7 greift
+                // WICHTIG: genau "config"
                 Name = "config",
-
-                // Launcher-HTML (s.u.) – leitet nach /FolderCollections/ui um
-                EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
-
-                // zusätzlich Eintrag im linken Menü
+                // Der Manifestname der eingebetteten HTML-Datei
+                EmbeddedResourcePath = "FolderCollections.Web.ui.config.html",
                 EnableInMainMenu = true
             };
         }
