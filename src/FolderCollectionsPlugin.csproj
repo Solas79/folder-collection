@@ -1,56 +1,31 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>latest</LangVersion>
-
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
-
-    <Version>0.4.7</Version>
-    <Authors>Solas79</Authors>
-    <Description>Jellyfin plugin that builds collections based on folder structure.</Description>
-
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <SelfContained>false</SelfContained>
-    <PublishSingleFile>false</PublishSingleFile>
+    <LangVersion>latest</LangVersion>
+    <!-- optional -->
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="src/**/PluginConfiguration*.cs.bak" />
-    <Compile Remove="src/**/PluginConfiguration_old.cs" />
-  </ItemGroup>
-
+  <!-- Nur EIN ItemGroup-Block für NuGet-Pakete, alle PackageReference SELF-CLOSING -->
   <ItemGroup>
     <PackageReference Include="Jellyfin.Controller" Version="10.10.*" PrivateAssets="all" />
-    <PackageReference Include="Jellyfin.Model" Version="10.10.*" PrivateAssets="all" />
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.7">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.10.7">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
+    <PackageReference Include="Jellyfin.Model"      Version="10.10.*" PrivateAssets="all" />
   </ItemGroup>
 
+  <!-- Die HTML-Seite als EmbeddedResource einbinden -->
   <ItemGroup>
-    <!-- verhindert, dass die HTML-Datei als Content ins Ausgabeverzeichnis kopiert wird -->
     <None Remove="Web/Configuration/config.html" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- sorgt dafür, dass die HTML-Datei als EmbeddedResource im DLL landet -->
     <EmbeddedResource Include="Web/Configuration/config.html">
       <LogicalName>FolderCollections.Web.Configuration.config.html</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
-
-  <PropertyGroup>
-    <WarningsAsErrors>nullable</WarningsAsErrors>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-  </PropertyGroup>
 </Project>
