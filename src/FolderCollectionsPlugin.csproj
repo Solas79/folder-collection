@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Jellyfin.Server" Version="10.10.*" PrivateAssets="all" />
     <PackageReference Include="Jellyfin.Common" Version="10.10.7">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
