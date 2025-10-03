@@ -20,7 +20,6 @@
             <label class="inputLabel" for="fcIncludeFolders">Ordner scannen (ein Pfad pro Zeile)</label>
             <textarea id="fcIncludeFolders" is="emby-input" rows="6" placeholder="/media/filme
 /media/serien"></textarea>
-            <div class="fieldDescription">Jede Zeile ein absoluter Pfad. Leere Zeilen werden ignoriert.</div>
           </div>
 
           <div class="inputContainer">
@@ -28,39 +27,44 @@
             <textarea id="fcExcludeFolders" is="emby-input" rows="5" placeholder="/media/filme/Extras
 **/Sample
 **/*.srt"></textarea>
-            <div class="fieldDescription">Exakte Pfade oder Patterns (je nach deiner Plugin-Logik).</div>
           </div>
 
+          <div class="sectionTitle">Sammlungen</div>
+
           <div class="checkboxContainer">
-            <label><input id="fcUseBasenameAsCollectionName" type="checkbox" is="emby-checkbox" />
-              Sammlungsname = <code>basename(Ordner)</code>
+            <label>
+              <input id="fcUseBasenameAsCollectionName" type="checkbox" is="emby-checkbox" />
+              Sammlungs<strong>name</strong> = <code>basename(Ordner)</code>
             </label>
           </div>
 
           <div class="checkboxContainer">
-            <label><input id="fcUseBasenameAsCollectionFolder" type="checkbox" is="emby-checkbox" />
-              Sammlungs-Ordner = <code>basename(Ordner)</code>
+            <label>
+              <input id="fcUseBasenameAsCollectionFolder" type="checkbox" is="emby-checkbox" />
+              Name des Sammlungs<strong>ordners</strong> = <code>basename(Ordner)</code>
             </label>
           </div>
-
-          <div class="sectionTitle">Sammlungsnamen</div>
 
           <div class="inputContainer">
-            <label class="inputLabel" for="fcNamePrefix">Präfix</label>
+            <label class="inputLabel" for="fcNamePrefix">Präfix für Sammlungsname</label>
             <input id="fcNamePrefix" type="text" is="emby-input" placeholder="Collection - " />
           </div>
 
           <div class="inputContainer">
-            <label class="inputLabel" for="fcNameSuffix">Suffix</label>
+            <label class="inputLabel" for="fcNameSuffix">Suffix für Sammlungsname</label>
             <input id="fcNameSuffix" type="text" is="emby-input" placeholder=" (Auto)" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcMinItemsPerFolder">Mindest-Items pro Ordner</label>
+            <input id="fcMinItemsPerFolder" type="number" is="emby-input" min="0" step="1" placeholder="2" />
+            <div class="fieldDescription">Erst ab dieser Anzahl wird eine Sammlung erzeugt/aktualisiert.</div>
           </div>
 
           <div class="sectionTitle">Automatisierung</div>
 
           <div class="checkboxContainer">
-            <label><input id="fcEnableDailyScan" type="checkbox" is="emby-checkbox" />
-              Täglichen Scan aktivieren
-            </label>
+            <label><input id="fcEnableDailyScan" type="checkbox" is="emby-checkbox" /> Täglichen Scan aktivieren</label>
           </div>
 
           <div class="inputContainer">
@@ -70,9 +74,9 @@
           </div>
 
           <div class="buttonContainer" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button id="fcScanNow"  type="button" class="raised block"><span>Jetzt scannen</span></button>
-            <button id="fcReload"   type="button" class="raised block"><span>Neu laden</span></button>
-            <button id="fcSave"     type="submit" class="raised button-submit block"><span>Speichern</span></button>
+            <button id="fcScanNow" type="button" class="raised block"><span>Jetzt scannen</span></button>
+            <button id="fcReload"  type="button" class="raised block"><span>Neu laden</span></button>
+            <button id="fcSave"    type="submit" class="raised button-submit block"><span>Speichern</span></button>
           </div>
 
         </form>
@@ -80,7 +84,6 @@
     </div>
   </div>
 
-  <!-- WICHTIG: Dein kompiliertes JS einbinden -->
   <script src="FolderCollections.Web.Configuration.config.js"></script>
 </body>
 </html>
