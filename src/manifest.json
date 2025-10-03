@@ -1,4 +1,4 @@
-sudo tee /var/lib/jellyfin/plugins/FolderCollections/manifest.json >/dev/null <<'JSON'
+<<'JSON'
 {
   "name": "FolderCollections",
   "guid": "9f4f2c47-b3c5-4b13-9b1f-1c2d3e4f5a60",
@@ -9,5 +9,3 @@ sudo tee /var/lib/jellyfin/plugins/FolderCollections/manifest.json >/dev/null <<
 }
 JSON
 
-sudo chown jellyfin:jellyfin /var/lib/jellyfin/plugins/FolderCollections/manifest.json
-sudo chmod 644 /var/lib/jellyfin/plugins/FolderCollections/manifest.json
