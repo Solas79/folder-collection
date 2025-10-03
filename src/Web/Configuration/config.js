@@ -1,3 +1,34 @@
+// --- SHIM: robustes scrollTo (Jellyfin-Bug: behavior:null) ---
+(function () {
+  function patch(obj, method) {
+    const orig = obj && obj[method];
+    if (!orig) return;
+    obj[method] = function (...args) {
+      if (args[0] && typeof args[0] === 'object') {
+        const o = args[0];
+        if ('behavior' in o && (o.behavior == null || o.behavior === 'null')) {
+          args[0] = Object.assign({}, o, { behavior: 'auto' }); // neutralisieren
+        }
+      }
+      try { return orig.apply(this, args); }
+      catch (e) {
+        // Fallback auf Koordinaten-Form, falls Bundle seltsame Objekte übergibt
+        if (args[0] && typeof args[0] === 'object') {
+          const left = Number(args[0].left || 0);
+          const top  = Number(args[0].top  || 0);
+          return orig.call(this, left, top);
+        }
+        throw e;
+      }
+    };
+  }
+  try {
+    patch(window, 'scrollTo');
+    patch(Element.prototype, 'scrollTo');
+  } catch (e) { /* ignore */ }
+})();
+
+
 (() => {
   'use strict';
 
