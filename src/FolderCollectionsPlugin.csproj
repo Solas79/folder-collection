@@ -9,37 +9,33 @@
 
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
-    <Description>Jellyfin plugin: Folder Collections</Description>
-    <Authors>Solas79</Authors>
-    <Version>1.0.0</Version>
-
+    <Version>1.0.2</Version> <!-- bumpen, damit Jellyfin neu lädt -->
     <JellyfinVersion>10.10.7</JellyfinVersion>
   </PropertyGroup>
 
-  <!-- ASP.NET Core APIs via FrameworkReference (statt App.Ref-Paket) -->
+  <!-- ASP.NET Core APIs (nur Ref via FrameworkReference) -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <!-- Jellyfin/MediaBrowser-APIs passend zu 10.10.7 -->
+  <!-- Jellyfin APIs passend zu 10.10.7 -->
   <ItemGroup>
     <PackageReference Include="Jellyfin.Common"     Version="$(JellyfinVersion)" />
     <PackageReference Include="Jellyfin.Model"      Version="$(JellyfinVersion)" />
     <PackageReference Include="Jellyfin.Controller" Version="$(JellyfinVersion)" />
-    <!-- optional, nur falls gebraucht:
-    <PackageReference Include="Jellyfin.Server.Implementations" Version="$(JellyfinVersion)" />
-    -->
   </ItemGroup>
 
-  <!-- Standalone-UI als Embedded Resources -->
+  <!-- Standalone-UI als Embedded Resource -->
   <ItemGroup>
-    <EmbeddedResource Include="Web/redirect/launch.html"
-                      LogicalName="FolderCollections.Web.redirect.launch.html" />
-    <EmbeddedResource Include="Web/ui/config.html"
-                      LogicalName="FolderCollections.Web.ui.config.html" />
-    <EmbeddedResource Include="Web/ui/fc-config.js"
-                      LogicalName="FolderCollections.Web.ui.fc-config.js" />
+    <EmbeddedResource Include="Web/ui/config.html" />
   </ItemGroup>
 
+  <!-- falls irgendwo Altdateien liegen sollten, kill sie explizit:
+  <ItemGroup>
+    <Compile Remove="Controllers/**" />
+    <Compile Remove="WebSupport/**" />
+    <Compile Remove="PluginPages.cs" />
+  </ItemGroup>
+  -->
 
 </Project>
