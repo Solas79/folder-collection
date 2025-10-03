@@ -31,7 +31,7 @@ jobs:
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      # Optional: alle anderen Quellen entfernen, damit nichts „dazwischenfunkt“
+      # Optional: nur nuget.org verwenden
       - name: Ensure only nuget.org is used
         shell: bash
         run: |
@@ -72,20 +72,20 @@ jobs:
       - name: Publish (framework-dependent)
         run: dotnet publish src/FolderCollectionsPlugin.csproj -c Release -o publish --no-restore --no-build --nologo
 
-      - name: Read version from csproj
-        id: get_version
+      # 🔹 Variante A: Version aus manifest.json holen
+      - name: Read version from manifest.json
+        id: ver
         shell: bash
-        run: |
-          ver=$(grep -oPm1 '(?<=<Version>)[^<]+' src/FolderCollectionsPlugin.csproj)
-          echo "version=$ver" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $ver"
+        run: echo "ver=$(grep -oPm1 '(?<=\"version\": \")[^\"]+' src/manifest.json)" >> "$GITHUB_OUTPUT"
 
       - name: Archive plugin (strip server core DLLs)
         shell: bash
         run: |
+          set -euo pipefail
           cd publish
+          # Vorsichtshalber Kernlibs entfernen (Plugin-DLL bleibt erhalten)
           rm -f MediaBrowser.*.dll Jellyfin.*.dll Emby.*.dll || true
-          zipname="FolderCollections_${{ steps.get_version.outputs.version }}.zip"
+          zipname="FolderCollections_${{ steps.ver.outputs.ver }}.zip"
           zip -r "$zipname" . -q
           mv "$zipname" ../
           cd ..
@@ -94,7 +94,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCollections_${{ steps.get_version.outputs.version }}
+          name: FolderCollections_${{ steps.ver.outputs.ver }}
           path: ${{ env.ZIP }}
           if-no-files-found: error
 
