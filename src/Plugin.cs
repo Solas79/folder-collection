@@ -15,27 +15,16 @@ namespace FolderCollections
         public override string Description => "Erzeugt/aktualisiert Sammlungen anhand von Ordnerstrukturen.";
         public override Guid Id => PluginGuid;
 
-        public Plugin(IApplicationPaths appPaths, IXmlSerializer xml)
-            : base(appPaths, xml) { }
+        public Plugin(IApplicationPaths appPaths, IXmlSerializer xml) : base(appPaths, xml) {}
 
-        // WICHTIG: Web-Seite am Plugin melden
+        // WICHTIG: Name = "config" => Einstellungen-Button funktioniert
         public IEnumerable<PluginPageInfo> GetPages()
         {
             yield return new PluginPageInfo
             {
-                // Dieser Name wird von der Jellyfin-UI beim Einstellungs-Button erwartet
                 Name = "config",
-
-                // Muss exakt dem LogicalName in der .csproj entsprechen (siehe Schritt 2)
                 EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
-
-                // Damit zusätzlich ein Eintrag links im Menü erscheint (den du „am Rand“ magst)
-                EnableInMainMenu = true,
-
-                // Optional (wenn vorhanden in deiner SDK-Version):
-                // DisplayName = "Folder Collections",
-                // MenuSection = "plugins",
-                // MenuIcon = "folder"
+                EnableInMainMenu = true
             };
         }
     }
