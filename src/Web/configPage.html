@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>FolderCollections</title>
+</head>
+<body>
+  <div id="FolderCollectionsConfigPage"
+       data-role="page"
+       class="type-interior pluginConfigurationPage"
+       data-controller="__plugin/FolderCollectionsConfigPageJS">
+    <div data-role="content">
+      <div class="content-primary">
+        <h2>FolderCollections – Einstellungen</h2>
+
+        <form id="FolderCollectionsConfigForm" class="verticalSection">
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fc-root">Root-Pfad</label>
+            <input is="emby-input" id="fc-root" type="text" />
+            <div class="fieldDescription">Ab diesem Pfad werden Ordner zu Sammlungen.</div>
+          </div>
+
+          <div class="checkboxContainer">
+            <label>
+              <input is="emby-checkbox" id="fc-recursive" type="checkbox" />
+              Unterordner scannen
+            </label>
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fc-prefix">Prefix für Sammlungsnamen</label>
+            <input is="emby-input" id="fc-prefix" type="text" placeholder="FC:" />
+          </div>
+
+          <div style="margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button is="emby-button" id="fc-save" type="button" class="raised button-submit">
+              <span>Speichern</span>
+            </button>
+
+            <button is="emby-button" id="fc-scan" type="button" class="raised">
+              <span>Jetzt scannen</span>
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
