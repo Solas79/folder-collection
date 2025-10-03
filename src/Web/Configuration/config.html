@@ -157,11 +157,13 @@
          const pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
          const $=id=>document.getElementById(id);
          const fromLines=t=>(t||'').split('\n').map(s=>s.trim()).filter(Boolean);
+         const toJson = (cfg)=>JSON.stringify(cfg);
+
          try{
-           // aktuelle Konfig holen
+           // 1) aktuelle Server-Konfig holen
            const cfg = await ApiClient.getPluginConfiguration(pid);
 
-           // Werte aus der UI übernehmen
+           // 2) UI -> cfg mappen
            cfg.IncludeMovies = !!$('includeMovies').checked;
            cfg.IncludeSeries = !!$('includeSeries').checked;
            cfg.MinItems = parseInt($('minItems').value,10) || 0;
@@ -177,18 +179,24 @@
 
            cfg.UseBasenameAsCollectionName = !!$('useBasename').checked;
 
-           // speichern
-           const result = await ApiClient.updatePluginConfiguration(pid, cfg);
-           Dashboard.processPluginConfigurationUpdateResult(result);
+           // 3) RAW-POST auf Plugin-Config (umgeht Wrapper-Probleme)
+           await ApiClient.ajax({
+             type: 'POST',
+             url:  ApiClient.getUrl('Plugins/' + pid + '/Configuration'),
+             data: toJson(cfg),
+             contentType: 'application/json;charset=UTF-8',
+             dataType: 'json'
+           }).catch(async (e)=>{
+             // manche Builds liefern kein JSON zurück → POST trotzdem ok
+             if (e && e.status && e.status >= 400) throw e;
+           });
 
-           // direkt zurücklesen & prüfen
+           // 4) direkt zurücklesen & prüfen
            const verify = await ApiClient.getPluginConfiguration(pid);
            const want = !!$('useBasename').checked;
            const got  = !!verify.UseBasenameAsCollectionName;
 
-           if (result && result.IsUpdated === false) {
-             Dashboard.alert('Konfiguration konnte nicht gespeichert werden.');
-           } else if (want !== got) {
+           if (want !== got) {
              Dashboard.alert('Hinweis: "Basename als Sammlungsname" wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.cs');
              console.warn('Roundtrip mismatch', {want, got, verify});
            } else {
@@ -200,7 +208,8 @@
            console.error(err);
          }
        })()"
-     >Speichern</button>
+>Speichern</button>
+
 
 
         <button id="fcCancel" is="emby-button" type="button" class="raised button-cancel"
