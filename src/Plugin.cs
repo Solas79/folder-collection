@@ -16,23 +16,26 @@ namespace FolderCollections
         public override Guid Id => PluginGuid;
 
         public Plugin(IApplicationPaths appPaths, IXmlSerializer xml)
-            : base(appPaths, xml)
-        {
-        }
+            : base(appPaths, xml) { }
 
-        // <<<<<< WICHTIG: Web-Seiten hier am Plugin-Typ melden
+        // WICHTIG: Web-Seite am Plugin melden
         public IEnumerable<PluginPageInfo> GetPages()
         {
             yield return new PluginPageInfo
             {
-                // exakt "config", damit der Einstellungen-Button funktioniert
+                // Dieser Name wird von der Jellyfin-UI beim Einstellungs-Button erwartet
                 Name = "config",
 
-                // muss zu deinem Embedded LogicalName in der .csproj passen
+                // Muss exakt dem LogicalName in der .csproj entsprechen (siehe Schritt 2)
                 EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
 
-                // optional: zusätzlich im linken Menü anzeigen
-                EnableInMainMenu = true
+                // Damit zusätzlich ein Eintrag links im Menü erscheint (den du „am Rand“ magst)
+                EnableInMainMenu = true,
+
+                // Optional (wenn vorhanden in deiner SDK-Version):
+                // DisplayName = "Folder Collections",
+                // MenuSection = "plugins",
+                // MenuIcon = "folder"
             };
         }
     }
