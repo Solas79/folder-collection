@@ -17,13 +17,14 @@ namespace FolderCollections
 
         public Plugin(IApplicationPaths appPaths, IXmlSerializer xml) : base(appPaths, xml) {}
 
-        // WICHTIG: Name = "config" => Einstellungen-Button funktioniert
+        // WICHTIG: Name = "config" → Einstellungen-Button funktioniert
         public IEnumerable<PluginPageInfo> GetPages()
         {
             yield return new PluginPageInfo
             {
                 Name = "config",
-                EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
+                // DIREKT die UI-HTML als Embedded-Seite ausliefern
+                EmbeddedResourcePath = "FolderCollections.Web.ui.config.html",
                 EnableInMainMenu = true
             };
         }
