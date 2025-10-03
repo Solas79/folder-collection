@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>Folder Collections – Start</title>
-  <!-- Fallback-Redirect nach 1 Sekunde -->
-  <meta http-equiv="refresh" content="1; url=/FolderCollections/ui">
+  <meta http-equiv="refresh" content="1; url=/FolderCollections/ui"> <!-- Fallback -->
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px}
     a.btn{display:inline-block;padding:10px 14px;border:1px solid #888;border-radius:8px;text-decoration:none}
@@ -16,13 +15,13 @@
   <p><a class="btn" href="/FolderCollections/ui" target="_top">Konfiguration öffnen</a></p>
 
   <script>
-    // sofort & robust das ganze Top-Window umlenken (raus aus dem SPA)
+    // sofort Top-Window umlenken (raus aus dem SPA)
     try { window.top.location.href = '/FolderCollections/ui'; } catch(e) {}
-    // weitere Fallbacks
+    // zusätzliche Fallbacks
     setTimeout(function(){
       try { window.parent.location.href = '/FolderCollections/ui'; } catch(e){}
       try { window.location.href = '/FolderCollections/ui'; } catch(e){}
-    }, 200);
+    }, 150);
   </script>
 </body>
 </html>
