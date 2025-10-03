@@ -23,7 +23,6 @@ namespace FolderCollections
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            // Nur die eine HTML-Seite (wir haben JS inline eingebettet)
             new PluginPageInfo
             {
                 Name = "config",
