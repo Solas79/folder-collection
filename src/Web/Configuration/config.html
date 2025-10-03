@@ -149,6 +149,50 @@
         })()">Speichern</button>
 
         <button is="emby-button" type="button" class="raised button-cancel" onclick="history.back()">Abbrechen</button>
+          <!-- Automatisches Laden der Server-Konfiguration.
+          Der Button klickt sich dank autofocus+onfocus selbst -->
+        <button id="fcLoad" is="emby-button" type="button" class="raised"
+            autofocus
+            onfocus="this.click()"
+            onclick="(function(btn){
+              var pid='9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a';
+              var $=function(i){return document.getElementById(i)};
+              var toLines=function(a){return Array.isArray(a)?a.join('\n'):(a||'')};
+
+              // Nur einmal laden
+              if (btn.dataset.loaded==='1') return;
+
+              // Wenn ApiClient fehlt → Hinweis
+              if(!window.ApiClient){
+                (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('ApiClient nicht verfügbar. Öffne die Seite im Jellyfin-UI.');
+                return;
+              }
+
+              // Werte vom Server holen und UI füllen
+              ApiClient.getPluginConfiguration(pid).then(function(cfg){
+                $('includeMovies').checked = !!cfg.IncludeMovies;
+                $('includeSeries').checked = !!cfg.IncludeSeries;
+                $('minItems').value  = (cfg.MinItems ?? 2);
+                $('prefix').value    = (cfg.Prefix ?? '');
+                $('suffix').value    = (cfg.Suffix ?? '');
+                $('scanHour').value  = (cfg.ScanHour ?? 4);
+                $('scanMinute').value= (cfg.ScanMinute ?? 0);
+                $('pathPrefixes').value   = toLines(cfg.PathPrefixes);
+                $('ignorePatterns').value = toLines(cfg.IgnorePatterns);
+                $('useBasename').checked  = !!cfg.UseBasenameAsCollectionName;
+
+                btn.dataset.loaded='1';
+                btn.textContent='Werte geladen';
+                btn.classList.remove('raised');
+                btn.setAttribute('disabled','disabled');   // unsichtbar machen, wenn gewünscht:
+                // btn.style.display='none';
+              }).catch(function(err){
+                var m=(err&&(err.message||err.statusText||(err.status?('HTTP '+err.status):'')))||'Unbekannter Fehler';
+                (window.Dashboard&&Dashboard.alert?Dashboard.alert:alert)('Konfiguration konnte nicht geladen werden: '+m);
+                console.error(err);
+              });
+            })(this)"
+          >Werte laden</button>
       </div>
     </form>
   </div>
