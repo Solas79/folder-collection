@@ -36,7 +36,7 @@
     </div>
 
     <div class="sectionTitle">Sammlungsname</div>
-    <div class="hint">Server baut: <code>Präfix + basename(Ordner) + Suffix</code></div>
+    <div class="hint">Server: <code>Präfix + basename(Ordner) + Suffix</code></div>
 
     <div class="inputContainer">
       <label class="inputLabel" for="fcNamePrefix">Präfix</label>
@@ -71,10 +71,8 @@
     </div>
   </form>
 
-  <!-- nur der Jellyfin API-Client; KEIN SPA-Hauptbundle -->
+  <!-- NUR der API-Client -->
   <script src="/web/node_modules.jellyfin-apiclient.bundle.js"></script>
-  <!-- falls dein Server den Client ohne /web/ ausliefert, nimm: /node_modules.jellyfin-apiclient.bundle.js -->
-
   <script src="/FolderCollections/ui/config.js"></script>
 </body>
 </html>
