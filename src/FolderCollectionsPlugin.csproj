@@ -7,33 +7,32 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
 
-    <!-- Optional/Meta -->
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
     <Description>Jellyfin plugin: Folder Collections</Description>
-    <Company></Company>
     <Authors>Solas79</Authors>
+    <Company></Company>
     <Version>1.0.0</Version>
+
+    <!-- Gegen diese Jellyfin-Version bauen -->
+    <JellyfinVersion>10.10.7</JellyfinVersion>
   </PropertyGroup>
 
-  <!-- Falls du STRIKT Release bauen willst, kannst du das hier fest verdrahten -->
-  <!--
-  <PropertyGroup Condition="'$(Configuration)'=='Release'">
-    <Deterministic>true</Deterministic>
-    <DebugType>embedded</DebugType>
-  </PropertyGroup>
-  -->
-
-  <!-- Abhängigkeiten:
-       Üblicherweise reichen die Jellyfin-Server-Typen, die der Host bereitstellt.
-       Wenn du zusätzliche NuGet-Packages brauchst, füge sie hier hinzu. -->
+  <!-- Compile-Time-Refs (Runtime liefert der Jellyfin-Host) -->
   <ItemGroup>
-    <!-- Beispiele NUR falls nötig:
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    <!-- ASP.NET Core Controller/MVC Typen (nur Ref-Assemblies) -->
+    <PackageReference Include="Microsoft.AspNetCore.App.Ref" Version="8.0.0" />
+
+    <!-- Jellyfin / MediaBrowser APIs (passen zu 10.10.7) -->
+    <PackageReference Include="Jellyfin.Common"      Version="$(JellyfinVersion)" />
+    <PackageReference Include="Jellyfin.Model"       Version="$(JellyfinVersion)" />
+    <PackageReference Include="Jellyfin.Controller"  Version="$(JellyfinVersion)" />
+    <!-- Falls du zusätzlich Implementierungen brauchst, optional:
+    <PackageReference Include="Jellyfin.Server.Implementations" Version="$(JellyfinVersion)" />
     -->
   </ItemGroup>
 
-  <!-- Webdateien als Embedded Resources einbinden (Pfade relativ zur .csproj im src/-Ordner) -->
+  <!-- Standalone-UI als Embedded Resources -->
   <ItemGroup>
     <EmbeddedResource Include="Web/ui/config.html"
                       LogicalName="FolderCollections.Web.ui.config.html" />
@@ -43,12 +42,11 @@
                       LogicalName="FolderCollections.Web.redirect.launch.html" />
   </ItemGroup>
 
-  <!-- Deine C#-Quelldateien (werden automatisch inkludiert).
-       Falls du bestimmte Dateien ausschließen möchtest, kannst du das hier tun. -->
-  <!--
-  <ItemGroup>
-    <Compile Remove="Some/Old/File.cs" />
-  </ItemGroup>
+  <!-- (optional) Release-Feintuning
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Deterministic>true</Deterministic>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
   -->
 
 </Project>
