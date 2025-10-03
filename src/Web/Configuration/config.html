@@ -30,9 +30,7 @@
           </div>
 
           <div class="sectionTitle">Sammlungsname</div>
-          <div class="fieldDescription" style="margin-bottom:.5rem">
-            Die Sammlung erhält den Namen: <code>Präfix + basename(Ordner) + Suffix</code>.
-          </div>
+          <div class="fieldDescription">Wird serverseitig gebaut als: <code>Präfix + basename(Ordner) + Suffix</code></div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcNamePrefix">Präfix</label>
@@ -53,7 +51,6 @@
           <div class="checkboxContainer">
             <label><input id="fcEnableDailyScan" type="checkbox" is="emby-checkbox" /> Täglichen Scan aktivieren</label>
           </div>
-
           <div class="inputContainer">
             <label class="inputLabel" for="fcDailyTime">Uhrzeit für täglichen Scan</label>
             <input id="fcDailyTime" type="time" is="emby-input" />
@@ -61,9 +58,9 @@
           </div>
 
           <div class="buttonContainer" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button id="fcScanNow" type="button" class="raised block"><span>Jetzt scannen</span></button>
-            <button id="fcReload"  type="button" class="raised block"><span>Neu laden</span></button>
-            <button id="fcSave"    type="submit" class="raised button-submit block"><span>Speichern</span></button>
+            <button id="fcScanNow" type="button" class="raised"><span>Jetzt scannen</span></button>
+            <button id="fcReload"  type="button" class="raised"><span>Neu laden</span></button>
+            <button id="fcSave"    type="submit" class="raised button-submit"><span>Speichern</span></button>
           </div>
 
         </form>
