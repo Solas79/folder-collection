@@ -36,10 +36,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- verhindert, dass die HTML-Datei als Content ins Ausgabeverzeichnis kopiert wird -->
     <None Remove="Web/Configuration/config.html" />
-    <EmbeddedResource Include="Web/Configuration/config.html">    
-    <LogicalName>FolderCollections.Web.Configuration.config.html</LogicalName>  
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- sorgt dafür, dass die HTML-Datei als EmbeddedResource im DLL landet -->
+    <EmbeddedResource Include="Web/Configuration/config.html">
+      <LogicalName>FolderCollections.Web.Configuration.config.html</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 
   <PropertyGroup>
     <WarningsAsErrors>nullable</WarningsAsErrors>
