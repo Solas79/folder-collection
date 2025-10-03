@@ -1,52 +1,89 @@
-<!-- Lies die Version aus src/manifest.json und setze damit $(Version) für den Build -->
-<UsingTask TaskName="GetManifestVersion"
-           TaskFactory="CodeTaskFactory"
-           AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-  <ParameterGroup>
-    <ManifestPath ParameterType="System.String" Required="true" />
-    <VersionOut ParameterType="System.String" Output="true" />
-  </ParameterGroup>
-  <Task>
-    <Reference Include="System.Text.Json" />
-    <Using Namespace="System" />
-    <Using Namespace="System.IO" />
-    <Using Namespace="System.Text.Json" />
-    <Code Type="Fragment" Language="cs"><![CDATA[
-      var json = File.ReadAllText(ManifestPath);
-      using var doc = JsonDocument.Parse(json);
-      if (!doc.RootElement.TryGetProperty("version", out var verElem))
-      {
-          Log.LogError($"No 'version' field found in {ManifestPath}.");
-          return false;
-      }
-      VersionOut = verElem.GetString() ?? "";
-      if (string.IsNullOrWhiteSpace(VersionOut))
-      {
-          Log.LogError($"Empty 'version' value in {ManifestPath}.");
-          return false;
-      }
-      return true;
-    ]]></Code>
-  </Task>
-</UsingTask>
-
-<PropertyGroup>
-  <!-- Standardpfad zu deiner manifest.json relativ zum .csproj -->
-  <PluginManifestPath>$(MSBuildProjectDirectory)\manifest.json</PluginManifestPath>
-</PropertyGroup>
-
-<Target Name="SetVersionFromManifest" BeforeTargets="GetVersion">
-  <GetManifestVersion ManifestPath="$(PluginManifestPath)">
-    <Output TaskParameter="VersionOut" PropertyName="ManifestVersion" />
-  </GetManifestVersion>
-
-  <!-- Setze die Projektversion nur, wenn sie noch nicht extern (z. B. per /p:Version=...) gesetzt wurde -->
-  <PropertyGroup Condition="'$(Version)'==''">
-    <Version>$(ManifestVersion)</Version>
-    <FileVersion>$(ManifestVersion)</FileVersion>
-    <AssemblyVersion>$(ManifestVersion)</AssemblyVersion>
-    <InformationalVersion>$(ManifestVersion)</InformationalVersion>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FolderCollections</AssemblyName>
+    <RootNamespace>FolderCollections</RootNamespace>
   </PropertyGroup>
 
-  <Message Text="Version set from manifest.json: $(Version)" Importance="High" />
-</Target>
+  <!-- NuGet-Quellen (optional, da nuget.config vorhanden ist) -->
+  <PropertyGroup>
+    <RestoreSources>
+      https://api.nuget.org/v3/index.json;https://repo.jellyfin.org/releases/plugin/nuget/
+    </RestoreSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+  </ItemGroup>
+
+  <!-- Eingebettete Web-Ressourcen -->
+  <ItemGroup>
+    <EmbeddedResource Include="Web\configPage.html" LogicalName="FolderCollections.Web.configPage.html" />
+    <EmbeddedResource Include="Web\configPage.js"   LogicalName="FolderCollections.Web.configPage.js" />
+  </ItemGroup>
+
+  <!-- Manifest mitkopieren -->
+  <ItemGroup>
+    <None Include="manifest.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- ===== Version aus manifest.json ziehen (korrekt IN DIESES Project-Element integriert) ===== -->
+
+  <UsingTask TaskName="GetManifestVersion"
+             TaskFactory="CodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ManifestPath ParameterType="System.String" Required="true" />
+      <VersionOut ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="System.Text.Json" />
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.Json" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var json = File.ReadAllText(ManifestPath);
+        using var doc = JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("version", out var verElem))
+        {
+            Log.LogError($"No 'version' field found in {ManifestPath}.");
+            return false;
+        }
+        VersionOut = verElem.GetString() ?? "";
+        if (string.IsNullOrWhiteSpace(VersionOut))
+        {
+            Log.LogError($"Empty 'version' value in {ManifestPath}.");
+            return false;
+        }
+        return true;
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- manifest.json liegt im selben Ordner wie diese .csproj (src/) -->
+  <PropertyGroup>
+    <PluginManifestPath>$(MSBuildProjectDirectory)\manifest.json</PluginManifestPath>
+  </PropertyGroup>
+
+  <Target Name="SetVersionFromManifest" BeforeTargets="GetVersion">
+    <GetManifestVersion ManifestPath="$(PluginManifestPath)">
+      <Output TaskParameter="VersionOut" PropertyName="ManifestVersion" />
+    </GetManifestVersion>
+
+    <!-- Setze Assembly-/File-/InformationalVersion nur, wenn nicht extern gesetzt -->
+    <PropertyGroup Condition="'$(Version)'==''">
+      <Version>$(ManifestVersion)</Version>
+      <FileVersion>$(ManifestVersion)</FileVersion>
+      <AssemblyVersion>$(ManifestVersion)</AssemblyVersion>
+      <InformationalVersion>$(ManifestVersion)</InformationalVersion>
+    </PropertyGroup>
+
+    <Message Text="Version set from manifest.json: $(Version)" Importance="High" />
+  </Target>
+</Project>
