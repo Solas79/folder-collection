@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Folder Collections Konfiguration</title>
+  <title>Folder Collections – Konfiguration</title>
 </head>
 <body>
   <div id="FolderCollectionsConfigurationPage"
@@ -14,34 +14,96 @@
       <div class="content-primary">
         <form class="FolderCollectionsConfigurationForm" id="fcForm">
 
+          <div class="sectionTitle">Allgemein</div>
           <div class="inputContainer">
             <label class="inputLabel" for="fcRoot">Root-Pfad</label>
-            <input id="fcRoot" type="text" is="emby-input" />
+            <input id="fcRoot" type="text" is="emby-input" placeholder="/media/filme" />
           </div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcPattern">Muster (Regex)</label>
-            <input id="fcPattern" type="text" is="emby-input" />
+            <input id="fcPattern" type="text" is="emby-input" placeholder=".*" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcIncludeExt">Dateiendungen einschließen (CSV)</label>
+            <input id="fcIncludeExt" type="text" is="emby-input" placeholder="mkv,mp4,avi" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcExcludeFolders">Ordner ausschließen (CSV / Regex)</label>
+            <input id="fcExcludeFolders" type="text" is="emby-input" placeholder="Extras,Sample" />
           </div>
 
           <div class="checkboxContainer">
-            <label>
-              <input id="fcEnableScan" type="checkbox" is="emby-checkbox" />
-              Automatischen Scan aktivieren
-            </label>
+            <label><input id="fcRecurse" type="checkbox" is="emby-checkbox" /> Rekursiv scannen</label>
           </div>
 
-          <button id="fcSave"
-                  type="submit"
-                  class="raised button-submit block">
-            <span>Speichern</span>
-          </button>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcMinItems">Minimale Elemente pro Sammlung</label>
+            <input id="fcMinItems" type="number" is="emby-input" min="0" step="1" placeholder="2" />
+          </div>
+
+          <div class="sectionTitle">Sammlungen</div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcNameTpl">Namensvorlage</label>
+            <input id="fcNameTpl" type="text" is="emby-input" placeholder="{folderName}" />
+            <div class="fieldDescription">Platzhalter: {folderName}, {year}, {parent}</div>
+          </div>
+
+          <div class="checkboxContainer">
+            <label><input id="fcCreateCollections" type="checkbox" is="emby-checkbox" /> Sammlungen erstellen</label>
+          </div>
+          <div class="checkboxContainer">
+            <label><input id="fcUpdateExisting" type="checkbox" is="emby-checkbox" /> Bestehende Sammlungen aktualisieren</label>
+          </div>
+
+          <div class="sectionTitle">Ziel-Bibliotheken</div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcLibraryIds">Bibliotheken (wenn leer: alle passenden)</label>
+            <select id="fcLibraryIds" is="emby-select" multiple></select>
+            <div class="fieldDescription" id="fcLibraryIdsInfo">Lade Bibliotheken…</div>
+          </div>
+
+          <div class="sectionTitle">Automatisierung</div>
+          <div class="checkboxContainer">
+            <label><input id="fcEnableScan" type="checkbox" is="emby-checkbox" /> Automatischen Scan aktivieren</label>
+          </div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcScanInterval">Scan-Intervall (Minuten)</label>
+            <input id="fcScanInterval" type="number" is="emby-input" min="1" step="1" placeholder="60" />
+          </div>
+
+          <div class="sectionTitle">Debug/Tools</div>
+          <div class="checkboxContainer">
+            <label><input id="fcDryRun" type="checkbox" is="emby-checkbox" /> Dry-Run (nur loggen, nichts ändern)</label>
+          </div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcLogLevel">Log-Level</label>
+            <select id="fcLogLevel" is="emby-select">
+              <option value="Information">Information</option>
+              <option value="Debug">Debug</option>
+              <option value="Warning">Warning</option>
+              <option value="Error">Error</option>
+            </select>
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcTestPath">Test-Pfad (optional)</label>
+            <input id="fcTestPath" type="text" is="emby-input" placeholder="/media/filme/Beispiel" />
+            <div class="fieldDescription">Zum lokalen Testen der Regex/Filter in deinem Code.</div>
+          </div>
+
+          <div class="buttonContainer">
+            <button id="fcReload" type="button" class="raised block"><span>Neu laden</span></button>
+            <button id="fcSave"   type="submit" class="raised button-submit block"><span>Speichern</span></button>
+          </div>
+
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Wichtig: Script am Ende laden -->
   <script src="FolderCollections.Web.Configuration.config.js"></script>
 </body>
 </html>
