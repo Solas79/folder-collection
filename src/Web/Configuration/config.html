@@ -1,206 +1,47 @@
-<div id="folderCollectionsConfigPage"
-     data-role="page"
-     class="page type-interior pluginConfigurationPage"
-     data-require="emby-button,emby-checkbox,emby-input">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Folder Collections Konfiguration</title>
+</head>
+<body>
+  <div id="FolderCollectionsConfigurationPage"
+       data-role="page"
+       class="page type-interior pluginConfigurationPage"
+       data-title="Folder Collections">
 
-  <div class="content-primary">
-    <h1>Folder Collections – Einstellungen</h1>
+    <div data-role="content">
+      <div class="content-primary">
+        <form class="FolderCollectionsConfigurationForm" id="fcForm">
 
-    <!-- Auto-Loader: klickt sich beim Seitenaufbau selbst -->
-    <button id="fcLoad" is="emby-button" type="button" class="raised"
-            autofocus onfocus="this.click()"
-            title="Klicke, um die Server-Konfiguration zu laden"
-            style="margin-bottom:1rem;">
-      Werte laden
-    </button>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcRoot">Root-Pfad</label>
+            <input id="fcRoot" type="text" is="emby-input" />
+          </div>
 
-    <form id="fcForm" class="emby-form">
-      <div class="checkboxContainer">
-        <label class="emby-checkbox-label">
-          <input id="includeMovies" type="checkbox" is="emby-checkbox">
-          <span>Filme berücksichtigen</span>
-        </label>
+          <div class="inputContainer">
+            <label class="inputLabel" for="fcPattern">Muster (Regex)</label>
+            <input id="fcPattern" type="text" is="emby-input" />
+          </div>
+
+          <div class="checkboxContainer">
+            <label>
+              <input id="fcEnableScan" type="checkbox" is="emby-checkbox" />
+              Automatischen Scan aktivieren
+            </label>
+          </div>
+
+          <button id="fcSave"
+                  type="submit"
+                  class="raised button-submit block">
+            <span>Speichern</span>
+          </button>
+        </form>
       </div>
-
-      <div class="checkboxContainer">
-        <label class="emby-checkbox-label">
-          <input id="includeSeries" type="checkbox" is="emby-checkbox">
-          <span>Serien berücksichtigen</span>
-        </label>
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="minItems">Mindestanzahl Items</label>
-        <input id="minItems" is="emby-input" type="number" min="0" step="1">
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="prefix">Prefix</label>
-        <input id="prefix" is="emby-input" type="text">
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="suffix">Suffix</label>
-        <input id="suffix" is="emby-input" type="text">
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="scanHour">Scan-Uhrzeit</label>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          <input id="scanHour" is="emby-input" type="number" min="0" max="23" style="width:90px">
-          :
-          <input id="scanMinute" is="emby-input" type="number" min="0" max="59" style="width:90px">
-        </div>
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="pathPrefixes">Wurzelpfade (je Zeile)</label>
-        <textarea id="pathPrefixes" rows="5" is="emby-input" style="width:100%"></textarea>
-        <div class="fieldDescription">Nutze exakt den Pfad, der in der Jellyfin-Bibliothek eingetragen ist (bei Docker: Container-Pfad).</div>
-      </div>
-
-      <div class="inputContainer">
-        <label class="emby-input-label" for="ignorePatterns">Ignore-Muster (je Zeile)</label>
-        <textarea id="ignorePatterns" rows="4" is="emby-input" style="width:100%"></textarea>
-        <div class="fieldDescription">Wildcards (*, ?) – oder Regex mit Präfix <code>re:</code></div>
-      </div>
-
-      <div class="checkboxContainer">
-        <label class="emby-checkbox-label">
-          <input id="useBasename" type="checkbox" is="emby-checkbox">
-          <span>Basename als Sammlungsname verwenden</span>
-        </label>
-      </div>
-
-      <div class="formButtons">
-        <button id="fcManualScan" is="emby-button" type="button" class="raised button-submit">Manuellen Scan starten</button>
-        <button id="fcSave"       is="emby-button" type="button" class="raised button-submit">Speichern</button>
-        <button id="fcCancel"     is="emby-button" type="button" class="raised button-cancel">Abbrechen</button>
-      </div>
-    </form>
+    </div>
   </div>
-</div>
 
-<script>
-(function(){
-  var pid = "9f4f2c47-b3c5-4b13-9b1f-1c9a5c3b8d6a";
-  var $ = function(id){ return document.getElementById(id); };
-  var toLines = function(a){ return Array.isArray(a) ? a.join("\n") : (a || ""); };
-  var split   = function(t){ return (t||"").split("\n").map(function(s){return s.trim();}).filter(Boolean); };
-
-  function alertMsg(m){ (window.Dashboard && Dashboard.alert ? Dashboard.alert : alert)(m); }
-
-  function fillUI(cfg){
-    $("includeMovies").checked = !!cfg.IncludeMovies;
-    $("includeSeries").checked = !!cfg.IncludeSeries;
-    $("minItems").value        = cfg.MinItems ?? 2;
-    $("prefix").value          = cfg.Prefix  || "";
-    $("suffix").value          = cfg.Suffix  || "";
-    $("scanHour").value        = cfg.ScanHour   ?? 4;
-    $("scanMinute").value      = cfg.ScanMinute ?? 0;
-    $("pathPrefixes").value    = toLines(cfg.PathPrefixes);
-    $("ignorePatterns").value  = toLines(cfg.IgnorePatterns);
-    $("useBasename").checked   = !!cfg.UseBasenameAsCollectionName;
-  }
-
-  function readUITo(cfg){
-    cfg.IncludeMovies = !!$("includeMovies").checked;
-    cfg.IncludeSeries = !!$("includeSeries").checked;
-    cfg.MinItems      = parseInt($("minItems").value,10) || 0;
-    cfg.Prefix        = ($("prefix").value||"").trim();
-    cfg.Suffix        = ($("suffix").value||"").trim();
-    cfg.ScanHour      = Math.min(23, Math.max(0, parseInt($("scanHour").value,10)   || 4));
-    cfg.ScanMinute    = Math.min(59, Math.max(0, parseInt($("scanMinute").value,10) || 0));
-    cfg.PathPrefixes  = split($("pathPrefixes").value);
-    cfg.IgnorePatterns= split($("ignorePatterns").value);
-    cfg.UseBasenameAsCollectionName = !!$("useBasename").checked;
-  }
-
-  async function loadCfg(){
-    if (!window.ApiClient){ alertMsg("ApiClient nicht verfügbar. Seite im Jellyfin-UI öffnen."); return; }
-    try{
-      var url = ApiClient.getUrl("Plugins/"+pid+"/Configuration") + "?ts="+Date.now();
-      var cfg = await ApiClient.ajax({ type:"GET", url:url, dataType:"json" });
-      fillUI(cfg);
-      var btn = $("fcLoad");
-      if (btn){ btn.dataset.loaded="1"; btn.textContent="Werte geladen"; btn.disabled=true; btn.style.opacity="0.7"; }
-      console.debug("[FolderCollections] Config geladen:", cfg);
-    }catch(err){
-      var m = (err && (err.message || err.statusText || (err.status?("HTTP "+err.status):""))) || "Unbekannter Fehler";
-      alertMsg("Konfiguration konnte nicht geladen werden: " + m);
-      console.error(err);
-    }
-  }
-
-  async function saveCfg(){
-    if (!window.ApiClient){ alertMsg("ApiClient nicht verfügbar."); return; }
-    try{
-      var cfg = await ApiClient.getPluginConfiguration(pid);
-      readUITo(cfg);
-      await ApiClient.ajax({
-        type: "POST",
-        url:  ApiClient.getUrl("Plugins/"+pid+"/Configuration"),
-        data: JSON.stringify(cfg),
-        contentType: "application/json;charset=UTF-8",
-        dataType: "json"
-      }).catch(function(e){ if(e && e.status && e.status>=400) throw e; });
-      var url = ApiClient.getUrl("Plugins/"+pid+"/Configuration")+"?ts="+Date.now();
-      var serverCfg = await ApiClient.ajax({type:"GET", url:url, dataType:"json"});
-      fillUI(serverCfg);
-      alertMsg("Gespeichert.");
-    }catch(err){
-      var m = (err && (err.message || err.statusText || (err.status?("HTTP "+err.status):""))) || "Unbekannter Fehler";
-      alertMsg("Speichern fehlgeschlagen: " + m);
-      console.error(err);
-    }
-  }
-
-  async function manualScan(btn){
-    try{
-      btn && (btn.disabled=true, btn.classList.add("idleProcessing"));
-      var tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
-      var t = (tasks||[]).find(function(x){
-        return x && (x.Key === "FolderCollections.DailyScan" ||
-                    ((x.Name||"").toLowerCase().includes("folder collections")));
-      });
-      if (!t || !t.Id) throw new Error("FolderCollections-Task nicht gefunden.");
-
-      try{
-        var r = await ApiClient.fetchApi("/ScheduledTasks/"+t.Id+"/Trigger", { method:"POST" });
-        if (!r || !r.ok) throw new Error("Trigger fehlgeschlagen");
-      }catch{
-        var r2 = await ApiClient.fetchApi("/ScheduledTasks/Running/"+t.Id, { method:"POST" });
-        if (!r2 || !r2.ok) throw new Error("Fallback-Trigger fehlgeschlagen");
-      }
-      alertMsg("Manueller Scan gestartet!");
-    }catch(err){
-      var m = (err && (err.message || err.statusText || (err.status?("HTTP "+err.status):""))) || "Unbekannter Fehler";
-      alertMsg("Fehler beim Starten des Scans: " + m);
-      console.error(err);
-    }finally{
-      btn && (btn.disabled=false, btn.classList.remove("idleProcessing"));
-    }
-  }
-
-  document.addEventListener("DOMContentLoaded", function(){
-    var loadBtn = $("fcLoad");
-    var saveBtn = $("fcSave");
-    var scanBtn = $("fcManualScan");
-    var cancelBtn = $("fcCancel");
-
-    loadBtn  && loadBtn.addEventListener("click", function(){ loadCfg().catch(console.error); });
-    saveBtn  && saveBtn.addEventListener("click", function(){ saveCfg().catch(console.error); });
-    scanBtn  && scanBtn.addEventListener("click", function(ev){ manualScan(ev.currentTarget).catch(console.error); });
-    cancelBtn&& cancelBtn.addEventListener("click", function(){ history.back(); });
-
-    // zusätzlicher Autoload, falls autofocus/onfocus vom Theme unterdrückt wird
-    setTimeout(function(){
-      if (!loadBtn || loadBtn.dataset.loaded === "1") return;
-      loadCfg().catch(console.error);
-    }, 50);
-  });
-
-  document.addEventListener("viewshow", function(){ if (!$("fcLoad") || $("fcLoad").dataset.loaded==="1") return; loadCfg().catch(console.error); });
-  document.addEventListener("pageshow", function(){ if (!$("fcLoad") || $("fcLoad").dataset.loaded==="1") return; loadCfg().catch(console.error); });
-})();
-</script>
+  <!-- Wichtig: Script am Ende laden -->
+  <script src="FolderCollections.Web.Configuration.config.js"></script>
+</body>
+</html>
