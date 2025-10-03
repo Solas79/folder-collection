@@ -9,7 +9,7 @@
 
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
-    <Version>1.0.2</Version> <!-- bumpen, damit Jellyfin neu lädt -->
+    <Version>1.0.4</Version> <!-- bumpen, damit Jellyfin neu lädt -->
     <JellyfinVersion>10.10.7</JellyfinVersion>
   </PropertyGroup>
 
