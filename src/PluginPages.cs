@@ -1,3 +1,4 @@
+// src/PluginPages.cs
 using System.Collections.Generic;
 using MediaBrowser.Model.Plugins;
 
@@ -9,16 +10,17 @@ namespace FolderCollections.Web
         {
             yield return new PluginPageInfo
             {
-                // WICHTIG: Name beliebig, aber stabil – wird in der URL verwendet (?name=foldercollections)
+                // frei wählbar, stabil halten (landet in der URL: ?name=foldercollections)
                 Name = "foldercollections",
-                // Diese eingebettete Datei haben wir angelegt:
+
+                // eingebettete Datei (siehe csproj LogicalName)
                 EmbeddedResourcePath = "FolderCollections.Web.redirect.launch.html",
 
-                // Button „Einstellungen“ in Plugins-Liste anzeigen:
-                IsMainConfigPage = true,
-
-                // Zusätzlich im linken Admin-Menü anzeigen:
+                // Link im linken Admin-Menü anzeigen
                 EnableInMainMenu = true
+
+                // In 10.10.x KEIN IsMainConfigPage mehr
+                // Optional vorhanden (je nach Build): MenuSection, DisplayName, MenuIcon
             };
         }
     }
