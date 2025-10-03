@@ -1,10 +1,9 @@
-// src/PluginPages.cs
 using System.Collections.Generic;
 using MediaBrowser.Model.Plugins;
 
 namespace FolderCollections.Web
 {
-    // Jellyfin 10.10.x → IHasWebPages (not IPluginConfigurationPage)
+    // Jellyfin 10.10.x
     public sealed class PluginPages : IHasWebPages
     {
         public IEnumerable<PluginPageInfo> GetPages()
