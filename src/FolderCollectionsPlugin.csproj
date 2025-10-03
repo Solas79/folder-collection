@@ -2,30 +2,53 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Library</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Optional/Meta -->
     <AssemblyName>FolderCollections</AssemblyName>
     <RootNamespace>FolderCollections</RootNamespace>
-    <LangVersion>latest</LangVersion>
-    <!-- optional -->
+    <Description>Jellyfin plugin: Folder Collections</Description>
+    <Company></Company>
+    <Authors>Solas79</Authors>
     <Version>1.0.0</Version>
   </PropertyGroup>
 
-  <!-- Nur EIN ItemGroup-Block für NuGet-Pakete, alle PackageReference SELF-CLOSING -->
+  <!-- Falls du STRIKT Release bauen willst, kannst du das hier fest verdrahten -->
+  <!--
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <Deterministic>true</Deterministic>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+  -->
+
+  <!-- Abhängigkeiten:
+       Üblicherweise reichen die Jellyfin-Server-Typen, die der Host bereitstellt.
+       Wenn du zusätzliche NuGet-Packages brauchst, füge sie hier hinzu. -->
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.*" PrivateAssets="all" />
-    <PackageReference Include="Jellyfin.Model"      Version="10.10.*" PrivateAssets="all" />    
+    <!-- Beispiele NUR falls nötig:
+    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    -->
   </ItemGroup>
 
-  <!-- Die HTML-Seite als EmbeddedResource einbinden -->
+  <!-- Webdateien als Embedded Resources einbinden (Pfade relativ zur .csproj im src/-Ordner) -->
   <ItemGroup>
-    <None Remove="Web/Configuration/config.html" />
+    <EmbeddedResource Include="Web/ui/config.html"
+                      LogicalName="FolderCollections.Web.ui.config.html" />
+    <EmbeddedResource Include="Web/ui/fc-config.js"
+                      LogicalName="FolderCollections.Web.ui.fc-config.js" />
+    <EmbeddedResource Include="Web/redirect/launch.html"
+                      LogicalName="FolderCollections.Web.redirect.launch.html" />
   </ItemGroup>
 
+  <!-- Deine C#-Quelldateien (werden automatisch inkludiert).
+       Falls du bestimmte Dateien ausschließen möchtest, kannst du das hier tun. -->
+  <!--
   <ItemGroup>
-    <EmbeddedResource Include="Web/Configuration/config.html">
-      <LogicalName>FolderCollections.Web.Configuration.config.html</LogicalName>
-    </EmbeddedResource>
+    <Compile Remove="Some/Old/File.cs" />
   </ItemGroup>
+  -->
 
 </Project>
