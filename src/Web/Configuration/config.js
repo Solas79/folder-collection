@@ -1,168 +1,116 @@
 (() => {
   'use strict';
 
-  // >>> DEINE GUID HIER EINTRAGEN <<<
+  // >>> DEINE GUID HIER EINFÜGEN <<<
   const pluginId = '00000000-0000-0000-0000-000000000000';
 
   const S = {
     page: '#FolderCollectionsConfigurationPage',
     form: '#fcForm',
+    include: '#fcIncludeFolders',
+    exclude: '#fcExcludeFolders',
+    prefix: '#fcNamePrefix',
+    suffix: '#fcNameSuffix',
+    useBaseNameName:   '#fcUseBasenameAsCollectionName',
+    useBaseNameFolder: '#fcUseBasenameAsCollectionFolder',
+    enableDaily: '#fcEnableDailyScan',
+    dailyTime:   '#fcDailyTime',
+    save:   '#fcSave',
     reload: '#fcReload',
-    root: '#fcRoot',
-    pattern: '#fcPattern',
-    includeExt: '#fcIncludeExt',
-    excludeFolders: '#fcExcludeFolders',
-    recurse: '#fcRecurse',
-    minItems: '#fcMinItems',
-    nameTpl: '#fcNameTpl',
-    createCollections: '#fcCreateCollections',
-    updateExisting: '#fcUpdateExisting',
-    libraryIds: '#fcLibraryIds',
-    libraryIdsInfo: '#fcLibraryIdsInfo',
-    enable: '#fcEnableScan',
-    scanInterval: '#fcScanInterval',
-    dryRun: '#fcDryRun',
-    logLevel: '#fcLogLevel',
-    testPath: '#fcTestPath',
-    save: '#fcSave'
+    scanNow: '#fcScanNow'
   };
 
   const DEFAULTS = {
-    RootPath: '/media/filme',
-    Pattern: '.*',
-    IncludeExtensionsCsv: 'mkv,mp4,avi',
-    ExcludeFoldersCsv: '',
-    Recurse: true,
-    MinItemsPerCollection: 2,
-    CollectionNameTemplate: '{folderName}',
-    CreateCollections: true,
-    UpdateExisting: true,
-    LibraryIds: [],
-    EnableScan: false,
-    ScanIntervalMinutes: 60,
-    DryRun: false,
-    LogLevel: 'Information',
-    TestPath: ''
+    IncludeFolders: [],
+    ExcludeFolders: [],
+    CollectionNamePrefix: '',
+    CollectionNameSuffix: '',
+    UseFolderBasenameAsCollectionName: true,
+    UseFolderBasenameAsCollectionFolder: false,
+    EnableDailyScan: false,
+    DailyScanTime: '03:00' // HH:mm
+    // Optional: Backwards-Compat: DailyScanHour / DailyScanMinute werden unterstützt (s.u.)
   };
 
   let _cfgCache = null;
+  let _initDone = false;
 
   function log(...a){ try{ console.debug('[FolderCollections][config]', ...a);}catch{} }
   function show(){ try{ Dashboard.showLoadingMsg(); }catch{} }
   function hide(){ try{ Dashboard.hideLoadingMsg(); }catch{} }
-  function alertMsg(msg){ try{ Dashboard.alert(msg);}catch{ window.alert(msg); } }
+  function toast(msg){ try{ Dashboard.alert(msg); }catch{ alert(msg); } }
 
-  function getEl(sel){ return document.querySelector(sel); }
+  function $(sel){ return document.querySelector(sel); }
 
-  function getVal(sel, type='text') {
-    const el = getEl(sel);
-    if (!el) return undefined;
-    if (type === 'checkbox') return !!el.checked;
-    if (type === 'number')   return el.value === '' ? undefined : Number(el.value);
-    if (type === 'select-multiple') {
-      return Array.from(el.selectedOptions || []).map(o => o.value);
-    }
-    return el.value;
+  function parseLines(text) {
+    return (text || '')
+      .split(/\r?\n/g)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+  }
+  function joinLines(arr) {
+    return (arr && Array.isArray(arr) ? arr : []).join('\n');
   }
 
-  function setVal(sel, value, type='text') {
-    const el = getEl(sel);
-    if (!el) return;
-    if (type === 'checkbox') { el.checked = !!value; return; }
-    if (type === 'number')   { el.value = (value ?? ''); return; }
-    if (type === 'select-multiple') {
-      const vals = new Set(value || []);
-      Array.from(el.options).forEach(o => { o.selected = vals.has(o.value); });
-      return;
+  function cfgWithDefaults(c) {
+    const cfg = Object.assign({}, DEFAULTS, c || {});
+    // Backwards-Compat: falls noch getrennte Hour/Minute vorhanden sind
+    if (!cfg.DailyScanTime && (typeof cfg.DailyScanHour === 'number')) {
+      const h = String(cfg.DailyScanHour).padStart(2, '0');
+      const m = String(cfg.DailyScanMinute || 0).padStart(2, '0');
+      cfg.DailyScanTime = `${h}:${m}`;
     }
-    el.value = (value ?? '');
-  }
-
-  async function loadLibraries() {
-    const info = getEl(S.libraryIdsInfo);
-    try {
-      // Versuche Jellyfin-Clientfunktion, falle auf Fetch zurück
-      let libs = null;
-      if (typeof ApiClient.getVirtualFolders === 'function') {
-        libs = await ApiClient.getVirtualFolders();
-      } else {
-        // Fallback auf REST
-        const url = ApiClient.getUrl('Library/VirtualFolders');
-        const resp = await fetch(url, { headers: { 'X-Emby-Token': ApiClient._serverInfo?.AccessToken || '' } });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        libs = await resp.json();
-      }
-
-      const sel = getEl(S.libraryIds);
-      sel.innerHTML = '';
-      (libs?.Items || libs || []).forEach(vf => {
-        const opt = document.createElement('option');
-        opt.value = vf.Id || vf.ItemId || vf.CollectionType || vf.Name;
-        opt.textContent = vf.Name || vf.CollectionType || vf.Id;
-        sel.appendChild(opt);
-      });
-
-      if (info) info.textContent = (sel.options.length ? 'Bibliotheken geladen' : 'Keine Bibliotheken gefunden');
-    } catch (e) {
-      log('Bibliotheken laden fehlgeschlagen:', e);
-      const infoText = 'Bibliotheken konnten nicht geladen werden – Auswahl wird ausgeblendet.';
-      if (info) info.textContent = infoText;
-      const wrap = getEl(S.libraryIds)?.closest('.inputContainer');
-      if (wrap) wrap.style.display = 'none';
-    }
+    return cfg;
   }
 
   function applyToForm(cfg) {
-    setVal(S.root, cfg.RootPath ?? DEFAULTS.RootPath);
-    setVal(S.pattern, cfg.Pattern ?? DEFAULTS.Pattern);
-    setVal(S.includeExt, cfg.IncludeExtensionsCsv ?? DEFAULTS.IncludeExtensionsCsv);
-    setVal(S.excludeFolders, cfg.ExcludeFoldersCsv ?? DEFAULTS.ExcludeFoldersCsv);
-    setVal(S.recurse, cfg.Recurse ?? DEFAULTS.Recurse, 'checkbox');
-    setVal(S.minItems, cfg.MinItemsPerCollection ?? DEFAULTS.MinItemsPerCollection, 'number');
-    setVal(S.nameTpl, cfg.CollectionNameTemplate ?? DEFAULTS.CollectionNameTemplate);
-    setVal(S.createCollections, cfg.CreateCollections ?? DEFAULTS.CreateCollections, 'checkbox');
-    setVal(S.updateExisting, cfg.UpdateExisting ?? DEFAULTS.UpdateExisting, 'checkbox');
-    setVal(S.enable, cfg.EnableScan ?? DEFAULTS.EnableScan, 'checkbox');
-    setVal(S.scanInterval, cfg.ScanIntervalMinutes ?? DEFAULTS.ScanIntervalMinutes, 'number');
-    setVal(S.dryRun, cfg.DryRun ?? DEFAULTS.DryRun, 'checkbox');
-    setVal(S.logLevel, cfg.LogLevel ?? DEFAULTS.LogLevel);
-    setVal(S.testPath, cfg.TestPath ?? DEFAULTS.TestPath);
-    setVal(S.libraryIds, cfg.LibraryIds ?? DEFAULTS.LibraryIds, 'select-multiple');
+    $(S.include).value = joinLines(cfg.IncludeFolders);
+    $(S.exclude).value = joinLines(cfg.ExcludeFolders);
+    $(S.prefix).value  = cfg.CollectionNamePrefix || '';
+    $(S.suffix).value  = cfg.CollectionNameSuffix || '';
+    $(S.useBaseNameName).checked   = !!cfg.UseFolderBasenameAsCollectionName;
+    $(S.useBaseNameFolder).checked = !!cfg.UseFolderBasenameAsCollectionFolder;
+    $(S.enableDaily).checked = !!cfg.EnableDailyScan;
+
+    // daily time als HH:mm
+    const t = (cfg.DailyScanTime && /^\d{2}:\d{2}$/.test(cfg.DailyScanTime)) ? cfg.DailyScanTime : DEFAULTS.DailyScanTime;
+    $(S.dailyTime).value = t;
   }
 
-  function readFromForm(cfgBase) {
-    const cfg = Object.assign({}, cfgBase); // Unbekannte Felder behalten
-    cfg.RootPath = getVal(S.root);
-    cfg.Pattern = getVal(S.pattern);
-    cfg.IncludeExtensionsCsv = getVal(S.includeExt);
-    cfg.ExcludeFoldersCsv = getVal(S.excludeFolders);
-    cfg.Recurse = getVal(S.recurse, 'checkbox');
-    cfg.MinItemsPerCollection = getVal(S.minItems, 'number');
-    cfg.CollectionNameTemplate = getVal(S.nameTpl);
-    cfg.CreateCollections = getVal(S.createCollections, 'checkbox');
-    cfg.UpdateExisting = getVal(S.updateExisting, 'checkbox');
-    cfg.LibraryIds = getVal(S.libraryIds, 'select-multiple') || [];
-    cfg.EnableScan = getVal(S.enable, 'checkbox');
-    cfg.ScanIntervalMinutes = getVal(S.scanInterval, 'number');
-    cfg.DryRun = getVal(S.dryRun, 'checkbox');
-    cfg.LogLevel = getVal(S.logLevel);
-    cfg.TestPath = getVal(S.testPath);
-    return cfg;
+  function readFromForm(base) {
+    const out = Object.assign({}, base || {});
+    out.IncludeFolders = parseLines($(S.include).value);
+    out.ExcludeFolders = parseLines($(S.exclude).value);
+    out.CollectionNamePrefix = $(S.prefix).value || '';
+    out.CollectionNameSuffix = $(S.suffix).value || '';
+    out.UseFolderBasenameAsCollectionName = $(S.useBaseNameName).checked;
+    out.UseFolderBasenameAsCollectionFolder = $(S.useBaseNameFolder).checked;
+    out.EnableDailyScan = $(S.enableDaily).checked;
+
+    const timeVal = ($(S.dailyTime).value || '').trim();
+    if (/^\d{2}:\d{2}$/.test(timeVal)) {
+      out.DailyScanTime = timeVal;
+      // Für ältere Server, die Hour/Minute lesen:
+      const [h, m] = timeVal.split(':').map(n => parseInt(n, 10));
+      out.DailyScanHour = h;
+      out.DailyScanMinute = m;
+    }
+
+    return out;
   }
 
   async function loadConfig() {
     show();
     try {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
-      _cfgCache = cfg || {};
-      applyToForm(Object.assign({}, DEFAULTS, _cfgCache));
-      log('Konfiguration geladen', _cfgCache);
-    } catch (err) {
-      console.error('[FolderCollections] Laden fehlgeschlagen:', err);
-      alertMsg('Konfiguration konnte nicht geladen werden. Details in der Konsole.');
-      // Fallback: nur Defaults anzeigen
-      _cfgCache = {};
-      applyToForm(DEFAULTS);
+      const serverCfg = await ApiClient.getPluginConfiguration(pluginId);
+      _cfgCache = cfgWithDefaults(serverCfg);
+      applyToForm(_cfgCache);
+      log('Konfiguration geladen:', _cfgCache);
+    } catch (e) {
+      console.error('[FolderCollections] Laden fehlgeschlagen:', e);
+      _cfgCache = cfgWithDefaults(null);
+      applyToForm(_cfgCache);
+      toast('Konfiguration konnte nicht geladen werden (siehe Konsole). Defaults angezeigt.');
     } finally {
       hide();
     }
@@ -175,30 +123,64 @@
       const current = await ApiClient.getPluginConfiguration(pluginId);
       const merged = readFromForm(current || {});
       const result = await ApiClient.updatePluginConfiguration(pluginId, merged);
-      Dashboard.processPluginConfigurationUpdateResult(result);
+      // Im Erfolgsfall kann result leer sein; Jellyfin-Helfer verarbeitet das robust:
+      try { Dashboard.processPluginConfigurationUpdateResult(result); } catch {}
       _cfgCache = merged;
-      log('Konfiguration gespeichert', merged);
-    } catch (err) {
-      console.error('[FolderCollections] Speichern fehlgeschlagen:', err);
-      alertMsg('Konfiguration konnte nicht gespeichert werden. Details in der Konsole.');
+      log('Konfiguration gespeichert:', merged);
+      toast('Konfiguration gespeichert.');
+    } catch (e) {
+      console.error('[FolderCollections] Speichern fehlgeschlagen:', e);
+      toast('Speichern fehlgeschlagen (siehe Konsole).');
+    } finally {
+      hide();
+    }
+  }
+
+  async function scanNow() {
+    show();
+    try {
+      // 1) Bevorzugter Plugin-Endpunkt (falls von dir implementiert)
+      const token = ApiClient._serverInfo?.AccessToken || '';
+      const tryPost = async (path) => {
+        const url = ApiClient.getUrl(path);
+        const resp = await fetch(url, { method: 'POST', headers: { 'X-Emby-Token': token } });
+        return resp;
+      };
+
+      // erst /FolderCollections/ScanNow, dann /FolderCollections/Scan als Fallback
+      let resp = await tryPost('FolderCollections/ScanNow');
+      if (!resp.ok && resp.status === 404) {
+        resp = await tryPost('FolderCollections/Scan');
+      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      toast('Scan gestartet.');
+    } catch (e) {
+      console.error('[FolderCollections] ScanNow fehlgeschlagen:', e);
+      toast('Scan konnte nicht gestartet werden (siehe Konsole).');
     } finally {
       hide();
     }
   }
 
   function wire() {
-    const page = getEl(S.page);
+    if (_initDone) return;
+    _initDone = true;
+
+    const page = $(S.page);
     if (!page) return;
 
-    page.addEventListener('pageshow', async () => {
-      await Promise.all([ loadLibraries(), loadConfig() ]);
-    });
+    // In Jellyfin funktionieren je nach Version "pageshow" und teils "viewshow".
+    const onShow = () => loadConfig();
+    page.addEventListener('pageshow', onShow);
+    page.addEventListener('viewshow', onShow);
 
-    const f = getEl(S.form);
-    if (f) f.addEventListener('submit', saveConfig);
-
-    const r = getEl(S.reload);
-    if (r) r.addEventListener('click', loadConfig);
+    const form = $(S.form);
+    if (form) form.addEventListener('submit', saveConfig);
+    const btnReload = $(S.reload);
+    if (btnReload) btnReload.addEventListener('click', loadConfig);
+    const btnScan = $(S.scanNow);
+    if (btnScan) btnScan.addEventListener('click', scanNow);
   }
 
   if (document.readyState === 'loading') {
