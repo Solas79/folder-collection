@@ -37,7 +37,8 @@
 
   <ItemGroup>
     <None Remove="Web/Configuration/config.html" />
-    <EmbeddedResource Include="Web/Configuration/config.html" />
+    <EmbeddedResource Include="Web/Configuration/config.html">    
+    <LogicalName>FolderCollections.Web.Configuration.config.html</LogicalName>  
   </ItemGroup>
 
   <PropertyGroup>
