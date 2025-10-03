@@ -21,7 +21,7 @@
   <!-- Compile-Time-Refs (Runtime liefert der Jellyfin-Host) -->
   <ItemGroup>
     <!-- ASP.NET Core Controller/MVC Typen (nur Ref-Assemblies) -->
-    <PackageReference Include="Microsoft.AspNetCore.App.Ref" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.App.Ref" Version="8.0.1" />
 
     <!-- Jellyfin / MediaBrowser APIs (passen zu 10.10.7) -->
     <PackageReference Include="Jellyfin.Common"      Version="$(JellyfinVersion)" />
