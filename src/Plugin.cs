@@ -22,7 +22,6 @@ namespace FolderCollections
         public override string Name => "FolderCollections";
         public override string Description => "Erstellt/verwaltet Sammlungen basierend auf Ordnern.";
         public override Guid Id => PluginGuid;
-
         public IEnumerable<PluginPageInfo> GetPages()
         {
             return new[]
@@ -39,5 +38,6 @@ namespace FolderCollections
                 }
             };
         }
+
     }
 }
