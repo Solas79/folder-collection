@@ -12,6 +12,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using Jellyfin.Data.Enums; // BaseItemKind
 
 namespace FolderCollections
 {
@@ -245,13 +246,14 @@ namespace FolderCollections
         {
             var q = new InternalItemsQuery
             {
-                IncludeItemTypes = new[] { nameof(BoxSet) },
+                IncludeItemTypes = new[] { BaseItemKind.BoxSet }, // statt string[]
                 Name = name,
                 Recursive = true,
             };
             var list = _library.GetItemList(q);
             return list.OfType<BoxSet>().FirstOrDefault();
         }
+
 
         private async Task<BoxSet?> EnsureCollectionAsync(string collectionName, CancellationToken ct)
         {
