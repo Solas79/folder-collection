@@ -71,8 +71,9 @@
     </div>
   </form>
 
-  <!-- NUR der Jellyfin-API-Client; KEIN main.jellyfin.bundle.js -->
+  <!-- nur der Jellyfin API-Client; KEIN main.jellyfin.bundle.js -->
   <script src="/web/node_modules.jellyfin-apiclient.bundle.js"></script>
+  <!-- Falls 404: <script src="/node_modules.jellyfin-apiclient.bundle.js"></script> -->
 
   <script>
   (() => {
@@ -97,13 +98,13 @@
 
     const alertx = (m)=>{ try{Dashboard?.alert(m);}catch{alert(m);} };
     const parseLines=(t)=>(t||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    const joinLines =(a)=>Array.isArray(a)?a.join('\\n'):''; 
+    const joinLines =(a)=>Array.isArray(a)?a.join('\n'):''; 
 
     function normalize(cIn){
       const c = Object.assign({}, DEFAULTS, cIn||{});
-      if ((!c.DailyScanTime || !/^\\d{2}:\\d{2}$/.test(c.DailyScanTime)) && typeof c.DailyScanHour==='number') {
+      if ((!c.DailyScanTime || !/^\d{2}:\d{2}$/.test(c.DailyScanTime)) && typeof c.DailyScanHour==='number') {
         const h=String(c.DailyScanHour).padStart(2,'0'); const m=String(c.DailyScanMinute||0).padStart(2,'0');
-        c.DailyScanTime = \`\${h}:\${m}\`;
+        c.DailyScanTime = `${h}:${m}`;
       }
       if (!Array.isArray(c.IncludeFolders)) c.IncludeFolders=[];
       if (!Array.isArray(c.ExcludeFolders)) c.ExcludeFolders=[];
@@ -118,7 +119,7 @@
       $(S.suffix).value  = c.CollectionNameSuffix || '';
       $(S.minIt).value   = String(c.MinItemsPerFolder ?? DEFAULTS.MinItemsPerFolder);
       $(S.enable).checked= !!c.EnableDailyScan;
-      $(S.time).value    = (/^\\d{2}:\\d{2}$/.test(c.DailyScanTime||'')) ? c.DailyScanTime : DEFAULTS.DailyScanTime;
+      $(S.time).value    = (/^\d{2}:\d{2}$/.test(c.DailyScanTime||'')) ? c.DailyScanTime : DEFAULTS.DailyScanTime;
     }
 
     function readFromForm(base){
@@ -131,7 +132,7 @@
       out.MinItemsPerFolder    = Number.isFinite(mi) ? Math.max(0, Math.trunc(mi)) : DEFAULTS.MinItemsPerFolder;
       out.EnableDailyScan      = $(S.enable).checked;
       const t = ($(S.time).value||'').trim();
-      if (/^\\d{2}:\\d{2}$/.test(t)) {
+      if (/^\d{2}:\d{2}$/.test(t)) {
         out.DailyScanTime = t;
         const [h,m] = t.split(':').map(n=>parseInt(n,10));
         out.DailyScanHour = h; out.DailyScanMinute = m;
@@ -155,7 +156,7 @@
 
     async function scanNow(){
       const token = ApiClient?._serverInfo?.AccessToken || '';
-      const post  = (p)=>fetch(ApiClient.getUrl(p), {method:'POST', headers:{'X-Emby-Token':token}});
+      const post  = (p)=>fetch(ApiClient.getUrl(p), {method:'POST', headers:{'X-Emby-Token': token}});
       let r = await post('FolderCollections/ScanNow');
       if (!r.ok && r.status===404) r = await post('FolderCollections/Scan');
       if (!r.ok) throw new Error('HTTP '+r.status);
@@ -165,7 +166,7 @@
     function wire(){
       $(S.form)?.addEventListener('submit', saveConfig);
       $(S.reload)?.addEventListener('click', ()=>loadConfig().catch(()=>alertx('Laden fehlgeschlagen')));
-      $(S.scan)?.addEventListener('click', ()=>scanNow().catch(()=>alertx('Scan fehlgeschlagen')));
+      $(S.scan)?.addEventListener('click',  ()=>scanNow().catch(()=>alertx('Scan fehlgeschlagen')));
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
