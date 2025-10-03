@@ -1,27 +1,15 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Folder Collections – Start</title>
-  <meta http-equiv="refresh" content="1; url=/FolderCollections/ui"> <!-- Fallback -->
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px}
-    a.btn{display:inline-block;padding:10px 14px;border:1px solid #888;border-radius:8px;text-decoration:none}
-  </style>
-</head>
+<meta charset="utf-8">
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:24px}
+  a.btn{display:inline-block;padding:10px 14px;border:1px solid #888;border-radius:8px;text-decoration:none}
+  p{margin:10px 0}
+</style>
 <body>
   <h2>Folder Collections – Konfiguration</h2>
-  <p>Falls keine automatische Weiterleitung erfolgt:</p>
-  <p><a class="btn" href="/FolderCollections/ui" target="_top">Konfiguration öffnen</a></p>
-
-  <script>
-    // sofort Top-Window umlenken (raus aus dem SPA)
-    try { window.top.location.href = '/FolderCollections/ui'; } catch(e) {}
-    // zusätzliche Fallbacks
-    setTimeout(function(){
-      try { window.parent.location.href = '/FolderCollections/ui'; } catch(e){}
-      try { window.location.href = '/FolderCollections/ui'; } catch(e){}
-    }, 150);
-  </script>
+  <p>Klicke, um die Konfiguration zu öffnen (volle Seite):</p>
+  <p>
+    <a class="btn" href="/FolderCollections/ui" target="_top">Konfiguration öffnen</a>
+  </p>
+  <p style="opacity:.7">Falls sich nichts tut, öffne <code>/FolderCollections/ui</code> in einem neuen Tab.</p>
 </body>
-</html>
