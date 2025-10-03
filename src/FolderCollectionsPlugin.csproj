@@ -13,7 +13,6 @@
   <ItemGroup>
     <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
     <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
-    <PackageReference Include="Microsoft.AspNetCore.App.Ref" Version="8.0.7" />
   </ItemGroup>
 
   <!-- Eingebettete Web-Ressourcen -->
