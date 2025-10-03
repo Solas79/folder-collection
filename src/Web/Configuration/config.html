@@ -6,7 +6,7 @@
   <div class="content-primary">
     <h1>Folder Collections – Einstellungen</h1>
 
-    <form id="fcForm" class="emby-form">
+    <form id="fcForm" class="emby-form" onsubmit="return window.FolderCollections.save(event)">
       <div class="checkboxContainer">
         <label class="emby-checkbox-label">
           <input id="includeMovies" type="checkbox" is="emby-checkbox" />
@@ -66,9 +66,11 @@
       </div>
 
       <div class="formButtons">
-        <button id="fcManualScan" is="emby-button" type="button" class="raised button-submit">Manuellen Scan starten</button>
+        <button id="fcManualScan" is="emby-button" type="button" class="raised button-submit"
+                onclick="window.FolderCollections.manualScan(this)">Manuellen Scan starten</button>
         <button is="emby-button" type="submit" class="raised button-submit">Speichern</button>
-        <button id="fcCancel" is="emby-button" type="button" class="raised button-cancel">Abbrechen</button>
+        <button id="fcCancel" is="emby-button" type="button" class="raised button-cancel"
+                onclick="history.back()">Abbrechen</button>
       </div>
     </form>
   </div>
@@ -89,8 +91,8 @@
       const statusText = typeof err.statusText === "string" ? err.statusText : "";
       const message    = typeof err.message === "string" ? err.message : "";
       if (status || statusText) {
-        const head = status ? \`HTTP \${status}\${statusText ? " " : ""}\${statusText}\` : statusText;
-        return message ? \`\${head} – \${message}\` : head;
+        const head = status ? `HTTP ${status}${statusText ? " " : ""}${statusText}` : statusText;
+        return message ? `${head} – ${message}` : head;
       }
       if (message) return message;
       return JSON.stringify(err);
@@ -105,69 +107,59 @@
   }
 
   async function load() {
-    try {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
-      $("includeMovies").checked = !!cfg.IncludeMovies;
-      $("includeSeries").checked = !!cfg.IncludeSeries;
-      $("minItems").value  = cfg.MinItems  ?? 2;
-      $("prefix").value    = cfg.Prefix    ?? "";
-      $("suffix").value    = cfg.Suffix    ?? "";
-      $("scanHour").value  = cfg.ScanHour  ?? 4;
-      $("scanMinute").value= cfg.ScanMinute?? 0;
-      $("pathPrefixes").value  = toLines(cfg.PathPrefixes);
-      $("ignorePatterns").value= toLines(cfg.IgnorePatterns);
-      $("useBasename").checked = !!cfg.UseBasenameAsCollectionName;
-    } catch (err) {
-      Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err));
-      console.error(err);
+    const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+    $("includeMovies").checked = !!cfg.IncludeMovies;
+    $("includeSeries").checked = !!cfg.IncludeSeries;
+    $("minItems").value  = cfg.MinItems  ?? 2;
+    $("prefix").value    = cfg.Prefix    ?? "";
+    $("suffix").value    = cfg.Suffix    ?? "";
+    $("scanHour").value  = cfg.ScanHour  ?? 4;
+    $("scanMinute").value= cfg.ScanMinute?? 0;
+    $("pathPrefixes").value  = toLines(cfg.PathPrefixes);
+    $("ignorePatterns").value= toLines(cfg.IgnorePatterns);
+    $("useBasename").checked = !!cfg.UseBasenameAsCollectionName;
+  }
+
+  async function saveImpl() {
+    const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+    cfg.IncludeMovies = $("includeMovies").checked;
+    cfg.IncludeSeries = $("includeSeries").checked;
+    cfg.MinItems = parseInt($("minItems").value, 10) || 0;
+    cfg.Prefix   = $("prefix").value.trim();
+    cfg.Suffix   = $("suffix").value.trim();
+
+    const hour   = Math.min(23, Math.max(0, parseInt($("scanHour").value, 10)   || 4));
+    const minute = Math.min(59, Math.max(0, parseInt($("scanMinute").value, 10) || 0));
+    cfg.ScanHour   = hour;
+    cfg.ScanMinute = minute;
+
+    cfg.PathPrefixes   = fromLines($("pathPrefixes").value);
+    cfg.IgnorePatterns = fromLines($("ignorePatterns").value);
+    cfg.UseBasenameAsCollectionName = !!$("useBasename").checked;
+
+    const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
+    Dashboard.processPluginConfigurationUpdateResult(result);
+
+    const verify = await ApiClient.getPluginConfiguration(pluginId);
+    const want = !!$("useBasename").checked;
+    const got  = !!verify.UseBasenameAsCollectionName;
+
+    if (result?.IsUpdated === false) {
+      Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
+    } else if (want !== got) {
+      Dashboard.alert("Hinweis: 'Basename als Sammlungsname' wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.");
+      console.warn("Roundtrip mismatch: wanted", want, "got", got, verify);
+    } else {
+      Dashboard.alert("Gespeichert.");
     }
   }
 
-  async function save() {
+  async function manualScanImpl(btn) {
+    btn?.setAttribute("disabled", "disabled");
+    btn?.classList.add("idleProcessing");
     try {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
-      cfg.IncludeMovies = $("includeMovies").checked;
-      cfg.IncludeSeries = $("includeSeries").checked;
-      cfg.MinItems = parseInt($("minItems").value, 10) || 0;
-      cfg.Prefix   = $("prefix").value.trim();
-      cfg.Suffix   = $("suffix").value.trim();
-
-      const hour   = Math.min(23, Math.max(0, parseInt($("scanHour").value, 10)   || 4));
-      const minute = Math.min(59, Math.max(0, parseInt($("scanMinute").value, 10) || 0));
-      cfg.ScanHour   = hour;
-      cfg.ScanMinute = minute;
-
-      cfg.PathPrefixes   = fromLines($("pathPrefixes").value);
-      cfg.IgnorePatterns = fromLines($("ignorePatterns").value);
-      cfg.UseBasenameAsCollectionName = !!$("useBasename").checked;
-
-      const result = await ApiClient.updatePluginConfiguration(pluginId, cfg);
-      Dashboard.processPluginConfigurationUpdateResult(result);
-
-      // Roundtrip prüfen
-      const verify = await ApiClient.getPluginConfiguration(pluginId);
-      const want = !!$("useBasename").checked;
-      const got  = !!verify.UseBasenameAsCollectionName;
-
-      if (result?.IsUpdated === false) {
-        Dashboard.alert("Konfiguration konnte nicht gespeichert werden.");
-      } else if (want !== got) {
-        Dashboard.alert("Hinweis: 'Basename als Sammlungsname' wurde serverseitig nicht übernommen. Prüfe PluginConfiguration.");
-        console.warn("Roundtrip mismatch: wanted", want, "got", got, verify);
-      } else {
-        Dashboard.alert("Gespeichert.");
-      }
-    } catch (err) {
-      Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err));
-      console.error(err);
-    }
-  }
-
-  async function manualScan(btn) {
-    try {
-      btn?.setAttribute("disabled", "disabled");
-      btn?.classList.add("idleProcessing");
-
       const tasks = await ApiClient.getJSON(ApiClient.getUrl("ScheduledTasks"));
       const t = tasks.find(x =>
         x?.Key === "FolderCollections.DailyScan" ||
@@ -175,59 +167,38 @@
       );
       if (!t?.Id) throw new Error("FolderCollections-Task nicht gefunden.");
 
-      let resp = await ApiClient.fetchApi(\`/ScheduledTasks/\${t.Id}/Trigger\`, { method: "POST" });
+      let resp = await ApiClient.fetchApi(`/ScheduledTasks/${t.Id}/Trigger`, { method: "POST" });
       if (!resp?.ok) {
-        resp = await ApiClient.fetchApi(\`/ScheduledTasks/Running/\${t.Id}\`, { method: "POST" });
+        resp = await ApiClient.fetchApi(`/ScheduledTasks/Running/${t.Id}`, { method: "POST" });
         if (!resp?.ok) {
           const txt = await safeReadBody(resp);
-          throw new Error(\`\${resp?.status || ""} \${resp?.statusText || ""} \${txt}\`.trim());
+          throw new Error(`${resp?.status || ""} ${resp?.statusText || ""} ${txt}`.trim());
         }
       }
       Dashboard.alert("Manueller Scan gestartet!");
-    } catch (err) {
-      Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err));
-      console.error(err);
     } finally {
       btn?.removeAttribute("disabled");
       btn?.classList.remove("idleProcessing");
     }
   }
 
-  function init() {
-    const page = document.querySelector("#folderCollectionsConfigPage");
-    if (!page || page.dataset.initialized === "1") return;
-    page.dataset.initialized = "1";
+  // Global verfügbar machen, damit onclick/onsubmit IMMER greifen
+  window.FolderCollections = {
+    async save(ev) {
+      try { ev?.preventDefault?.(); await saveImpl(); }
+      catch (err) { Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err)); console.error(err); }
+      return false;
+    },
+    async manualScan(btn) {
+      try { await manualScanImpl(btn); }
+      catch (err) { Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err)); console.error(err); }
+    }
+  };
 
-    document.getElementById("fcForm")?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      save().catch(err => {
-        Dashboard.alert("Speichern fehlgeschlagen: " + buildErrorMessage(err));
-        console.error(err);
-      });
-    });
-
-    document.getElementById("fcCancel")?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      history.back();
-    });
-
-    document.getElementById("fcManualScan")?.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      manualScan(ev.currentTarget).catch(err => {
-        Dashboard.alert("Fehler beim Starten des Scans: " + buildErrorMessage(err));
-        console.error(err);
-      });
-    });
-
-    load().catch(err => {
-      Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err));
-      console.error(err);
-    });
-  }
-
-  // Jellyfin lädt die Seite dynamisch → diese Events treffen zu
-  document.addEventListener("viewshow", init);
-  document.addEventListener("pageshow", init);
-  document.addEventListener("DOMContentLoaded", init);
+  // zusätzlich versuchen wir automatisch zu laden
+  const tryInit = () => load().catch(err => { Dashboard.alert("Konfiguration konnte nicht geladen werden: " + buildErrorMessage(err)); console.error(err); });
+  document.addEventListener("DOMContentLoaded", tryInit);
+  document.addEventListener("viewshow", tryInit);
+  document.addEventListener("pageshow", tryInit);
 })();
 </script>
