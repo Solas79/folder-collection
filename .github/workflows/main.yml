@@ -31,28 +31,38 @@ jobs:
             src/FolderCollectionsPlugin.csproj
             **/packages.lock.json
 
-      - name: Restore (nuget + jellyfin, with retry)
+      # Quelle(n) explizit setzen – robust selbst ohne nuget.config im Repo
+      - name: Configure NuGet sources
         shell: bash
         run: |
-          set -e
-          for i in 0 1 2 3 4 5; do
+          set -euo pipefail
+          dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget || true
+          dotnet nuget add source https://repo.jellyfin.org/releases/server/v1/index.json -n jellyfin-server || true
+          dotnet nuget add source https://repo.jellyfin.org/releases/plugin/v1/index.json -n jellyfin-plugin || true
+          echo "=== Active NuGet sources ==="
+          dotnet nuget list source
+
+      - name: Restore (nuget + jellyfin-server + plugin, with retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          attempts=6
+          for i in $(seq 1 $attempts); do
             if dotnet restore src/FolderCollectionsPlugin.csproj \
-               -s https://api.nuget.org/v3/index.json \
-               -s https://repo.jellyfin.org/releases/plugin/v1/index.json \
-               --ignore-failed-sources --nologo; then
+                 --no-cache --nologo --ignore-failed-sources \
+                 -s https://api.nuget.org/v3/index.json \
+                 -s https://repo.jellyfin.org/releases/server/v1/index.json \
+                 -s https://repo.jellyfin.org/releases/plugin/v1/index.json; then
+              echo "Restore succeeded on attempt $i"
               exit 0
             fi
-            echo "Restore failed (attempt $((i+1))). Retrying..."
-            sleep $((2**i))
-          done
-          echo "Restore failed after retries."
-          exit 1
-
+            if [ $i -lt $attempts ]; then
+              delay=$((2**(i-1)))
+              echo "Restore failed (attempt $i). Retrying in ${delay}s…"
+              sleep $delay
             fi
-            echo "Restore failed (attempt $((i+1))). Retrying..."
-            sleep $((2**i))
           done
-          echo "Restore failed after retries."
+          echo "Restore failed after $attempts attempts."
           exit 1
 
       - name: Build (Release)
@@ -66,7 +76,7 @@ jobs:
         shell: bash
         run: |
           ver=$(grep -oPm1 '(?<=<Version>)[^<]+' src/FolderCollectionsPlugin.csproj)
-          echo "version=$ver" >> $GITHUB_OUTPUT
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
           echo "Detected version: $ver"
 
       - name: Archive plugin (strip server core DLLs)
@@ -78,7 +88,7 @@ jobs:
           zip -r "$zipname" . -q
           mv "$zipname" ../
           cd ..
-          echo "ZIP=$zipname" >> $GITHUB_ENV
+          echo "ZIP=$zipname" >> "$GITHUB_ENV"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -102,10 +112,10 @@ jobs:
         id: pick_zip
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           zipfile=$(ls -1 artifacts/**/FolderCollections_*.zip | head -n1)
           [ -z "$zipfile" ] && { echo "No zip found"; exit 1; }
-          echo "zipfile=$zipfile" >> $GITHUB_OUTPUT
+          echo "zipfile=$zipfile" >> "$GITHUB_OUTPUT"
           echo "Using ZIP: $zipfile"
 
       - name: Create GitHub Release
