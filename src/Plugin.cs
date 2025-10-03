@@ -4,12 +4,11 @@ using MediaBrowser.Model.Plugins;
 
 namespace FolderCollections.Web
 {
-    // Achtung: IHasWebPages (nicht IPluginConfigurationPage)
+    // Jellyfin 10.10.x → IHasWebPages (not IPluginConfigurationPage)
     public sealed class PluginPages : IHasWebPages
     {
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // Launcher-Seite, die auf die Standalone-UI verweist
             yield return new PluginPageInfo
             {
                 Name = "config",
