@@ -3,6 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <title>Folder Collections – Konfiguration</title>
+  <style>
+    .sectionTitle{font-weight:600;margin:16px 0 8px}
+    .inputContainer{margin:8px 0}
+    .inputLabel{display:block;margin-bottom:4px}
+    textarea,input,select,button{width:100%;max-width:800px}
+    .buttonRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .buttonRow button{width:auto}
+  </style>
 </head>
 <body>
   <div id="FolderCollectionsConfigurationPage"
@@ -12,55 +20,56 @@
 
     <div data-role="content">
       <div class="content-primary">
-        <form id="fcForm" class="FolderCollectionsConfigurationForm">
+        <form id="fcForm">
 
           <div class="sectionTitle">Quellordner</div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcIncludeFolders">Ordner scannen (ein Pfad pro Zeile)</label>
-            <textarea id="fcIncludeFolders" is="emby-textarea" rows="6" placeholder="/media/filme
+            <textarea id="fcIncludeFolders" rows="6" placeholder="/media/filme
 /media/serien"></textarea>
           </div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcExcludeFolders">Blacklist (ein Pfad/Pattern pro Zeile)</label>
-            <textarea id="fcExcludeFolders" is="emby-textarea" rows="5" placeholder="/media/filme/Extras
+            <textarea id="fcExcludeFolders" rows="5" placeholder="/media/filme/Extras
 **/Sample
 **/*.srt"></textarea>
           </div>
 
           <div class="sectionTitle">Sammlungsname</div>
-          <div class="fieldDescription">Wird serverseitig gebaut als: <code>Präfix + basename(Ordner) + Suffix</code></div>
-
           <div class="inputContainer">
             <label class="inputLabel" for="fcNamePrefix">Präfix</label>
-            <input id="fcNamePrefix" type="text" is="emby-input" placeholder="Collection - " />
+            <input id="fcNamePrefix" type="text" placeholder="Collection - ">
           </div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcNameSuffix">Suffix</label>
-            <input id="fcNameSuffix" type="text" is="emby-input" placeholder=" (Auto)" />
+            <input id="fcNameSuffix" type="text" placeholder=" (Auto)">
           </div>
 
           <div class="inputContainer">
             <label class="inputLabel" for="fcMinItemsPerFolder">Mindest-Items pro Ordner</label>
-            <input id="fcMinItemsPerFolder" type="number" is="emby-input" min="0" step="1" placeholder="2" />
+            <input id="fcMinItemsPerFolder" type="number" min="0" step="1" placeholder="2">
           </div>
 
           <div class="sectionTitle">Automatisierung</div>
-          <div class="checkboxContainer">
-            <label><input id="fcEnableDailyScan" type="checkbox" is="emby-checkbox" /> Täglichen Scan aktivieren</label>
+          <div class="inputContainer">
+            <label>
+              <input id="fcEnableDailyScan" type="checkbox">
+              Täglichen Scan aktivieren
+            </label>
           </div>
           <div class="inputContainer">
             <label class="inputLabel" for="fcDailyTime">Uhrzeit für täglichen Scan</label>
-            <input id="fcDailyTime" type="time" is="emby-input" />
+            <input id="fcDailyTime" type="time">
             <div class="fieldDescription">Format HH:MM (Serverzeit).</div>
           </div>
 
-          <div class="buttonContainer" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button id="fcScanNow" type="button" class="raised"><span>Jetzt scannen</span></button>
-            <button id="fcReload"  type="button" class="raised"><span>Neu laden</span></button>
-            <button id="fcSave"    type="submit" class="raised button-submit"><span>Speichern</span></button>
+          <div class="buttonRow">
+            <button id="fcScanNow" type="button">Jetzt scannen</button>
+            <button id="fcReload"  type="button">Neu laden</button>
+            <button id="fcSave"    type="submit">Speichern</button>
           </div>
 
         </form>
