@@ -2,7 +2,7 @@
 "name": "CollectionsByFolder",
 "guid": "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41",
 "version": "0.1.0",
-"targetAbi": "10.9.0.0",
+"targetAbi": "10.10.0.0",
 "framework": "net8.0",
 "overview": "Erstellt/aktualisiert Collections anhand von Ordnernamen.",
 "description": "Die Collection erhält den letzten Ordnernamen (mit optionalem Präfix/Suffix). Mehrere Filmverzeichnisse, Blacklist, Mindestanzahl, täglicher Scan & Button.",
