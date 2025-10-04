@@ -1,115 +1,106 @@
-// Robuste Version: direktes Binden auf die konkreten Buttons + Key-Fallback.
-// Keine externen Abhängigkeiten nötig.
-define([], function () {
+define(["loading"], function (loading) {
   "use strict";
 
   const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
-  const Api = (typeof ApiClient !== "undefined") ? ApiClient : null;
-  const UI  = (typeof Dashboard !== "undefined") ? Dashboard : null;
 
-  function showStatus(view, msg) {
-    const el = view.querySelector("#cbf-status");
-    if (!el) return;
-    el.textContent = msg;
-    clearTimeout(el._t);
-    el._t = setTimeout(() => (el.textContent = ""), 5000);
-  }
-
-  function linesFrom(view, id) {
-    const el = view.querySelector("#" + id);
-    return (el?.value || "").split("\n").map(s => s.trim()).filter(Boolean);
-  }
-  function setLines(view, id, arr) {
-    const el = view.querySelector("#" + id);
-    if (el) el.value = (arr || []).join("\n");
-  }
-
-  async function loadConfig(view) {
-    if (!Api) return;
-    try {
-      const cfg = await Api.getPluginConfiguration(pluginId);
-      const wl = (cfg.Whitelist && cfg.Whitelist.length) ? cfg.Whitelist : (cfg.FolderPaths || []);
-      setLines(view, "whitelist", wl);
-      setLines(view, "blacklist", cfg.Blacklist || []);
-      const g = (sel, v) => { const el = view.querySelector(sel); if (el) el.value = v; };
-      g("#prefix",  cfg.Prefix   || "");
-      g("#suffix",  cfg.Suffix   || "");
-      g("#minItems", String(cfg.MinItemCount || 1));
-      const chk = view.querySelector("#enableDailyScan");
-      if (chk) chk.checked = !!cfg.EnableDailyScan;
-      g("#scanTime", cfg.ScanTime || "03:00");
-    } catch (e) {
-      console.error("[CBF] loadConfig", e);
-      UI && UI.alert("Konfiguration konnte nicht geladen werden.");
-    }
-  }
-
-  async function saveConfig(view) {
-    if (!Api) return;
-    try {
-      const cfg = await Api.getPluginConfiguration(pluginId);
-      cfg.Whitelist = linesFrom(view, "whitelist");
-      if (cfg.Whitelist?.length) cfg.FolderPaths = []; // alten Key neutralisieren
-      cfg.Blacklist = linesFrom(view, "blacklist");
-      const get = (sel) => (view.querySelector(sel)?.value || "").trim();
-      cfg.Prefix = get("#prefix");
-      cfg.Suffix = get("#suffix");
-      cfg.MinItemCount = parseInt(get("#minItems") || "1", 10);
-      cfg.EnableDailyScan = !!view.querySelector("#enableDailyScan")?.checked;
-      cfg.ScanTime = get("#scanTime") || "03:00";
-      await Api.updatePluginConfiguration(pluginId, cfg);
-      UI && UI.processPluginConfigurationUpdateResult();
-      showStatus(view, "Gespeichert.");
-    } catch (e) {
-      console.error("[CBF] saveConfig", e);
-      UI && UI.alert("Speichern fehlgeschlagen.");
-    }
-  }
-
-  async function scanNow(view) {
-    if (!Api) return;
-    try {
-      const resp = await Api.fetch({ url: Api.getUrl("CollectionsByFolder/ScanNow"), method: "POST" });
-      if (!resp.ok) throw new Error("HTTP " + resp.status);
-      const json = await resp.json();
-      showStatus(view, `Scan gestartet: Kandidaten=${json.candidates}, erstellt=${json.created}, aktualisiert=${json.updated}, übersprungen=${json.skipped}`);
-    } catch (e) {
-      console.error("[CBF] scanNow", e);
-      UI && UI.alert("Scan konnte nicht gestartet werden.");
-    }
-  }
-
-  function bindOnce(btn, handler) {
-    if (btn && !btn._cbfBound) {
-      btn.addEventListener("click", (ev) => { ev.preventDefault(); handler(); });
-      // Keyboard-Fallback (Enter/Space)
-      btn.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handler(); }
-      });
-      btn._cbfBound = true;
-    }
-  }
-
+  // Jellyfin lädt das AMD-Modul und ruft diese Funktion mit dem Seiten-root `view` auf
   return function (view /* HTMLElement */) {
-    console.log("[CBF] init", view);
+    const $ = (sel) => view.querySelector(sel);
 
-    // Buttons direkt binden
-    const saveBtn = view.querySelector("#saveButton");
-    const scanBtn = view.querySelector("#scanNowButton");
-    console.log("[CBF] buttons", { saveBtn, scanBtn });
+    function showStatus(msg) {
+      const el = $("#cbf-status");
+      if (!el) return;
+      el.textContent = msg;
+      clearTimeout(el._t);
+      el._t = setTimeout(() => (el.textContent = ""), 4000);
+    }
 
-    bindOnce(saveBtn, () => saveConfig(view));
-    bindOnce(scanBtn, () => scanNow(view));
+    const linesFrom = (id) => ($("#" + id)?.value || "")
+      .split("\n").map(s=>s.trim()).filter(Boolean);
 
-    // Konfig beim Anzeigen laden
+    const setLines = (id, arr) => {
+      const el = $("#"+id);
+      if (el) el.value = (arr || []).join("\n");
+    };
+
+    async function loadConfig() {
+      try {
+        const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+        const wl = (cfg.Whitelist?.length ? cfg.Whitelist : (cfg.FolderPaths || []));
+        setLines("whitelist", wl);
+        setLines("blacklist", cfg.Blacklist || []);
+
+        $("#prefix").value    = cfg.Prefix || "";
+        $("#suffix").value    = cfg.Suffix || "";
+        $("#minItems").value  = cfg.MinItemCount || 1;
+        $("#enableDailyScan").checked = !!cfg.EnableDailyScan;
+        $("#scanTime").value  = cfg.ScanTime || "03:00";
+      } catch (e) {
+        console.error("[CBF] loadConfig", e);
+        Dashboard.alert("Konfiguration konnte nicht geladen werden.");
+      }
+    }
+
+    async function saveConfig() {
+      loading.show();
+      try {
+        const cfg = await ApiClient.getPluginConfiguration(pluginId);
+
+        cfg.Whitelist = linesFrom("whitelist");
+        if (cfg.Whitelist?.length) cfg.FolderPaths = []; // alten Key leeren, wenn Whitelist genutzt
+        cfg.Blacklist = linesFrom("blacklist");
+
+        cfg.Prefix = $("#prefix").value.trim();
+        cfg.Suffix = $("#suffix").value.trim();
+        cfg.MinItemCount = parseInt($("#minItems").value || "1", 10);
+        cfg.EnableDailyScan = $("#enableDailyScan").checked;
+        cfg.ScanTime = $("#scanTime").value || "03:00";
+
+        await ApiClient.updatePluginConfiguration(pluginId, cfg);
+        Dashboard.processPluginConfigurationUpdateResult();
+        showStatus("Gespeichert.");
+      } catch(e) {
+        console.error("[CBF] saveConfig", e);
+        Dashboard.alert("Speichern fehlgeschlagen.");
+      } finally {
+        loading.hide();
+      }
+    }
+
+    async function scanNow() {
+      loading.show();
+      try {
+        const resp = await ApiClient.fetch({
+          url: ApiClient.getUrl("CollectionsByFolder/ScanNow"),
+          method: "POST"
+        });
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const json = await resp.json();
+        showStatus(`Scan gestartet: Kandidaten=${json.candidates}, erstellt=${json.created}, aktualisiert=${json.updated}, übersprungen=${json.skipped}`);
+      } catch (e) {
+        console.error("[CBF] scanNow", e);
+        Dashboard.alert("Scan konnte nicht gestartet werden.");
+      } finally {
+        loading.hide();
+      }
+    }
+
+    function bind() {
+      const saveBtn = $("#saveButton");
+      const scanBtn = $("#scanNowButton");
+      if (saveBtn && !saveBtn._cbfBound) { saveBtn.addEventListener("click", saveConfig); saveBtn._cbfBound = true; }
+      if (scanBtn && !scanBtn._cbfBound) { scanBtn.addEventListener("click", scanNow);  scanBtn._cbfBound = true; }
+    }
+
+    // Beim Anzeigen der Seite initialisieren
     view.addEventListener("viewshow", function () {
-      console.log("[CBF] viewshow -> loadConfig");
-      loadConfig(view);
+      bind();
+      loadConfig();
     });
 
-    // Falls bereits sichtbar, direkt laden
-    if (view.offsetParent !== null) {
-      loadConfig(view);
-    }
+    // Falls bereits sichtbar (direkt aufgerufen), sofort binden/laden
+    bind();
+    if (view.offsetParent !== null) loadConfig();
   };
 });
