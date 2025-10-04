@@ -1,75 +1,119 @@
-define(["loading", "emby-button", "emby-input"], function (loading) {
-    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"; // deine Plugin-GUID
+define(["loading"], function (loading) {
+    "use strict";
 
-    /** Lädt aktuelle Plugin-Config vom Server */
+    // GUID muss zu deinem Plugin.cs passen:
+    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
+
+    function $(id) { return document.getElementById(id); }
+
     async function loadConfig() {
-        const resp = await ApiClient.getPluginConfiguration(pluginId);
-        document.querySelector("#cbf-folderPaths").value = resp.FolderPaths?.join(", ") || "";
-        document.querySelector("#cbf-prefix").value = resp.Prefix || "";
-        document.querySelector("#cbf-suffix").value = resp.Suffix || "";
-        document.querySelector("#cbf-blacklist").value = resp.Blacklist?.join(", ") || "";
-        document.querySelector("#cbf-minItemCount").value = resp.MinItemCount || 1;
-        document.querySelector("#cbf-enableDailyScan").checked = !!resp.EnableDailyScan;
-        document.querySelector("#cbf-scanTime").value = resp.ScanTime || "03:00";
-    }
-
-    /** Speichert aktuelle Werte in der Plugin-Config */
-    async function saveConfig() {
-        const cfg = {
-            FolderPaths: document.querySelector("#cbf-folderPaths").value.split(",").map(x => x.trim()).filter(Boolean),
-            Prefix: document.querySelector("#cbf-prefix").value.trim(),
-            Suffix: document.querySelector("#cbf-suffix").value.trim(),
-            Blacklist: document.querySelector("#cbf-blacklist").value.split(",").map(x => x.trim()).filter(Boolean),
-            MinItemCount: parseInt(document.querySelector("#cbf-minItemCount").value || "1"),
-            EnableDailyScan: document.querySelector("#cbf-enableDailyScan").checked,
-            ScanTime: document.querySelector("#cbf-scanTime").value
-        };
-
         loading.show();
-        await ApiClient.updatePluginConfiguration(pluginId, cfg);
-        loading.hide();
+        try {
+            const cfg = await ApiClient.getPluginConfiguration(pluginId);
+            $("prefix").value = cfg.Prefix || "";
+            $("suffix").value = cfg.Suffix || "";
+            $("minItems").value = cfg.MinItemCount || 1;
+            $("enableDailyScan").checked = !!cfg.EnableDailyScan;
+            $("scanTime").value = cfg.ScanTime || "03:00";
+            $("blacklist").value = (cfg.Blacklist || []).join(", ");
 
-        Dashboard.processPluginConfigurationUpdateResult();
-        showStatus("Einstellungen gespeichert.");
+            // Optional: FolderPaths als verstecktes Feld? (falls du es später anzeigen willst)
+            // $("folderPaths").value = (cfg.FolderPaths || []).join(", ");
+        } catch (e) {
+            console.error("[CollectionsByFolder] loadConfig error:", e);
+            Dashboard.alert("Konfiguration konnte nicht geladen werden.");
+        } finally {
+            loading.hide();
+        }
     }
 
-    /** Startet sofortigen Scan */
+    async function saveConfig() {
+        loading.show();
+        try {
+            const current = await ApiClient.getPluginConfiguration(pluginId);
+
+            const cfg = Object.assign({}, current, {
+                Prefix: $("prefix").value.trim(),
+                Suffix: $("suffix").value.trim(),
+                MinItemCount: parseInt($("minItems").value || "1", 10),
+                EnableDailyScan: $("enableDailyScan").checked,
+                ScanTime: $("scanTime").value || "03:00",
+                Blacklist: $("blacklist").value.split(",").map(s => s.trim()).filter(Boolean),
+                // FolderPaths:  (falls du das Feld später im UI hast)
+                //   $("folderPaths").value.split(",").map(s => s.trim()).filter(Boolean)
+            });
+
+            await ApiClient.updatePluginConfiguration(pluginId, cfg);
+            Dashboard.processPluginConfigurationUpdateResult();
+            toast("Einstellungen gespeichert.");
+        } catch (e) {
+            console.error("[CollectionsByFolder] saveConfig error:", e);
+            Dashboard.alert("Speichern fehlgeschlagen.");
+        } finally {
+            loading.hide();
+        }
+    }
+
     async function scanNow() {
-        showStatus("Scan gestartet …");
+        loading.show();
         try {
             const resp = await ApiClient.fetch({
                 url: ApiClient.getUrl("CollectionsByFolder/ScanNow"),
                 method: "POST"
             });
-            if (resp.ok) {
-                showStatus("Scan abgeschlossen.");
-            } else {
-                showStatus("Fehler beim Scan.");
-            }
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            toast("Scan gestartet.");
         } catch (e) {
-            showStatus("Fehler: " + e.message);
+            console.error("[CollectionsByFolder] scanNow error:", e);
+            Dashboard.alert("Scan konnte nicht gestartet werden.");
+        } finally {
+            loading.hide();
         }
     }
 
-    /** Zeigt Statusmeldung unten im Formular */
-    function showStatus(msg) {
+    function toast(msg) {
         const el = document.getElementById("cbf-status");
+        if (!el) return Dashboard.alert(msg);
         el.textContent = msg;
-        setTimeout(() => (el.textContent = ""), 5000);
+        clearTimeout(el._t);
+        el._t = setTimeout(() => (el.textContent = ""), 4000);
     }
 
-    /** Initialisierung beim Anzeigen */
-    function initPage() {
-        document.querySelector("#cbf-btnSave").addEventListener("click", saveConfig);
-        document.querySelector("#cbf-btnScan").addEventListener("click", scanNow);
+    // Initialisierung: wenn unsere Seite im DOM ist, Buttons binden und laden
+    function initWhenReady() {
+        const root = document.getElementById("collectionsByFolderPage");
+        if (!root) return; // nicht unsere Seite
+        const saveBtn = $("saveButton");
+        const scanBtn = $("scanNowButton");
+
+        if (saveBtn && !saveBtn._bound) {
+            saveBtn._bound = true;
+            saveBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                saveConfig();
+            });
+        }
+        if (scanBtn && !scanBtn._bound) {
+            scanBtn._bound = true;
+            scanBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                scanNow();
+            });
+        }
+        // Config laden
         loadConfig();
     }
 
-    /** Jellyfin ruft viewshow auf, wenn Seite sichtbar wird */
-    window.addEventListener("viewshow", function (e) {
-        // kein filter auf view.id, da wir kein data-role="page" haben
-        if (e.detail?.view?.querySelector?.("#cbf-folderPaths")) {
-            initPage();
-        }
+    // Jellyfin feuert bei Seitenwechsel ein viewshow-Event
+    window.addEventListener("viewshow", function () {
+        // Ohne strikten ID-Filter: init nur, wenn unser Root vorhanden ist
+        initWhenReady();
     });
+
+    // Fallback: direkt nach Load einmal versuchen (für iframe-Modus)
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+        setTimeout(initWhenReady, 0);
+    } else {
+        document.addEventListener("DOMContentLoaded", initWhenReady);
+    }
 });
