@@ -4,6 +4,79 @@
   <meta charset="utf-8" />
   <title>Collections by Folder</title>
 </head>
+
+  <script src="collectionsbyfolderjs"></script>
+
+  <script>
+  (function () {
+    try {
+      const view = document.getElementById("collectionsByFolderPage");
+      if (!view) return;
+
+      console.log("[CBF INLINE] boot");
+
+      function $(sel) { return view.querySelector(sel); }
+      function linesFrom(id){ const el=$("#"+id); return (el?.value||"").split("\n").map(s=>s.trim()).filter(Boolean); }
+      function showStatus(msg){ const el=$("#cbf-status"); if(!el) return; el.textContent=msg; setTimeout(()=>el.textContent="",4000); }
+
+      async function saveNow() {
+        console.log("[CBF INLINE] save click");
+        if (typeof ApiClient === "undefined") { alert("ApiClient fehlt"); return; }
+        const id = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
+        const cfg = await ApiClient.getPluginConfiguration(id);
+        cfg.Whitelist = linesFrom("whitelist");
+        if (cfg.Whitelist?.length) cfg.FolderPaths = [];
+        cfg.Blacklist = linesFrom("blacklist");
+        cfg.Prefix = ($("#prefix")?.value||"").trim();
+        cfg.Suffix = ($("#suffix")?.value||"").trim();
+        cfg.MinItemCount = parseInt($("#minItems")?.value||"1",10);
+        cfg.EnableDailyScan = !!$("#enableDailyScan")?.checked;
+        cfg.ScanTime = $("#scanTime")?.value || "03:00";
+        await ApiClient.updatePluginConfiguration(id, cfg);
+        if (typeof Dashboard!=="undefined") Dashboard.processPluginConfigurationUpdateResult();
+        showStatus("Gespeichert. (inline)");
+      }
+
+      async function scanNow() {
+        console.log("[CBF INLINE] scan click");
+        if (typeof ApiClient === "undefined") { alert("ApiClient fehlt"); return; }
+        const resp = await ApiClient.fetch({ url: ApiClient.getUrl("CollectionsByFolder/ScanNow"), method:"POST" });
+        if (!resp.ok) { alert("Scan HTTP "+resp.status); return; }
+        const json = await resp.json();
+        showStatus(`Scan gestartet (inline): Kandidaten=${json.candidates}, erstellt=${json.created}, aktualisiert=${json.updated}, übersprungen=${json.skipped}`);
+      }
+
+      const saveBtn = $("#saveButton");
+      const scanBtn = $("#scanNowButton");
+      if (saveBtn && !saveBtn._inlineBound) { saveBtn.addEventListener("click", saveNow); saveBtn._inlineBound = true; }
+      if (scanBtn && !scanBtn._inlineBound) { scanBtn.addEventListener("click", scanNow); scanBtn._inlineBound = true; }
+
+      // beim Anzeigen initial laden
+      view.addEventListener("viewshow", async function(){
+        console.log("[CBF INLINE] viewshow");
+        try {
+          const id = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
+          const cfg = await ApiClient.getPluginConfiguration(id);
+          const wl = (cfg.Whitelist?.length ? cfg.Whitelist : (cfg.FolderPaths||[]));
+          const setLines = (id,arr)=>{ const el=$("#"+id); if(el) el.value=(arr||[]).join("\n"); };
+          setLines("whitelist", wl);
+          setLines("blacklist", cfg.Blacklist || []);
+          $("#prefix").value = cfg.Prefix || "";
+          $("#suffix").value = cfg.Suffix || "";
+          $("#minItems").value = cfg.MinItemCount || 1;
+          $("#enableDailyScan").checked = !!cfg.EnableDailyScan;
+          $("#scanTime").value = cfg.ScanTime || "03:00";
+        } catch(e) { console.error("[CBF INLINE] load err", e); }
+      });
+
+      console.log("[CBF INLINE] bound", {saveBtn, scanBtn});
+    } catch (e) {
+      console.error("[CBF INLINE] fatal", e);
+    }
+  })();
+</script>
+
+  
 <body>
   <div id="collectionsByFolderPage"
        data-role="page"
