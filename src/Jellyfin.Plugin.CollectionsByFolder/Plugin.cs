@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using MediaBrowser.Common.Configuration;   // IApplicationPaths
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
@@ -20,7 +20,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
         {
             Instance = this;
 
-            // Debug: eingebettete Ressourcen im Log sehen (einmalig ok)
+            // Optionales Debug: eingebettete Ressourcen im Log
             try
             {
                 foreach (var n in GetType().Assembly.GetManifestResourceNames())
@@ -31,7 +31,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // harte Ressourcennamen – exakt so liegen sie in der DLL
             return new[]
             {
                 new PluginPageInfo
