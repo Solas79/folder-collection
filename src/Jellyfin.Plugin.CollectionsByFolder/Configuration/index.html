@@ -4,109 +4,6 @@
   <meta charset="utf-8" />
   <title>Collections by Folder</title>
 </head>
-
-  <script src="collectionsbyfolderjs"></script>
-  <script>
-  // [CBF PATCH] sanitize scrollTo options: behavior=null -> remove
-  (function () {
-    function sanitizeAndCall(orig, ctx, args) {
-      try {
-        if (args && args.length > 0 && typeof args[0] === "object" && args[0] !== null) {
-          if (Object.prototype.hasOwnProperty.call(args[0], "behavior") && args[0].behavior == null) {
-            // Verhalten "null" ist ungültig -> Property entfernen
-            args[0] = Object.assign({}, args[0]);
-            delete args[0].behavior;
-          }
-        }
-      } catch (e) { /* ignore */ }
-      return orig.apply(ctx, args || []);
-    }
-
-    try {
-      if (typeof window.scrollTo === "function") {
-        const _w = window.scrollTo;
-        window.scrollTo = function () { return sanitizeAndCall(_w, window, arguments); };
-        }
-
-      if (typeof Element !== "undefined" && Element.prototype && typeof Element.prototype.scrollTo === "function") {
-        const _e = Element.prototype.scrollTo;
-        Element.prototype.scrollTo = function () { return sanitizeAndCall(_e, this, arguments); };
-      }
-    } catch (e) {
-      // Falls ein Skin das verbietet: schweigend weitermachen
-    }
-  })();
-</script>
-  <script>
-  (function () {
-    try {
-      const view = document.getElementById("collectionsByFolderPage");
-      if (!view) return;
-
-      console.log("[CBF INLINE] boot");
-
-      function $(sel) { return view.querySelector(sel); }
-      function linesFrom(id){ const el=$("#"+id); return (el?.value||"").split("\n").map(s=>s.trim()).filter(Boolean); }
-      function showStatus(msg){ const el=$("#cbf-status"); if(!el) return; el.textContent=msg; setTimeout(()=>el.textContent="",4000); }
-
-      async function saveNow() {
-        console.log("[CBF INLINE] save click");
-        if (typeof ApiClient === "undefined") { alert("ApiClient fehlt"); return; }
-        const id = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
-        const cfg = await ApiClient.getPluginConfiguration(id);
-        cfg.Whitelist = linesFrom("whitelist");
-        if (cfg.Whitelist?.length) cfg.FolderPaths = [];
-        cfg.Blacklist = linesFrom("blacklist");
-        cfg.Prefix = ($("#prefix")?.value||"").trim();
-        cfg.Suffix = ($("#suffix")?.value||"").trim();
-        cfg.MinItemCount = parseInt($("#minItems")?.value||"1",10);
-        cfg.EnableDailyScan = !!$("#enableDailyScan")?.checked;
-        cfg.ScanTime = $("#scanTime")?.value || "03:00";
-        await ApiClient.updatePluginConfiguration(id, cfg);
-        if (typeof Dashboard!=="undefined") Dashboard.processPluginConfigurationUpdateResult();
-        showStatus("Gespeichert. (inline)");
-      }
-
-      async function scanNow() {
-        console.log("[CBF INLINE] scan click");
-        if (typeof ApiClient === "undefined") { alert("ApiClient fehlt"); return; }
-        const resp = await ApiClient.fetch({ url: ApiClient.getUrl("CollectionsByFolder/ScanNow"), method:"POST" });
-        if (!resp.ok) { alert("Scan HTTP "+resp.status); return; }
-        const json = await resp.json();
-        showStatus(`Scan gestartet (inline): Kandidaten=${json.candidates}, erstellt=${json.created}, aktualisiert=${json.updated}, übersprungen=${json.skipped}`);
-      }
-
-      const saveBtn = $("#saveButton");
-      const scanBtn = $("#scanNowButton");
-      if (saveBtn && !saveBtn._inlineBound) { saveBtn.addEventListener("click", saveNow); saveBtn._inlineBound = true; }
-      if (scanBtn && !scanBtn._inlineBound) { scanBtn.addEventListener("click", scanNow); scanBtn._inlineBound = true; }
-
-      // beim Anzeigen initial laden
-      view.addEventListener("viewshow", async function(){
-        console.log("[CBF INLINE] viewshow");
-        try {
-          const id = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
-          const cfg = await ApiClient.getPluginConfiguration(id);
-          const wl = (cfg.Whitelist?.length ? cfg.Whitelist : (cfg.FolderPaths||[]));
-          const setLines = (id,arr)=>{ const el=$("#"+id); if(el) el.value=(arr||[]).join("\n"); };
-          setLines("whitelist", wl);
-          setLines("blacklist", cfg.Blacklist || []);
-          $("#prefix").value = cfg.Prefix || "";
-          $("#suffix").value = cfg.Suffix || "";
-          $("#minItems").value = cfg.MinItemCount || 1;
-          $("#enableDailyScan").checked = !!cfg.EnableDailyScan;
-          $("#scanTime").value = cfg.ScanTime || "03:00";
-        } catch(e) { console.error("[CBF INLINE] load err", e); }
-      });
-
-      console.log("[CBF INLINE] bound", {saveBtn, scanBtn});
-    } catch (e) {
-      console.error("[CBF INLINE] fatal", e);
-    }
-  })();
-</script>
-
-  
 <body>
   <div id="collectionsByFolderPage"
        data-role="page"
@@ -115,68 +12,44 @@
        data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
 
     <div data-role="content" class="content-primary" role="main">
-      <form class="emby-form" onsubmit="return false;">
-        <h2>Sammlungen nach Ordnern</h2>
-        <p>Erstellt Collections basierend auf dem letzten Ordnernamen der Unterordner.</p>
+      <h1>Collections by Folder</h1>
+      <p>Erstellt automatisch Sammlungen anhand von Verzeichnissen.</p>
 
+      <form class="pluginConfigurationForm">
         <div class="inputContainer">
-          <label class="inputLabel" for="whitelist">Whitelist (Scan-Verzeichnisse)</label>
-          <textarea id="whitelist" rows="6" style="width:100%;"></textarea>
-          <div class="fieldDescription">Ein Pfad pro Zeile. Es werden nur direkte Unterordner jedes Pfades ausgewertet.</div>
-        </div>
-
-        <div class="inputContainer">
-          <label class="inputLabel" for="blacklist">Blacklist (Ausschlüsse)</label>
-          <textarea id="blacklist" rows="4" style="width:100%;"></textarea>
-          <div class="fieldDescription">Ein Eintrag pro Zeile. Exakter Match oder Teilstring (z.&nbsp;B. „Sample“, „Extras“).</div>
+          <label class="inputLabel">Whitelist-Verzeichnisse (eines pro Zeile)</label>
+          <textarea id="whitelist" class="emby-input" rows="6" placeholder="/Pfad/zu/Sammlung1&#10;/Pfad/zu/Sammlung2"></textarea>
         </div>
 
         <div class="inputContainer">
-          <label class="inputLabel" for="prefix">Präfix</label>
-          <input is="emby-input" id="prefix" type="text" />
-          <div class="fieldDescription">Wird vor den Ordnernamen gesetzt (z.&nbsp;B. „Collection:“).</div>
+          <label class="inputLabel">Blacklist-Verzeichnisse (eines pro Zeile)</label>
+          <textarea id="blacklist" class="emby-input" rows="6" placeholder="/Pfad/auszuschließen1&#10;/Pfad/auszuschließen2"></textarea>
         </div>
 
         <div class="inputContainer">
-          <label class="inputLabel" for="suffix">Suffix</label>
-          <input is="emby-input" id="suffix" type="text" />
-          <div class="fieldDescription">Wird nach dem Ordnernamen gesetzt (z.&nbsp;B. „(4K)“).</div>
+          <label class="inputLabel">Präfix (optional)</label>
+          <input id="prefix" type="text" class="emby-input" placeholder="z. B. [Coll] " />
         </div>
 
         <div class="inputContainer">
-          <label class="inputLabel" for="minItems">Mindestanzahl</label>
-          <input is="emby-input" id="minItems" type="number" min="1" value="1" />
-          <div class="fieldDescription">Nur Ordner mit mindestens so vielen Elementen werden berücksichtigt.</div>
+          <label class="inputLabel">Suffix (optional)</label>
+          <input id="suffix" type="text" class="emby-input" placeholder="z. B. Sammlung" />
         </div>
 
         <div class="inputContainer">
-          <label class="checkboxLabel">
-            <input type="checkbox" id="enableDailyScan" />
-            <span>Täglichen Scan aktivieren</span>
-          </label>
-          <div class="fieldDescription">Wenn aktiviert, wird täglich zur angegebenen Uhrzeit gescannt.</div>
+          <label class="inputLabel">Minimale Anzahl Dateien pro Sammlung</label>
+          <input id="minfiles" type="number" class="emby-input" value="2" min="1" />
         </div>
 
-        <div class="inputContainer">
-          <label class="inputLabel" for="scanTime">Uhrzeit (HH:MM)</label>
-          <input is="emby-input" id="scanTime" type="time" value="03:00" />
+        <div style="margin-top:1.5em">
+          <button id="saveButton" is="emby-button" type="button" class="raised button-submit block">Speichern</button>
+          <button id="scanNowButton" is="emby-button" type="button" class="raised button-cancel block" style="margin-top:0.5em;">Jetzt scannen</button>
         </div>
-
-        <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
-          <button is="emby-button" id="saveButton" type="button" class="raised button-submit">
-            <span>Speichern</span>
-          </button>
-          <button is="emby-button" id="scanNowButton" type="button" class="raised">
-            <span>Jetzt scannen</span>
-          </button>
-        </div>
-
-        <div id="cbf-status" style="margin-top:10px;"></div>
       </form>
     </div>
   </div>
 
-  <!-- Muss exakt zu PluginPageInfo(Name="collectionsbyfolderjs") passen -->
+  <!-- Wichtig: Name muss exakt zu PluginPageInfo.Name der JS-Ressource passen -->
   <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
