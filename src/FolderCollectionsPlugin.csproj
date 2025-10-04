@@ -21,10 +21,15 @@
   </ItemGroup>
 
   <!-- Eingebettete Web-Ressourcen -->
-  <ItemGroup>
-    <EmbeddedResource Include="Web\configPage.html" LogicalName="FolderCollections.Web.configPage.html" />
-    <EmbeddedResource Include="Web\configPage.js"   LogicalName="FolderCollections.Web.configPage.js" />
+  <ItemGroup>  
+    <EmbeddedResource Include="Web/configPage.html">
+      <LogicalName>FolderCollections.Web.configPage.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Web/configPage.js">
+      <LogicalName>FolderCollections.Web.configPage.js</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
+
 
   <!-- Manifest mitkopieren -->
   <ItemGroup>
