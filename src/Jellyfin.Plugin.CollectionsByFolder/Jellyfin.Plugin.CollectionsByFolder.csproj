@@ -5,15 +5,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- nur die Assembly erzeugen, keine Core-DLLs mitpacken -->
+    <!-- WICHTIG: AssemblyName & RootNamespace fixieren -->
+    <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
+
+    <!-- Plugin-DLL ohne Fremd-DLLs -->
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 
-    <!-- Eine Version reicht; keine zusätzlichen AssemblyInfo-Attribute -->
     <Version>0.1.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Jellyfin APIs nur zum Kompilieren, nicht mit ausliefern -->
     <PackageReference Include="Jellyfin.Common" Version="10.10.0">
       <ExcludeAssets>runtime;native;contentfiles;analyzers;buildtransitive</ExcludeAssets>
     </PackageReference>
@@ -28,7 +30,7 @@
     </PackageReference>
   </ItemGroup>
 
-  <!-- Eingebettete Web-Ressourcen -->
+  <!-- WICHTIG: HTML/JS einbetten -->
   <ItemGroup>
     <EmbeddedResource Include="Configuration/index.html" />
     <EmbeddedResource Include="Configuration/index.js" />
