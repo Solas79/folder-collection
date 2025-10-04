@@ -5,13 +5,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.CollectionsByFolder.Configuration;
-using MediaBrowser.Controller.Collections;
-using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Library;
-using MediaBrowser.Model.Entities;
+using Jellyfin.Data.Enums;                       // BaseItemKind
+using MediaBrowser.Controller.Collections;       // ICollectionManager, CollectionCreationOptions
+using MediaBrowser.Controller.Entities;          // BaseItem
+using MediaBrowser.Controller.Entities.Movies;   // BoxSet
+using MediaBrowser.Controller.Library;           // ILibraryManager, InternalItemsQuery
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Controller.Entities.Movies; // BoxSet
-using Jellyfin.Data.Enums;                     // BaseItemKind
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services;
 
@@ -36,12 +35,12 @@ public class CollectionBuilder
         var roots = cfg.LibraryRoots.Where(r => !string.IsNullOrWhiteSpace(r))
             .Select(NormalizePath).ToArray();
         var blacklist = new HashSet<string>(cfg.Blacklist, StringComparer.OrdinalIgnoreCase);
-        int minItems = Math.Max(1, cfg.MinItemsPerFolder);
+        var minItems = Math.Max(1, cfg.MinItemsPerFolder);
 
         var query = new InternalItemsQuery
         {
-             IncludeItemTypes = new[] { BaseItemKind.Movie },
-             IsVirtualItem = false
+            IncludeItemTypes = new[] { BaseItemKind.Movie },
+            IsVirtualItem = false
         };
 
         var allMovies = _libraryManager.GetItemList(query).OfType<BaseItem>().ToList();
@@ -50,7 +49,8 @@ public class CollectionBuilder
         if (roots.Length > 0)
         {
             allMovies = allMovies
-                .Where(m => m.Path is not null && roots.Any(r => NormalizePath(m.Path!).StartsWith(r, StringComparison.OrdinalIgnoreCase)))
+                .Where(m => m.Path is not null &&
+                            roots.Any(r => NormalizePath(m.Path!).StartsWith(r, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
         }
 
@@ -60,7 +60,7 @@ public class CollectionBuilder
             .Where(g => !string.IsNullOrWhiteSpace(g.Key))
             .ToList();
 
-        int affectedCollections = 0;
+        var affectedCollections = 0;
 
         foreach (var grp in groups)
         {
@@ -84,7 +84,8 @@ public class CollectionBuilder
 
             var collection = await EnsureCollectionAsync(collName, ct);
 
-            await _collectionManager.AddToCollectionAsync(collection.Id, items.Select(i => i.Id).ToArray());
+            await _collectionManager.AddToCollectionAsync(collection.Id, items.Select(i => i.Id).ToArray(), ct)
+                                    .ConfigureAwait(false);
             _logger.LogInformation("Collection '{Name}' aktualisiert: {Count} Einträge", collName, items.Count);
             affectedCollections++;
         }
@@ -102,11 +103,14 @@ public class CollectionBuilder
         if (existing is not null)
             return existing;
 
-        var options = new CollectionCreationOptions { Name = name };
+        var options = new CollectionCreationOptions
         {
             Name = name
         };
-        var created = await _collectionManager.CreateCollectionAsync(options).ConfigureAwait(false);        return created;
+
+        var created = await _collectionManager.CreateCollectionAsync(options, ct)
+                                             .ConfigureAwait(false);
+        return created;
     }
 
     private static string NormalizePath(string p) => p.Replace('\\', '/');
