@@ -1,4 +1,3 @@
-<!-- src/Jellyfin.Plugin.CollectionsByFolder/Configuration/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -11,72 +10,70 @@
        class="page type-interior pluginConfigurationPage"
        data-require="emby-button,emby-input"
        data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
+
     <div data-role="content" class="content-primary" role="main">
+      <form class="emby-form" onsubmit="return false;">
+        <h2>Sammlungen nach Ordnern</h2>
+        <p>Erstellt Collections basierend auf dem letzten Ordnernamen der Unterordner.</p>
 
-      <h2>Sammlungen nach Ordnern</h2>
-      <p>Erstellt Collections basierend auf dem letzten Ordnernamen.</p>
+        <div class="inputContainer">
+          <label class="inputLabel" for="whitelist">Whitelist (Scan-Verzeichnisse)</label>
+          <textarea id="whitelist" rows="6" style="width:100%;"></textarea>
+          <div class="fieldDescription">Ein Pfad pro Zeile. Es werden nur direkte Unterordner jedes Pfades ausgewertet.</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="whitelist">Whitelist (Scan-Verzeichnisse)</label>
-        <textarea id="whitelist" rows="6" style="width:100%;"></textarea>
-        <div class="fieldDescription">Ein Pfad pro Zeile. Es werden nur direkte Unterordner jedes Pfades ausgewertet.</div>
-      </div>
+        <div class="inputContainer">
+          <label class="inputLabel" for="blacklist">Blacklist (Ausschlüsse)</label>
+          <textarea id="blacklist" rows="4" style="width:100%;"></textarea>
+          <div class="fieldDescription">Ein Eintrag pro Zeile. Exakter Match oder Teilstring (z.&nbsp;B. „Sample“, „Extras“).</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="blacklist">Blacklist (Ausschlüsse)</label>
-        <textarea id="blacklist" rows="4" style="width:100%;"></textarea>
-        <div class="fieldDescription">Ein Eintrag pro Zeile. Exakter Match oder Teilstring (z. B. „Sample“, „Extras“).</div>
-      </div>
+        <div class="inputContainer">
+          <label class="inputLabel" for="prefix">Präfix</label>
+          <input is="emby-input" id="prefix" type="text" />
+          <div class="fieldDescription">Wird vor den Ordnernamen gesetzt (z.&nbsp;B. „Collection:“).</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="prefix">Präfix</label>
-        <input is="emby-input" id="prefix" type="text" />
-        <div class="fieldDescription">Wird vor den Ordnernamen gesetzt (z. B. „Collection:“).</div>
-      </div>
+        <div class="inputContainer">
+          <label class="inputLabel" for="suffix">Suffix</label>
+          <input is="emby-input" id="suffix" type="text" />
+          <div class="fieldDescription">Wird nach dem Ordnernamen gesetzt (z.&nbsp;B. „(4K)“).</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="suffix">Suffix</label>
-        <input is="emby-input" id="suffix" type="text" />
-        <div class="fieldDescription">Wird nach dem Ordnernamen gesetzt (z. B. „(4K)“).</div>
-      </div>
+        <div class="inputContainer">
+          <label class="inputLabel" for="minItems">Mindestanzahl</label>
+          <input is="emby-input" id="minItems" type="number" min="1" value="1" />
+          <div class="fieldDescription">Nur Ordner mit mindestens so vielen Elementen werden berücksichtigt.</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="minItems">Mindestanzahl</label>
-        <input is="emby-input" id="minItems" type="number" min="1" value="2" />
-        <div class="fieldDescription">Nur Ordner mit mindestens so vielen Elementen werden berücksichtigt.</div>
-      </div>
+        <div class="inputContainer">
+          <label class="checkboxLabel">
+            <input type="checkbox" id="enableDailyScan" />
+            <span>Täglichen Scan aktivieren</span>
+          </label>
+          <div class="fieldDescription">Wenn aktiviert, wird täglich zur angegebenen Uhrzeit gescannt.</div>
+        </div>
 
-      <div class="inputContainer">
-        <label class="checkboxLabel">
-          <input type="checkbox" id="enableDailyScan" />
-          <span>Täglichen Scan aktivieren</span>
-        </label>
-        <div class="fieldDescription">Wenn aktiviert, wird täglich zur angegebenen Uhrzeit gescannt.</div>
-      </div>
+        <div class="inputContainer">
+          <label class="inputLabel" for="scanTime">Uhrzeit (HH:MM)</label>
+          <input is="emby-input" id="scanTime" type="time" value="03:00" />
+        </div>
 
-      <div class="inputContainer">
-        <label class="inputLabel" for="scanTime">Uhrzeit (HH:MM)</label>
-        <input is="emby-input" id="scanTime" type="time" value="03:00" />
-      </div>
+        <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+          <button is="emby-button" id="saveButton" type="button" class="raised button-submit">
+            <span>Speichern</span>
+          </button>
+          <button is="emby-button" id="scanNowButton" type="button" class="raised">
+            <span>Jetzt scannen</span>
+          </button>
+        </div>
 
-      <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
-        <!-- Plain Buttons: keine Custom Elements, garantiert klickbar -->
-        <button id="saveButton" type="button" class="raised" 
-                style="position:relative; z-index:2; pointer-events:auto;">
-          <span>Speichern</span>
-        </button>
-
-        <button id="scanNowButton" type="button" class="raised" 
-                style="position:relative; z-index:2; pointer-events:auto;">
-          <span>Jetzt scannen</span>
-        </button>
-</div>
-
-
-      <div id="cbf-status" style="margin-top:10px;"></div>
+        <div id="cbf-status" style="margin-top:10px;"></div>
+      </form>
     </div>
   </div>
 
+  <!-- Muss exakt zu PluginPageInfo(Name="collectionsbyfolderjs") passen -->
   <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
