@@ -9,13 +9,16 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 {
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
+        public static Plugin Instance { get; private set; }
+
         public override string Name => "CollectionsByFolder";
-        public override string Description => "Erstellt Collections anhand von Ordnernamen.";
+        public override string Description => "Erstellt oder aktualisiert Sammlungen anhand der letzten Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
 
         public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
             : base(appPaths, xmlSerializer)
         {
+            Instance = this;
         }
 
         public IEnumerable<PluginPageInfo> GetPages()
