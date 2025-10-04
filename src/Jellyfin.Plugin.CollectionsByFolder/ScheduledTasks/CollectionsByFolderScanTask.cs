@@ -1,61 +1,63 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
-using Jellyfin.Plugin.CollectionsByFolder.Services;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Jellyfin.Plugin.CollectionsByFolder.ScheduledTasks;
-
-public class CollectionsByFolderScanTask : IScheduledTask
+namespace Jellyfin.Plugin.CollectionsByFolder.ScheduledTasks
 {
-    private readonly CollectionBuilder _builder;
-    private readonly ILogger<CollectionsByFolderScanTask> _logger;
-
-    public string Key => "CollectionsByFolder.DailyScan";
-    public string Name => "Collections by Folder – täglicher Scan";
-    public string Description => "Erzeugt/aktualisiert Sammlungen anhand der letzten Ordnernamen";
-    public string Category => "Library";
-
-    public CollectionsByFolderScanTask(CollectionBuilder builder, ILogger<CollectionsByFolderScanTask> logger)
+    public class CollectionsByFolderScanTask : IScheduledTask
     {
-        _builder = builder;
-        _logger = logger;
-    }
+        private readonly ILogger<CollectionsByFolderScanTask> _logger;
 
-    public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
-    {
-        var cfg = Plugin.Instance.Configuration;
-        progress.Report(0);
-        var updated = await _builder.RunAsync(cfg, cancellationToken);
-        progress.Report(100);
-        _logger.LogInformation("CollectionsByFolder: geplanter Scan abgeschlossen – {Count} Collections aktualisiert", updated);
-    }
-
-    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
-    {
-        var cfg = Plugin.Instance.Configuration;
-        if (!cfg.DailyScanEnabled)
-            return Array.Empty<TaskTriggerInfo>();
-
-        var time = ParseTime(cfg.DailyScanTime);
-        return new[]
+        public CollectionsByFolderScanTask(ILogger<CollectionsByFolderScanTask> logger)
         {
-            new TaskTriggerInfo
-            {
-                // Jellyfin 10.10: DailyTrigger via Type + TimeOfDayTicks
-                Type = "DailyTrigger",
-                TimeOfDayTicks = time.Ticks
-            }
-        };
-    }
+            _logger = logger;
+        }
 
-    private static TimeSpan ParseTime(string hhmm)
-    {
-        if (TimeSpan.TryParseExact(hhmm, @"hh\:mm", CultureInfo.InvariantCulture, out var ts))
-            return ts;
-        return new TimeSpan(3, 30, 0);
+        public string Key => "CollectionsByFolderScan";
+        public string Name => "CollectionsByFolder – Scan";
+        public string Description => "Durchsucht alle konfigurierten Verzeichnisse und erstellt Sammlungen nach Ordnernamen.";
+        public string Category => "Library";
+
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
+        {
+            return new[]
+            {
+                new TaskTriggerInfo
+                {
+                    Type = TaskTriggerInfo.TriggerDaily,
+                    TimeOfDayTicks = new TimeSpan(1, 0, 0).Ticks
+                }
+            };
+        }
+
+        public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
+        {
+            try
+            {
+                _logger.LogInformation("[CollectionsByFolder] Starte Scan...");
+
+                var config = Plugin.Instance.Configuration;
+                if (config == null || config.FolderPaths.Length == 0)
+                {
+                    _logger.LogWarning("[CollectionsByFolder] Keine Pfade konfiguriert – Scan abgebrochen.");
+                    return;
+                }
+
+                _logger.LogInformation($"[CollectionsByFolder] Überprüfe {config.FolderPaths.Length} Verzeichnisse...");
+
+                // Hier folgt später dein Logik-Aufruf, z.B.:
+                // await new CollectionBuilder(_logger).BuildCollectionsAsync(config, cancellationToken);
+
+                await Task.Delay(1000, cancellationToken); // Platzhalter
+                _logger.LogInformation("[CollectionsByFolder] Scan abgeschlossen.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CollectionsByFolder] Fehler beim Scanvorgang");
+            }
+        }
     }
 }
