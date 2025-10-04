@@ -1,3 +1,27 @@
+<script>
+/* Sanitize scrollTo options: drop invalid behavior=null to avoid UI crash */
+(function () {
+  function wrap(fn) {
+    return function () {
+      var a0 = arguments[0];
+      if (a0 && typeof a0 === "object" && "behavior" in a0 && a0.behavior == null) {
+        // clone and remove invalid value
+        var copy = {};
+        for (var k in a0) copy[k] = a0[k];
+        delete copy.behavior;
+        arguments[0] = copy;
+      }
+      return fn.apply(this, arguments);
+    };
+  }
+  if (typeof Element !== "undefined" && Element.prototype.scrollTo) {
+    Element.prototype.scrollTo = wrap(Element.prototype.scrollTo);
+  }
+  if (typeof window !== "undefined" && window.scrollTo) {
+    window.scrollTo = wrap(window.scrollTo);
+  }
+})();
+</script>
 <!DOCTYPE html>
 <html>
 <head>
