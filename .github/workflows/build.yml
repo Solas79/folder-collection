@@ -3,21 +3,22 @@ name: Build and Release Jellyfin Plugin
 on:
   push:
     tags:
-      - 'v*'   # z.B. v0.4.6
+      - 'v*'        # z. B. v0.4.7
   workflow_dispatch:
 
 permissions:
-  contents: write   # nötig für Release + Push auf main
+  contents: write    # nötig für Release + Push auf main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (vollständig, damit Push auf main klappt)
+      - name: Checkout (vollständig, für Push auf main)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -47,8 +48,8 @@ jobs:
         id: manifest
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"        # z.B. v0.4.6
-          VERSION="${TAG#v}.0"            # z.B. 0.4.6.0
+          TAG="${GITHUB_REF_NAME}"      # z. B. v0.4.7
+          VERSION="${TAG#v}.0"          # z. B. 0.4.7.0
           CHECKSUM="${{ steps.md5.outputs.md5 }}"
           TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
@@ -86,16 +87,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit manifest.json to main (damit Jellyfin-Repo-URL immer stimmt)
+      - name: Commit manifest.json to main (damit Jellyfin-Repo-URL immer aktuell ist)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Stelle sicher, dass wir auf main sind
-          git checkout main
-          # manifest.json aus dem Build-Workspace auf main kopieren
-          cp -f manifest.json manifest.json
+          set -e
+          # Manifest in Tempfile sichern (Branchwechsel steht an)
+          TMP="$(mktemp)"
+          cp -f manifest.json "$TMP"
+
+          # main von Remote holen und auf origin/main aufsetzen
+          git fetch origin main
+          git checkout -B main origin/main
+
+          # Manifest zurücklegen und committen, wenn es Änderungen gibt
+          mv -f "$TMP" manifest.json
           git add manifest.json
-          git commit -m "Update manifest for ${GITHUB_REF_NAME}" || echo "No changes to commit"
-          git push origin main
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Update manifest for ${GITHUB_REF_NAME}"
+            git push origin main
+          fi
