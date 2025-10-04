@@ -25,7 +25,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // Feste Ressourcennamen – robust gegen Namespace-Abweichungen
             return new[]
             {
                 new PluginPageInfo
@@ -41,5 +40,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder
                 }
             };
         }
+
     }
 }
