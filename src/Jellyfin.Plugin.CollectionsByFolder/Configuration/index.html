@@ -1,49 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Collections By Folder</title>
-  <style>
-    body{font-family:sans-serif;margin:1rem;}
-    .field{margin:.5rem 0;}
-    label{display:block;margin-bottom:.2rem;}
-  </style>
+    <meta charset="utf-8">
+    <title>Collections by Folder</title>
+    <style>
+        .inputField {
+            margin-bottom: 1em;
+            display: block;
+        }
+        .inputField label {
+            font-weight: 600;
+        }
+        .pageContainer {
+            padding: 2em;
+        }
+    </style>
 </head>
 <body>
-  <h2>Sammlungen nach Ordnern</h2>
-  <div class="field">
-    <label for="cbf-folderPaths">Filmverzeichnisse (kommasepariert)</label>
-    <input id="cbf-folderPaths" type="text" style="width:100%">
-  </div>
-  <div class="field">
-    <label for="cbf-prefix">Präfix</label>
-    <input id="cbf-prefix" type="text" style="width:100%">
-  </div>
-  <div class="field">
-    <label for="cbf-suffix">Suffix</label>
-    <input id="cbf-suffix" type="text" style="width:100%">
-  </div>
-  <div class="field">
-    <label for="cbf-blacklist">Blacklist (kommasepariert)</label>
-    <input id="cbf-blacklist" type="text" style="width:100%">
-  </div>
-  <div class="field">
-    <label for="cbf-minItemCount">Minimale Anzahl Filme pro Ordner</label>
-    <input id="cbf-minItemCount" type="number" min="1" value="1">
-  </div>
-  <div class="field">
-    <label><input type="checkbox" id="cbf-enableDailyScan"> Täglichen Scan aktivieren</label>
-  </div>
-  <div class="field">
-    <label for="cbf-scanTime">Uhrzeit (HH:MM)</label>
-    <input id="cbf-scanTime" type="time" value="03:00">
-  </div>
-  <div class="field">
-    <button id="cbf-btnSave">Speichern</button>
-    <button id="cbf-btnScan">Jetzt scannen</button>
-  </div>
-  <div id="cbf-status"></div>
+<div id="collectionsByFolderPage" data-role="page" class="pageContainer">
+    <div data-role="content">
+        <h1>Collections by Folder</h1>
 
-  <script src="collectionsbyfolderjs"></script>
+        <div class="inputField">
+            <label for="prefix">Präfix für Collectionname</label>
+            <input type="text" id="prefix" />
+        </div>
+
+        <div class="inputField">
+            <label for="suffix">Suffix für Collectionname</label>
+            <input type="text" id="suffix" />
+        </div>
+
+        <div class="inputField">
+            <label for="minItems">Mindestanzahl Objekte im Ordner</label>
+            <input type="number" id="minItems" min="1" value="2" />
+        </div>
+
+        <div class="inputField">
+            <label>
+                <input type="checkbox" id="enableDailyScan" />
+                Täglichen Scan aktivieren
+            </label>
+        </div>
+
+        <div class="inputField">
+            <label for="scanTime">Uhrzeit für täglichen Scan</label>
+            <input type="time" id="scanTime" />
+        </div>
+
+        <div class="inputField">
+            <label for="blacklist">Blacklist (Kommagetrennt)</label>
+            <textarea id="blacklist" rows="3"></textarea>
+        </div>
+
+        <button id="saveButton" class="raised button-submit block">Speichern</button>
+        <button id="scanNowButton" class="raised button block">Jetzt scannen</button>
+    </div>
+</div>
+
+<script src="collectionsbyfolderjs"></script>
 </body>
 </html>
