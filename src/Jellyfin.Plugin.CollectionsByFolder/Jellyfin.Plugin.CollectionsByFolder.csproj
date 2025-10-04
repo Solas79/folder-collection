@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-    <Version>0.2.3.0</Version>
+    <Version>0.2.4.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
