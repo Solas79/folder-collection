@@ -1,61 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Collections by Folder</title>
-    <style>
-        .inputField {
-            margin-bottom: 1em;
-            display: block;
-        }
-        .inputField label {
-            font-weight: 600;
-        }
-        .pageContainer {
-            padding: 2em;
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>Collections by Folder</title>
+  <style>
+    .pageContainer {
+      padding: 2em;
+    }
+  </style>
 </head>
 <body>
-<div id="collectionsByFolderPage" data-role="page" class="pageContainer">
-    <div data-role="content">
-        <h1>Collections by Folder</h1>
+<div id="collectionsByFolderPage"
+     data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
 
-        <div class="inputField">
-            <label for="prefix">Präfix für Collectionname</label>
-            <input type="text" id="prefix" />
-        </div>
+  <div class="content-primary pageContainer" role="main">
+    <h1>Collections by Folder</h1>
 
-        <div class="inputField">
-            <label for="suffix">Suffix für Collectionname</label>
-            <input type="text" id="suffix" />
-        </div>
-
-        <div class="inputField">
-            <label for="minItems">Mindestanzahl Objekte im Ordner</label>
-            <input type="number" id="minItems" min="1" value="2" />
-        </div>
-
-        <div class="inputField">
-            <label>
-                <input type="checkbox" id="enableDailyScan" />
-                Täglichen Scan aktivieren
-            </label>
-        </div>
-
-        <div class="inputField">
-            <label for="scanTime">Uhrzeit für täglichen Scan</label>
-            <input type="time" id="scanTime" />
-        </div>
-
-        <div class="inputField">
-            <label for="blacklist">Blacklist (Kommagetrennt)</label>
-            <textarea id="blacklist" rows="3"></textarea>
-        </div>
-
-        <button id="saveButton" class="raised button-submit block">Speichern</button>
-        <button id="scanNowButton" class="raised button block">Jetzt scannen</button>
+    <!-- deine Eingabefelder -->
+    <div class="inputField">
+      <label for="prefix">Präfix</label>
+      <input type="text" id="prefix" />
     </div>
+    <div class="inputField">
+      <label for="suffix">Suffix</label>
+      <input type="text" id="suffix" />
+    </div>
+
+    <div class="inputField">
+      <label>
+        <input type="checkbox" id="enableDailyScan" />
+        Täglichen Scan aktivieren
+      </label>
+    </div>
+
+    <button id="saveButton" class="raised button-submit block">Speichern</button>
+    <button id="scanNowButton" class="raised button block">Jetzt scannen</button>
+  </div>
 </div>
 
 <script src="collectionsbyfolderjs"></script>
