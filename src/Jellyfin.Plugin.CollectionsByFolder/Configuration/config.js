@@ -1,57 +1,66 @@
-(() => {
-  const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+define(["globalize", "loading", "emby-button", "emby-input"], function (globalize, loading) {
 
-  function loadConfig(page) {
-    return ApiClient.getNamedConfiguration(pluginId, 'plugin').then(cfg => {
-      page.querySelector('#LibraryRoots').value = (cfg.LibraryRoots || []).join('\n');
-      page.querySelector('#Prefix').value = cfg.Prefix || '';
-      page.querySelector('#Suffix').value = cfg.Suffix || '';
-      page.querySelector('#Blacklist').value = (cfg.Blacklist || []).join('\n');
-      page.querySelector('#MinItemsPerFolder').value = cfg.MinItemsPerFolder || 2;
-      page.querySelector('#DailyScanEnabled').checked = !!cfg.DailyScanEnabled;
-      page.querySelector('#DailyScanTime').value = cfg.DailyScanTime || '03:30';
-    });
-  }
+    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"; // GUID aus Plugin.cs
 
-  function saveConfig(page) {
-    return ApiClient.getNamedConfiguration(pluginId, 'plugin').then(cfg => {
-      cfg.LibraryRoots = page.querySelector('#LibraryRoots').value
-        .split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      cfg.Prefix = page.querySelector('#Prefix').value || '';
-      cfg.Suffix = page.querySelector('#Suffix').value || '';
-      cfg.Blacklist = page.querySelector('#Blacklist').value
-        .split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-      cfg.MinItemsPerFolder = parseInt(page.querySelector('#MinItemsPerFolder').value || '2', 10);
-      cfg.DailyScanEnabled = page.querySelector('#DailyScanEnabled').checked;
-      cfg.DailyScanTime = page.querySelector('#DailyScanTime').value || '03:30';
+    function loadConfiguration(page) {
+        loading.show();
+        ApiClient.getPluginConfiguration(pluginId).then(config => {
+            page.querySelector("#folderPaths").value = (config.FolderPaths || []).join(", ");
+            page.querySelector("#prefix").value = config.Prefix || "";
+            page.querySelector("#suffix").value = config.Suffix || "";
+            page.querySelector("#blacklist").value = (config.Blacklist || []).join(", ");
+            page.querySelector("#minItemCount").value = config.MinItemCount || 1;
+            page.querySelector("#enableDailyScan").checked = config.EnableDailyScan || false;
+            page.querySelector("#scanTime").value = config.ScanTime || "00:00";
+            loading.hide();
+        });
+    }
 
-      return ApiClient.updateNamedConfiguration(pluginId, 'plugin', cfg).then(() => {
-        Dashboard.processPluginConfigurationUpdateResult();
-      });
-    });
-  }
+    function saveConfiguration(page) {
+        loading.show();
+        ApiClient.getPluginConfiguration(pluginId).then(config => {
+            config.FolderPaths = page.querySelector("#folderPaths").value.split(",").map(s => s.trim()).filter(Boolean);
+            config.Prefix = page.querySelector("#prefix").value.trim();
+            config.Suffix = page.querySelector("#suffix").value.trim();
+            config.Blacklist = page.querySelector("#blacklist").value.split(",").map(s => s.trim()).filter(Boolean);
+            config.MinItemCount = parseInt(page.querySelector("#minItemCount").value) || 1;
+            config.EnableDailyScan = page.querySelector("#enableDailyScan").checked;
+            config.ScanTime = page.querySelector("#scanTime").value;
 
-  document.addEventListener('pageshow', e => {
-    const page = e.target;
-    if (page.id !== 'CollectionsByFolderConfig') return;
+            return ApiClient.updatePluginConfiguration(pluginId, config).then(() => {
+                Dashboard.processPluginConfigurationUpdateResult();
+                page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-success'>Gespeichert!</div>";
+                loading.hide();
+            });
+        });
+    }
 
-    loadConfig(page);
+    function scanNow(page) {
+        loading.show();
+        ApiClient.getPluginConfiguration(pluginId).then(() => {
+            fetch(ApiClient.getUrl("CollectionsByFolder/ScanNow"), { method: "POST" })
+                .then(() => {
+                    page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-info'>Scan gestartet!</div>";
+                    loading.hide();
+                })
+                .catch(() => {
+                    page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-error'>Fehler beim Starten!</div>";
+                    loading.hide();
+                });
+        });
+    }
 
-    page.querySelector('#pluginConfigForm').addEventListener('submit', evt => {
-      evt.preventDefault();
-      saveConfig(page);
-    });
+    return function (view, params) {
+        view.addEventListener("viewshow", function () {
+            loadConfiguration(view);
 
-    page.querySelector('#ScanNowBtn').addEventListener('click', () => {
-      ApiClient.ajax({
-        type: 'POST',
-        url: ApiClient.getUrl('Plugins/CollectionsByFolder/ScanNow')
-      }).then(() => {
-        Dashboard.alert('Scan gestartet');
-      }).catch(err => {
-        console.error(err);
-        Dashboard.alert('Scan konnte nicht gestartet werden');
-      });
-    });
-  });
-})();
+            view.querySelector("#btnSaveConfig").addEventListener("click", function () {
+                saveConfiguration(view);
+            });
+
+            view.querySelector("#btnScanNow").addEventListener("click", function () {
+                scanNow(view);
+            });
+        });
+    };
+});
