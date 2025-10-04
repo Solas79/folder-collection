@@ -5,32 +5,21 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <!-- WICHTIG: AssemblyName & RootNamespace fixieren -->
+    <!-- Fix: Namen deterministisch machen -->
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
-
-    <!-- Plugin-DLL ohne Fremd-DLLs -->
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-
-    <Version>0.1.0.0</Version>
   </PropertyGroup>
 
+  <Version>0.1.0.0</Version>
+
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Common" Version="10.10.0">
-      <ExcludeAssets>runtime;native;contentfiles;analyzers;buildtransitive</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Model" Version="10.10.0">
-      <ExcludeAssets>runtime;native;contentfiles;analyzers;buildtransitive</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.0">
-      <ExcludeAssets>runtime;native;contentfiles;analyzers;buildtransitive</ExcludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5">
-      <ExcludeAssets>runtime;native;contentfiles;analyzers;buildtransitive</ExcludeAssets>
-    </PackageReference>
+    <PackageReference Include="Jellyfin.Common" Version="10.10.0" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.0" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
   </ItemGroup>
 
-  <!-- WICHTIG: HTML/JS einbetten -->
+  <!-- WICHTIG: so werden HTML/JS in die DLL eingebettet -->
   <ItemGroup>
     <EmbeddedResource Include="Configuration/index.html" />
     <EmbeddedResource Include="Configuration/index.js" />
