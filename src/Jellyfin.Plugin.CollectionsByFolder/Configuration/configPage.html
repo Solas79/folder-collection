@@ -1,71 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <title>CollectionsByFolder</title>
+  <meta charset="utf-8" />
+  <title>CollectionsByFolder</title>
 </head>
 <body>
-<div id="collectionsbyfolderPage" data-role="page" class="page type-interior pluginConfigurationPage"
-     data-require="emby-button,emby-input,emby-select">
-  <div data-role="content">
-    <div class="content-primary">
-      <form class="collectionsbyfolderConfigForm">
-        <div class="verticalSection">
-          <h2>Sammlungen nach Ordnern</h2>
-          <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
+  <div id="collectionsbyfolderPage"
+       data-role="page"
+       class="page type-interior pluginConfigurationPage"
+       data-require="emby-button,emby-input,emby-select">
+    <div data-role="content">
+      <div class="content-primary">
+        <form class="collectionsbyfolderConfigForm">
+          <div class="verticalSection">
+            <h2>Sammlungen nach Ordnern</h2>
+            <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
 
-          <div class="inputContainer">
-            <label class="inputLabel">Filmverzeichnisse (kommasepariert)</label>
-            <input is="emby-input" id="folderPaths" type="text" />
+            <div class="inputContainer">
+              <label class="inputLabel">Filmverzeichnisse (kommasepariert)</label>
+              <input is="emby-input" id="folderPaths" type="text" />
+            </div>
+
+            <div class="inputContainer">
+              <label class="inputLabel">Präfix</label>
+              <input is="emby-input" id="prefix" type="text" />
+            </div>
+
+            <div class="inputContainer">
+              <label class="inputLabel">Suffix</label>
+              <input is="emby-input" id="suffix" type="text" />
+            </div>
+
+            <div class="inputContainer">
+              <label class="inputLabel">Blacklist (kommasepariert)</label>
+              <input is="emby-input" id="blacklist" type="text" />
+            </div>
+
+            <div class="inputContainer">
+              <label class="inputLabel">Minimale Anzahl Filme pro Ordner</label>
+              <input is="emby-input" id="minItemCount" type="number" min="1" />
+            </div>
+
+            <div class="inputContainer">
+              <label class="checkboxLabel">
+                <input type="checkbox" id="enableDailyScan" />
+                <span>Täglichen Scan aktivieren</span>
+              </label>
+            </div>
+
+            <div class="inputContainer">
+              <label class="inputLabel">Uhrzeit (HH:MM)</label>
+              <input is="emby-input" id="scanTime" type="time" />
+            </div>
+
+            <div class="fieldSet" style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+              <button is="emby-button" type="button" class="raised" id="btnSaveConfig">
+                <span>Speichern</span>
+              </button>
+              <button is="emby-button" type="button" class="raised" id="btnScanNow">
+                <span>Jetzt scannen</span>
+              </button>
+            </div>
+
+            <div id="saveStatus" style="margin-top:10px;"></div>
           </div>
-
-          <div class="inputContainer">
-            <label class="inputLabel">Präfix</label>
-            <input is="emby-input" id="prefix" type="text" />
-          </div>
-
-          <div class="inputContainer">
-            <label class="inputLabel">Suffix</label>
-            <input is="emby-input" id="suffix" type="text" />
-          </div>
-
-          <div class="inputContainer">
-            <label class="inputLabel">Blacklist (kommasepariert)</label>
-            <input is="emby-input" id="blacklist" type="text" />
-          </div>
-
-          <div class="inputContainer">
-            <label class="inputLabel">Minimale Anzahl Filme pro Ordner</label>
-            <input is="emby-input" id="minItemCount" type="number" min="1" />
-          </div>
-
-          <div class="inputContainer">
-            <label class="checkboxLabel">
-              <input type="checkbox" id="enableDailyScan" />
-              <span>Täglichen Scan aktivieren</span>
-            </label>
-          </div>
-
-          <div class="inputContainer">
-            <label class="inputLabel">Uhrzeit (HH:MM)</label>
-            <input is="emby-input" id="scanTime" type="time" />
-          </div>
-
-          <div class="fieldSet" style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-            <button is="emby-button" type="button" class="raised" id="btnSaveConfig">
-              <span>Speichern</span>
-            </button>
-            <button is="emby-button" type="button" class="raised" id="btnScanNow">
-              <span>Jetzt scannen</span>
-            </button>
-          </div>
-
-          <div id="saveStatus" style="margin-top:10px;"></div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   </div>
-</div>
-<script src="collectionsbyfolderjs"></script>
+
+  <!-- Wichtig: lädt die Embedded-Resource "collectionsbyfolderjs" (siehe Plugin.GetPages) -->
+  <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
