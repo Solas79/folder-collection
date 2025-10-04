@@ -19,14 +19,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
-
-            // Optionales Debug: eingebettete Ressourcen im Log
-            try
-            {
-                foreach (var n in GetType().Assembly.GetManifestResourceNames())
-                    Console.WriteLine($"[CBF] EmbeddedResource: {n}");
-            }
-            catch { /* no-op */ }
         }
 
         public IEnumerable<PluginPageInfo> GetPages()
