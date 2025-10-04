@@ -9,7 +9,7 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
 
     <!-- Eine Version reicht; keine zusätzlichen AssemblyInfo-Attribute -->
-    <Version>0.2.6.0</Version>
+    <Version>0.2.7.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
