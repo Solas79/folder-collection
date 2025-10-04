@@ -40,8 +40,8 @@ public class CollectionBuilder
 
         var query = new InternalItemsQuery
         {
-            IncludeItemTypes = new[] { nameof(Movie) },
-            IsVirtualItem = false
+             IncludeItemTypes = new[] { BaseItemKind.Movie },
+             IsVirtualItem = false
         };
 
         var allMovies = _libraryManager.GetItemList(query).OfType<BaseItem>().ToList();
