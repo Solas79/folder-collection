@@ -9,6 +9,7 @@
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Jellyfin.Server" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Controller" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Common" Version="10.10.0" />
