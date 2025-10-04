@@ -60,9 +60,18 @@
       </div>
 
       <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
-        <button is="emby-button" type="button" class="raised" id="saveButton"><span>Speichern</span></button>
-        <button is="emby-button" type="button" class="raised" id="scanNowButton"><span>Jetzt scannen</span></button>
-      </div>
+        <!-- Plain Buttons: keine Custom Elements, garantiert klickbar -->
+        <button id="saveButton" type="button" class="raised" 
+                style="position:relative; z-index:2; pointer-events:auto;">
+          <span>Speichern</span>
+        </button>
+
+        <button id="scanNowButton" type="button" class="raised" 
+                style="position:relative; z-index:2; pointer-events:auto;">
+          <span>Jetzt scannen</span>
+        </button>
+</div>
+
 
       <div id="cbf-status" style="margin-top:10px;"></div>
     </div>
