@@ -1,4 +1,3 @@
-// src/Jellyfin.Plugin.CollectionsByFolder/Services/CollectionBuilder.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,7 +21,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             var cfg = Plugin.Instance.Configuration;
 
-            // Whitelist bevorzugen, sonst Fallback auf alte FolderPaths
+            // Whitelist bevorzugen, sonst FolderPaths
             var roots = (cfg.Whitelist?.Count > 0 ? cfg.Whitelist : cfg.FolderPaths) ?? new List<string>();
             var blacklist = cfg.Blacklist ?? new List<string>();
 
