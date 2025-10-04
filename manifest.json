@@ -8,12 +8,12 @@
     "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und täglicher Scan inkl. 'Jetzt scannen'-Button.",
     "versions": [
       {
-        "version": "0.4.8.0",
+        "version": "main.0",
         "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.4.8/Jellyfin.Plugin.CollectionsByFolder.zip",
-        "checksum": "9ce76173acac8275d4e6b4c603e9d524",
-        "timestamp": "2025-10-04T12:17:42Z",
-        "changelog": "Automatischer Build für v0.4.8"
+        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/main/Jellyfin.Plugin.CollectionsByFolder.zip",
+        "checksum": "5692f34343814d80eb7fb5a86d7193fd",
+        "timestamp": "2025-10-04T12:51:57Z",
+        "changelog": "Automatischer Build für main"
       }
     ]
   }
