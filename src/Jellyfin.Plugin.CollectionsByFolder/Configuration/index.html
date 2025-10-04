@@ -1,3 +1,4 @@
+<!-- src/Jellyfin.Plugin.CollectionsByFolder/Configuration/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -16,28 +17,33 @@
       <p>Erstellt Collections basierend auf dem letzten Ordnernamen.</p>
 
       <div class="inputContainer">
-        <label class="inputLabel" for="folderPaths">Filmverzeichnisse (einer pro Zeile)</label>
-        <textarea id="folderPaths" rows="5" style="width:100%;"></textarea>
+        <label class="inputLabel" for="whitelist">Whitelist (Scan-Verzeichnisse)</label>
+        <textarea id="whitelist" rows="6" style="width:100%;"></textarea>
+        <div class="fieldDescription">Ein Pfad pro Zeile. Es werden nur direkte Unterordner jedes Pfades ausgewertet.</div>
+      </div>
+
+      <div class="inputContainer">
+        <label class="inputLabel" for="blacklist">Blacklist (Ausschlüsse)</label>
+        <textarea id="blacklist" rows="4" style="width:100%;"></textarea>
+        <div class="fieldDescription">Ein Eintrag pro Zeile. Exakter Match oder Teilstring (z. B. „Sample“, „Extras“).</div>
       </div>
 
       <div class="inputContainer">
         <label class="inputLabel" for="prefix">Präfix</label>
         <input is="emby-input" id="prefix" type="text" />
+        <div class="fieldDescription">Wird vor den Ordnernamen gesetzt (z. B. „Collection:“).</div>
       </div>
 
       <div class="inputContainer">
         <label class="inputLabel" for="suffix">Suffix</label>
         <input is="emby-input" id="suffix" type="text" />
+        <div class="fieldDescription">Wird nach dem Ordnernamen gesetzt (z. B. „(4K)“).</div>
       </div>
 
       <div class="inputContainer">
         <label class="inputLabel" for="minItems">Mindestanzahl</label>
-        <input is="emby-input" id="minItems" type="number" min="1" value="1" />
-      </div>
-
-      <div class="inputContainer">
-        <label class="inputLabel" for="blacklist">Blacklist (kommasepariert)</label>
-        <input is="emby-input" id="blacklist" type="text" />
+        <input is="emby-input" id="minItems" type="number" min="1" value="2" />
+        <div class="fieldDescription">Nur Ordner mit mindestens so vielen Elementen werden berücksichtigt.</div>
       </div>
 
       <div class="inputContainer">
@@ -45,6 +51,7 @@
           <input type="checkbox" id="enableDailyScan" />
           <span>Täglichen Scan aktivieren</span>
         </label>
+        <div class="fieldDescription">Wenn aktiviert, wird täglich zur angegebenen Uhrzeit gescannt.</div>
       </div>
 
       <div class="inputContainer">
