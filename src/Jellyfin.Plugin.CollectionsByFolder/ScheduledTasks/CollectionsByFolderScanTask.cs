@@ -1,11 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.CollectionsByFolder.Services;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Model.Tasks;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.ScheduledTasks;
 
@@ -14,6 +14,7 @@ public class CollectionsByFolderScanTask : IScheduledTask
     private readonly CollectionBuilder _builder;
     private readonly ILogger<CollectionsByFolderScanTask> _logger;
 
+    public string Key => "CollectionsByFolder.DailyScan";
     public string Name => "Collections by Folder – täglicher Scan";
     public string Description => "Erzeugt/aktualisiert Sammlungen anhand der letzten Ordnernamen";
     public string Category => "Library";
@@ -33,20 +34,20 @@ public class CollectionsByFolderScanTask : IScheduledTask
         _logger.LogInformation("CollectionsByFolder: geplanter Scan abgeschlossen – {Count} Collections aktualisiert", updated);
     }
 
-    public TaskTriggers GetDefaultTriggers()
+    public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
         var cfg = Plugin.Instance.Configuration;
         if (!cfg.DailyScanEnabled)
-        {
-            return new TaskTriggers();
-        }
+            return Array.Empty<TaskTriggerInfo>();
 
         var time = ParseTime(cfg.DailyScanTime);
-        return new TaskTriggers
+        return new[]
         {
-            Triggers = new ITaskTrigger[]
+            new TaskTriggerInfo
             {
-                new DailyTrigger { TimeOfDayTicks = time.Ticks }
+                // Jellyfin 10.10: DailyTrigger via Type + TimeOfDayTicks
+                Type = "DailyTrigger",
+                TimeOfDayTicks = time.Ticks
             }
         };
     }
@@ -55,6 +56,6 @@ public class CollectionsByFolderScanTask : IScheduledTask
     {
         if (TimeSpan.TryParseExact(hhmm, @"hh\:mm", CultureInfo.InvariantCulture, out var ts))
             return ts;
-        return new TimeSpan(3,30,0);
+        return new TimeSpan(3, 30, 0);
     }
 }
