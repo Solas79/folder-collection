@@ -1,127 +1,62 @@
-// Quickfix: blockiert Jellyfins fehlerhaftes scrollTo
-window.scrollTo = function (x, y) {
-    if (typeof x === "object" && x.behavior === null) {
-        x.behavior = "auto";
-    }
-    Element.prototype.scrollTo.call(window, x, y);
-};
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Collections by Folder</title>
+</head>
+<body>
+  <div id="collectionsByFolderPage"
+       data-role="page"
+       class="page type-interior pluginConfigurationPage"
+       data-require="emby-button,emby-input,emby-select"
+       data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
 
-define(["loading"], function (loading) {
-    "use strict";
+    <div data-role="content" class="content-primary" role="main">
+      <h2>Sammlungen nach Ordnern</h2>
+      <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
 
-    // GUID muss zu deinem Plugin.cs passen:
-    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
+      <div class="inputContainer">
+        <label class="inputLabel" for="prefix">Präfix</label>
+        <input is="emby-input" id="prefix" type="text" />
+      </div>
 
-    function $(id) { return document.getElementById(id); }
+      <div class="inputContainer">
+        <label class="inputLabel" for="suffix">Suffix</label>
+        <input is="emby-input" id="suffix" type="text" />
+      </div>
 
-    async function loadConfig() {
-        loading.show();
-        try {
-            const cfg = await ApiClient.getPluginConfiguration(pluginId);
-            $("prefix").value = cfg.Prefix || "";
-            $("suffix").value = cfg.Suffix || "";
-            $("minItems").value = cfg.MinItemCount || 1;
-            $("enableDailyScan").checked = !!cfg.EnableDailyScan;
-            $("scanTime").value = cfg.ScanTime || "03:00";
-            $("blacklist").value = (cfg.Blacklist || []).join(", ");
+      <div class="inputContainer">
+        <label class="inputLabel" for="minItems">Mindestanzahl</label>
+        <input is="emby-input" id="minItems" type="number" min="1" value="1" />
+      </div>
 
-            // Optional: FolderPaths als verstecktes Feld? (falls du es später anzeigen willst)
-            // $("folderPaths").value = (cfg.FolderPaths || []).join(", ");
-        } catch (e) {
-            console.error("[CollectionsByFolder] loadConfig error:", e);
-            Dashboard.alert("Konfiguration konnte nicht geladen werden.");
-        } finally {
-            loading.hide();
-        }
-    }
+      <div class="inputContainer">
+        <label class="checkboxLabel">
+          <input type="checkbox" id="enableDailyScan" />
+          <span>Täglichen Scan aktivieren</span>
+        </label>
+      </div>
 
-    async function saveConfig() {
-        loading.show();
-        try {
-            const current = await ApiClient.getPluginConfiguration(pluginId);
+      <div class="inputContainer">
+        <label class="inputLabel" for="scanTime">Uhrzeit (HH:MM)</label>
+        <input is="emby-input" id="scanTime" type="time" value="03:00" />
+      </div>
 
-            const cfg = Object.assign({}, current, {
-                Prefix: $("prefix").value.trim(),
-                Suffix: $("suffix").value.trim(),
-                MinItemCount: parseInt($("minItems").value || "1", 10),
-                EnableDailyScan: $("enableDailyScan").checked,
-                ScanTime: $("scanTime").value || "03:00",
-                Blacklist: $("blacklist").value.split(",").map(s => s.trim()).filter(Boolean),
-                // FolderPaths:  (falls du das Feld später im UI hast)
-                //   $("folderPaths").value.split(",").map(s => s.trim()).filter(Boolean)
-            });
+      <div class="inputContainer">
+        <label class="inputLabel" for="blacklist">Blacklist (kommasepariert)</label>
+        <input is="emby-input" id="blacklist" type="text" />
+      </div>
 
-            await ApiClient.updatePluginConfiguration(pluginId, cfg);
-            Dashboard.processPluginConfigurationUpdateResult();
-            toast("Einstellungen gespeichert.");
-        } catch (e) {
-            console.error("[CollectionsByFolder] saveConfig error:", e);
-            Dashboard.alert("Speichern fehlgeschlagen.");
-        } finally {
-            loading.hide();
-        }
-    }
+      <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+        <button is="emby-button" type="button" class="raised" id="saveButton"><span>Speichern</span></button>
+        <button is="emby-button" type="button" class="raised" id="scanNowButton"><span>Jetzt scannen</span></button>
+      </div>
 
-    async function scanNow() {
-        loading.show();
-        try {
-            const resp = await ApiClient.fetch({
-                url: ApiClient.getUrl("CollectionsByFolder/ScanNow"),
-                method: "POST"
-            });
-            if (!resp.ok) throw new Error("HTTP " + resp.status);
-            toast("Scan gestartet.");
-        } catch (e) {
-            console.error("[CollectionsByFolder] scanNow error:", e);
-            Dashboard.alert("Scan konnte nicht gestartet werden.");
-        } finally {
-            loading.hide();
-        }
-    }
+      <div id="cbf-status" style="margin-top:10px;"></div>
+    </div> <!-- /content-primary -->
+  </div> <!-- /page -->
 
-    function toast(msg) {
-        const el = document.getElementById("cbf-status");
-        if (!el) return Dashboard.alert(msg);
-        el.textContent = msg;
-        clearTimeout(el._t);
-        el._t = setTimeout(() => (el.textContent = ""), 4000);
-    }
-
-    // Initialisierung: wenn unsere Seite im DOM ist, Buttons binden und laden
-    function initWhenReady() {
-        const root = document.getElementById("collectionsByFolderPage");
-        if (!root) return; // nicht unsere Seite
-        const saveBtn = $("saveButton");
-        const scanBtn = $("scanNowButton");
-
-        if (saveBtn && !saveBtn._bound) {
-            saveBtn._bound = true;
-            saveBtn.addEventListener("click", function (e) {
-                e.preventDefault();
-                saveConfig();
-            });
-        }
-        if (scanBtn && !scanBtn._bound) {
-            scanBtn._bound = true;
-            scanBtn.addEventListener("click", function (e) {
-                e.preventDefault();
-                scanNow();
-            });
-        }
-        // Config laden
-        loadConfig();
-    }
-
-    // Jellyfin feuert bei Seitenwechsel ein viewshow-Event
-    window.addEventListener("viewshow", function () {
-        // Ohne strikten ID-Filter: init nur, wenn unser Root vorhanden ist
-        initWhenReady();
-    });
-
-    // Fallback: direkt nach Load einmal versuchen (für iframe-Modus)
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-        setTimeout(initWhenReady, 0);
-    } else {
-        document.addEventListener("DOMContentLoaded", initWhenReady);
-    }
-});
+  <!-- MUSS zum PluginPageInfo-Name der JS-Ressource passen -->
+  <script src="collectionsbyfolderjs"></script>
+</body>
+</html>
