@@ -32,10 +32,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         public async Task<int> RunAsync(PluginConfiguration cfg, CancellationToken ct)
         {
             // Eingaben vorbereiten
-            var roots = (cfg.FolderPaths ?? Array.Empty<string>())
-                        .Where(s => !string.IsNullOrWhiteSpace(s))
-                        .Select(NormalizePath)
-                        .ToArray();
+            var roots = (Plugin.Instance.Configuration.FolderPaths != null && Plugin.Instance.Configuration.FolderPaths.Count > 0)
+            ? Plugin.Instance.Configuration.FolderPaths
+            : new List<string>();
+
 
             var blacklist = new HashSet<string>(cfg.Blacklist ?? Array.Empty<string>(),
                                                 StringComparer.OrdinalIgnoreCase);
