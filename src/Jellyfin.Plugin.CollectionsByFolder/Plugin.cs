@@ -1,6 +1,7 @@
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using MediaBrowser.Model.IO;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
