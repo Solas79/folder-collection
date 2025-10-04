@@ -3,11 +3,11 @@ name: Build and Release Jellyfin Plugin
 on:
   push:
     tags:
-      - 'v*'        # z. B. v0.4.7
+      - 'v*'              # z. B. v0.1.3
   workflow_dispatch:
 
 permissions:
-  contents: write    # nötig für Release + Push auf main
+  contents: write         # nötig für Release + Push auf main
 
 jobs:
   build:
@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -28,28 +28,31 @@ jobs:
       - name: Restore
         run: dotnet restore src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj
 
-      - name: Build
+      - name: Build (DLL only, no publish)
         run: dotnet build src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --no-restore
 
-      - name: Publish
-        run: dotnet publish src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --output ./publish
-
-      - name: Create ZIP (alle Publish-Dateien ins Root der ZIP)
+      # 👉 Nur die Plugin-DLL ins ZIP (keine Jellyfin-Core-DLLs!)
+      - name: Package (zip the plugin DLL only)
         run: |
-          cd publish
-          zip -r ../Jellyfin.Plugin.CollectionsByFolder.zip .
-          cd ..
+          set -e
+          OUTDIR=out
+          DLL=src/Jellyfin.Plugin.CollectionsByFolder/bin/Release/net8.0/Jellyfin.Plugin.CollectionsByFolder.dll
+          mkdir -p "$OUTDIR"
+          cp "$DLL" "$OUTDIR"/
+          (cd "$OUTDIR" && zip -9r Jellyfin.Plugin.CollectionsByFolder.zip Jellyfin.Plugin.CollectionsByFolder.dll)
+          ls -l "$OUTDIR"
 
       - name: Compute MD5 checksum (lowercase)
         id: md5
-        run: echo "md5=$(md5sum Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
+        run: |
+          echo "md5=$(md5sum out/Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
 
       - name: Generate manifest.json (für den aktuellen Tag)
         id: manifest
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"      # z. B. v0.4.7
-          VERSION="${TAG#v}.0"          # z. B. 0.4.7.0
+          TAG="${GITHUB_REF_NAME}"          # z. B. v0.1.3
+          VERSION="${TAG#v}.0"              # → 0.1.3.0
           CHECKSUM="${{ steps.md5.outputs.md5 }}"
           TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
@@ -66,7 +69,7 @@ jobs:
                 {
                   "version": "${VERSION}",
                   "targetAbi": "10.10.0.0",
-                  "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/${TAG}/Jellyfin.Plugin.CollectionsByFolder.zip",
+                  "sourceUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/Jellyfin.Plugin.CollectionsByFolder.zip",
                   "checksum": "${CHECKSUM}",
                   "timestamp": "${TS}",
                   "changelog": "Automatischer Build für ${TAG}"
@@ -75,33 +78,31 @@ jobs:
             }
           ]
           JSON
+          cat manifest.json
 
-      - name: Create/Update GitHub Release (ZIP + manifest.json anhängen)
-        uses: softprops/action-gh-release@v1
+      - name: Create / Update GitHub Release (attach ZIP + manifest.json)
+        uses: softprops/action-gh-release@v2
         with:
           name: CollectionsByFolder ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
           files: |
-            Jellyfin.Plugin.CollectionsByFolder.zip
+            out/Jellyfin.Plugin.CollectionsByFolder.zip
             manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Commit manifest.json to main (damit Jellyfin-Repo-URL immer aktuell ist)
+      - name: Commit manifest.json to main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -e
-          # Manifest in Tempfile sichern (Branchwechsel steht an)
           TMP="$(mktemp)"
           cp -f manifest.json "$TMP"
 
-          # main von Remote holen und auf origin/main aufsetzen
           git fetch origin main
           git checkout -B main origin/main
 
-          # Manifest zurücklegen und committen, wenn es Änderungen gibt
           mv -f "$TMP" manifest.json
           git add manifest.json
 
