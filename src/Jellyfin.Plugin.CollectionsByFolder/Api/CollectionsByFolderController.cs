@@ -9,22 +9,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Api
     [Route("CollectionsByFolder")]
     public class CollectionsByFolderController : ControllerBase
     {
-        /// <summary>
-        /// Startet sofort einen Scan. Gibt aktuell nur eine kurze Bestätigung + Kandidatenanzahl zurück.
-        /// </summary>
         [HttpPost("ScanNow")]
         public async Task<IActionResult> ScanNow(CancellationToken ct)
         {
             var builder = new CollectionBuilder();
+            var applier = new CollectionsApplier();
 
-            // Hier werden die Kandidaten (Ordner -> CollectionName) ermittelt.
             var candidates = await builder.BuildCollectionsAsync(ct);
+            var applyResult = await applier.ApplyAsync(candidates, ct);
 
-            // TODO: Später hier mit Jellyfin-APIs (ICollectionManager etc.) die Collections wirklich erstellen/aktualisieren.
             return Ok(new
             {
                 started = true,
-                candidateCount = candidates.Count
+                candidates = candidates.Count,
+                created = applyResult.Created,
+                updated = applyResult.Updated,
+                skipped = applyResult.Skipped
             });
         }
     }
