@@ -8,12 +8,10 @@
   <div id="collectionsByFolderPage"
        data-role="page"
        class="page type-interior pluginConfigurationPage"
-       data-require="emby-button,emby-input,emby-select"
+       data-require="emby-button,emby-input"
        data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
-
     <div data-role="content" class="content-primary" role="main">
       <h2>Sammlungen nach Ordnern</h2>
-      <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
 
       <div class="inputContainer">
         <label class="inputLabel" for="prefix">Präfix</label>
@@ -53,10 +51,10 @@
       </div>
 
       <div id="cbf-status" style="margin-top:10px;"></div>
-    </div> <!-- /content-primary -->
-  </div> <!-- /page -->
+    </div>
+  </div>
 
-  <!-- MUSS zum PluginPageInfo-Name der JS-Ressource passen -->
+  <!-- Muss exakt zum Name der JS-Ressource passen -->
   <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
