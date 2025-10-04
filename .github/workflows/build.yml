@@ -3,16 +3,21 @@ name: Build and Release Jellyfin Plugin
 on:
   push:
     tags:
-      - 'v*' # startet automatisch bei jedem Tag wie v0.1.0, v0.1.1 usw.
+      - 'v*'   # z.B. v0.4.6
   workflow_dispatch:
+
+permissions:
+  contents: write   # nötig für Release + Push auf main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout (vollständig, damit Push auf main klappt)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -28,20 +33,25 @@ jobs:
       - name: Publish
         run: dotnet publish src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --output ./publish
 
-      - name: Create ZIP
+      - name: Create ZIP (alle Publish-Dateien ins Root der ZIP)
         run: |
           cd publish
-          zip -r ../Jellyfin.Plugin.CollectionsByFolder.zip Jellyfin.Plugin.CollectionsByFolder.dll
+          zip -r ../Jellyfin.Plugin.CollectionsByFolder.zip .
           cd ..
 
-      - name: Compute checksum
+      - name: Compute MD5 checksum (lowercase)
         id: md5
         run: echo "md5=$(md5sum Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
 
-      - name: Generate manifest.json
+      - name: Generate manifest.json (für den aktuellen Tag)
+        id: manifest
+        shell: bash
         run: |
-          TAG=${GITHUB_REF_NAME}
-          VERSION=${TAG#v}
+          TAG="${GITHUB_REF_NAME}"        # z.B. v0.4.6
+          VERSION="${TAG#v}.0"            # z.B. 0.4.6.0
+          CHECKSUM="${{ steps.md5.outputs.md5 }}"
+          TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
           cat > manifest.json <<JSON
           [
             {
@@ -53,11 +63,11 @@ jobs:
               "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und täglicher Scan inkl. 'Jetzt scannen'-Button.",
               "versions": [
                 {
-                  "version": "${VERSION}.0",
+                  "version": "${VERSION}",
                   "targetAbi": "10.10.0.0",
                   "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/${TAG}/Jellyfin.Plugin.CollectionsByFolder.zip",
-                  "checksum": "${{ steps.md5.outputs.md5 }}",
-                  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+                  "checksum": "${CHECKSUM}",
+                  "timestamp": "${TS}",
                   "changelog": "Automatischer Build für ${TAG}"
                 }
               ]
@@ -65,7 +75,7 @@ jobs:
           ]
           JSON
 
-      - name: Create GitHub Release
+      - name: Create/Update GitHub Release (ZIP + manifest.json anhängen)
         uses: softprops/action-gh-release@v1
         with:
           name: CollectionsByFolder ${{ github.ref_name }}
@@ -75,3 +85,17 @@ jobs:
             manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit manifest.json to main (damit Jellyfin-Repo-URL immer stimmt)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stelle sicher, dass wir auf main sind
+          git checkout main
+          # manifest.json aus dem Build-Workspace auf main kopieren
+          cp -f manifest.json manifest.json
+          git add manifest.json
+          git commit -m "Update manifest for ${GITHUB_REF_NAME}" || echo "No changes to commit"
+          git push origin main
