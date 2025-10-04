@@ -1,3 +1,11 @@
+// Quickfix: blockiert Jellyfins fehlerhaftes scrollTo
+window.scrollTo = function (x, y) {
+    if (typeof x === "object" && x.behavior === null) {
+        x.behavior = "auto";
+    }
+    Element.prototype.scrollTo.call(window, x, y);
+};
+
 define(["loading"], function (loading) {
     "use strict";
 
