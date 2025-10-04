@@ -1,7 +1,7 @@
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Model.IO;
+using MediaBrowser.Model.IO; // <- wichtig für IApplicationPaths
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
@@ -27,7 +27,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
                 {
                     Name = "collectionsbyfolder",
                     EmbeddedResourcePath = ns + ".Configuration.index.html",
-                    Type = PluginPageType.Html, // <— ersetzt „Embedded“
+                    Type = PluginPageType.Html,     // iframe-Seite
                     EnableInMainMenu = true
                 },
                 new PluginPageInfo
