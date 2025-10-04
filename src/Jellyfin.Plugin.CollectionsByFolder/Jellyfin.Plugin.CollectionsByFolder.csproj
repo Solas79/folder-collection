@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Configuration\index.html" />
-    <EmbeddedResource Include="Configuration\index.js" />
+    <EmbeddedResource Include="Configuration/index.html" />
+    <EmbeddedResource Include="Configuration/index.js" />
   </ItemGroup>
 
 </Project>
