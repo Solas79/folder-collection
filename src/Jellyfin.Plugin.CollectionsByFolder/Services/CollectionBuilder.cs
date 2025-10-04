@@ -97,18 +97,16 @@ public class CollectionBuilder
         var existing = _libraryManager.RootFolder
             .GetRecursiveChildren(i => i is BoxSet)
             .Cast<BoxSet>()
-
             .FirstOrDefault(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase));
 
         if (existing is not null)
             return existing;
 
-        var options = new CollectionCreationOptions
+        var options = new CollectionCreationOptions { Name = name };
         {
             Name = name
         };
-        var created = await _collectionManager.CreateCollection(options).ConfigureAwait(false);
-        return created;
+        var created = await _collectionManager.CreateCollectionAsync(options).ConfigureAwait(false);        return created;
     }
 
     private static string NormalizePath(string p) => p.Replace('\\', '/');
