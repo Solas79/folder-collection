@@ -52,7 +52,7 @@ public class CollectionsByFolderScanTask : IScheduledTask
 
     private static TimeSpan ParseTime(string hhmm)
     {
-        if (TimeSpan.TryParseExact(hhmm, "hh\:mm", CultureInfo.InvariantCulture, out var ts))
+        if (TimeSpan.TryParseExact(hhmm, @"hh\:mm", CultureInfo.InvariantCulture, out var ts))
             return ts;
         return new TimeSpan(3,30,0);
     }

@@ -47,7 +47,9 @@ public class CollectionBuilder
 
         if (roots.Length > 0)
         {
-            allMovies = allMovies.Where(m => m.Path is not null && roots.Any(r => NormalizePath(m.Path!).StartsWith(r, StringComparison.OrdinalIgnoreCase))).ToList();
+            allMovies = allMovies
+                .Where(m => m.Path is not null && roots.Any(r => NormalizePath(m.Path!).StartsWith(r, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
         }
 
         var groups = allMovies
@@ -93,6 +95,7 @@ public class CollectionBuilder
         var existing = _libraryManager.RootFolder
             .GetRecursiveChildren(i => i is BoxSet)
             .Cast<BoxSet>()
+
             .FirstOrDefault(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase));
 
         if (existing is not null)
@@ -106,9 +109,7 @@ public class CollectionBuilder
         return created;
     }
 
-    private static string NormalizePath(string p)
-        => p.Replace('\\', '/');
+    private static string NormalizePath(string p) => p.Replace('\\', '/');
 
-    private static string SafeFolderName(string s)
-        => (s ?? string.Empty).Trim();
+    private static string SafeFolderName(string s) => (s ?? string.Empty).Trim();
 }

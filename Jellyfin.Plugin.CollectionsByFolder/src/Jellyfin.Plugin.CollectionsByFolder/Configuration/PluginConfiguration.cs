@@ -12,6 +12,5 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MinItemsPerFolder { get; set; } = 2;
 
     public bool DailyScanEnabled { get; set; } = true;
-    // 24h-Zeit, "03:30" => 3:30 Uhr
     public string DailyScanTime { get; set; } = "03:30";
 }
