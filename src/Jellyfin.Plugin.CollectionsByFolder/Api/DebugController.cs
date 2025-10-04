@@ -10,7 +10,11 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Api
         [HttpGet("Resources")]
         public IActionResult Resources()
         {
-            var names = typeof(Plugin).Assembly.GetManifestResourceNames().OrderBy(n => n);
+            var names = typeof(Plugin).Assembly
+                .GetManifestResourceNames()
+                .OrderBy(n => n)
+                .ToArray();
+
             return Ok(names);
         }
     }
