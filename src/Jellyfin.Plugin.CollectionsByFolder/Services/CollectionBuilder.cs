@@ -1,130 +1,177 @@
+// Datei: src/Jellyfin.Plugin.CollectionsByFolder/Services/CollectionBuilder.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Jellyfin.Data.Enums;                        // BaseItemKind
-using MediaBrowser.Controller.Collections;        // ICollectionManager, CollectionCreationOptions
-using MediaBrowser.Controller.Entities;           // BaseItem
-using MediaBrowser.Controller.Entities.Movies;    // BoxSet
-using MediaBrowser.Controller.Library;            // ILibraryManager, InternalItemsQuery
-using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
+    /// <summary>
+    /// Kümmert sich um das Einlesen/Normalisieren der Plugin-Konfiguration
+    /// und liefert die Kandidaten-Ordner (pro Library-Root).
+    /// Die eigentliche Erstellung/Aktualisierung der Collections
+    /// kannst du in BuildCollectionsAsync() an Jellyfin anbinden.
+    /// </summary>
     public class CollectionBuilder
     {
-        private readonly ILibraryManager _libraryManager;
-        private readonly ICollectionManager _collectionManager;
-        private readonly ILogger<CollectionBuilder> _logger;
-
-        public CollectionBuilder(
-            ILibraryManager libraryManager,
-            ICollectionManager collectionManager,
-            ILogger<CollectionBuilder> logger)
+        public sealed class FolderCandidate
         {
-            _libraryManager = libraryManager;
-            _collectionManager = collectionManager;
-            _logger = logger;
+            public string Root { get; init; } = string.Empty;
+            public string FolderPath { get; init; } = string.Empty;
+            public string CollectionName { get; init; } = string.Empty;
+            public int ItemCount { get; init; }
         }
 
-        public async Task<int> RunAsync(PluginConfiguration cfg, CancellationToken ct)
+        /// <summary>
+        /// Einstieg: scannt alle konfigurierten Roots und gibt die geplanten Collections zurück.
+        /// </summary>
+        public async Task<IReadOnlyList<FolderCandidate>> BuildCollectionsAsync(CancellationToken ct = default)
         {
-            // Eingaben vorbereiten
-            var roots = (Plugin.Instance.Configuration.FolderPaths != null && Plugin.Instance.Configuration.FolderPaths.Count > 0)
-            ? Plugin.Instance.Configuration.FolderPaths
-            : new List<string>();
+            var cfg = Plugin.Instance.Configuration;
 
+            // ---- Typen richtig coalescen: immer List<string> auf beiden Seiten ----
+            var roots = cfg.FolderPaths ?? new List<string>();
+            var blacklist = cfg.Blacklist ?? new List<string>();
 
-            var blacklist = new HashSet<string>(cfg.Blacklist ?? Array.Empty<string>(),
-                                                StringComparer.OrdinalIgnoreCase);
+            // Leer? -> nichts zu tun
+            if (roots.Count == 0)
+                return Array.Empty<FolderCandidate>();
 
-            var minItems = Math.Max(1, cfg.MinItemCount);
+            // Normalisierung
+            var normalizedRoots = NormalizePaths(roots);
+            var normalizedBlacklist = NormalizeBlacklist(blacklist);
 
-            // Alle Filme aus der Library (optional auf Wurzelpfade filtern)
-            var query = new InternalItemsQuery
-            {
-                IncludeItemTypes = new[] { BaseItemKind.Movie },
-                IsVirtualItem = false
-            };
+            var minItems = cfg.MinItemCount <= 0 ? 1 : cfg.MinItemCount;
+            var prefix = cfg.Prefix ?? string.Empty;
+            var suffix = cfg.Suffix ?? string.Empty;
 
-            var allMovies = _libraryManager.GetItemList(query).OfType<BaseItem>().ToList();
-            _logger.LogInformation("[CollectionsByFolder] Filme gesamt: {Count}", allMovies.Count);
+            var results = new List<FolderCandidate>();
 
-            if (roots.Length > 0)
-            {
-                allMovies = allMovies
-                    .Where(m => m.Path is not null &&
-                                roots.Any(r => NormalizePath(m.Path!).StartsWith(r, StringComparison.OrdinalIgnoreCase)))
-                    .ToList();
-            }
-
-            // Gruppieren nach letztem Ordnernamen
-            var groups = allMovies
-                .Where(m => !string.IsNullOrEmpty(m.Path))
-                .GroupBy(m =>
-                {
-                    var parent = Path.GetDirectoryName(m.Path!) ?? string.Empty;
-                    return SafeFolderName(Path.GetFileName(parent));
-                })
-                .Where(g => !string.IsNullOrWhiteSpace(g.Key))
-                .ToList();
-
-            int updated = 0;
-
-            foreach (var grp in groups)
+            foreach (var root in normalizedRoots)
             {
                 ct.ThrowIfCancellationRequested();
 
-                var folderName = grp.Key;
-
-                if (blacklist.Contains(folderName))
-                {
-                    _logger.LogDebug("[CollectionsByFolder] Übersprungen (Blacklist): {Folder}", folderName);
+                if (!Directory.Exists(root))
                     continue;
-                }
 
-                var items = grp.Distinct().ToList();
-
-                if (items.Count < minItems)
+                // nur direkte Unterordner des Root betrachten
+                IEnumerable<string> subdirs = SafeEnumDirectories(root);
+                foreach (var dir in subdirs)
                 {
-                    _logger.LogDebug("[CollectionsByFolder] Übersprungen (zu wenige Items {Count} < {Min}): {Folder}",
-                        items.Count, minItems, folderName);
-                    continue;
+                    ct.ThrowIfCancellationRequested();
+
+                    var lastName = new DirectoryInfo(dir).Name;
+
+                    // Blacklist-Filter (exakt oder contains, je nach Bedarf)
+                    if (IsBlacklisted(lastName, normalizedBlacklist))
+                        continue;
+
+                    // Zähle Dateien (rudimentär; passe ggf. auf Mediendateien an)
+                    int itemCount = SafeCountMediaFiles(dir);
+                    if (itemCount < minItems)
+                        continue;
+
+                    var collName = BuildCollectionName(lastName, prefix, suffix);
+
+                    results.Add(new FolderCandidate
+                    {
+                        Root = root,
+                        FolderPath = dir,
+                        ItemCount = itemCount,
+                        CollectionName = collName
+                    });
                 }
-
-                var collectionName = string.Concat(cfg.Prefix ?? string.Empty, folderName, cfg.Suffix ?? string.Empty);
-
-                var collection = await EnsureCollectionAsync(collectionName).ConfigureAwait(false);
-
-                await _collectionManager.AddToCollectionAsync(collection.Id, items.Select(i => i.Id).ToArray())
-                                        .ConfigureAwait(false);
-
-                _logger.LogInformation("[CollectionsByFolder] Collection '{Name}' aktualisiert: {Count} Einträge",
-                    collectionName, items.Count);
-                updated++;
             }
 
-            return updated;
+            // künstlich async, falls du später IO-gebundene Aufgaben einhängst
+            await Task.CompletedTask;
+            return results;
         }
 
-        private async Task<BoxSet> EnsureCollectionAsync(string name)
+        /// <summary>
+        /// Aus "Ordner" + Präfix/Suffix wird der endgültige Collection-Name.
+        /// </summary>
+        public static string BuildCollectionName(string folderName, string prefix, string suffix)
         {
-            var existing = _libraryManager.RootFolder
-                .GetRecursiveChildren(i => i is BoxSet)
-                .Cast<BoxSet>()
-                .FirstOrDefault(b => string.Equals(b.Name, name, StringComparison.OrdinalIgnoreCase));
+            var p = string.IsNullOrWhiteSpace(prefix) ? string.Empty : prefix.Trim();
+            var s = string.IsNullOrWhiteSpace(suffix) ? string.Empty : suffix.Trim();
 
-            if (existing is not null)
-                return existing;
+            // Leerzeichen sauber setzen
+            if (!string.IsNullOrEmpty(p) && !p.EndsWith(" ", StringComparison.Ordinal))
+                p += " ";
+            if (!string.IsNullOrEmpty(s) && !s.StartsWith(" ", StringComparison.Ordinal))
+                s = " " + s;
 
-            var options = new CollectionCreationOptions { Name = name };
-            var created = await _collectionManager.CreateCollectionAsync(options).ConfigureAwait(false);
-            return created;
+            return $"{p}{folderName}{s}";
         }
 
-        private static string NormalizePath(string p) => (p ?? string.Empty).Replace('\\', '/').Trim();
-        private static string SafeFolderName(string s) => (s ?? string.Empty).Trim();
+        private static List<string> NormalizePaths(List<string> roots)
+        {
+            // trims + entfernt Duplikate + normalisiert Directory-Separators
+            return roots
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .Select(NormalizeOnePath)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string NormalizeOnePath(string path)
+        {
+            // vereinheitliche auf OS-Separator
+            var normalized = path.Replace('\\', Path.DirectorySeparatorChar)
+                                 .Replace('/', Path.DirectorySeparatorChar)
+                                 .Trim();
+
+            // ohne trailing Separator (außer Root-Laufwerk)
+            if (normalized.Length > 2 && normalized.EndsWith(Path.DirectorySeparatorChar))
+                normalized = normalized.TrimEnd(Path.DirectorySeparatorChar);
+
+            return normalized;
+        }
+
+        private static List<string> NormalizeBlacklist(List<string> blacklist)
+        {
+            return blacklist
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static bool IsBlacklisted(string folderName, List<string> blacklist)
+        {
+            // Exakter Match ODER Teilstring – passe nach Bedarf an
+            return blacklist.Any(b =>
+                folderName.Equals(b, StringComparison.OrdinalIgnoreCase) ||
+                folderName.Contains(b, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static IEnumerable<string> SafeEnumDirectories(string root)
+        {
+            try
+            {
+                return Directory.EnumerateDirectories(root);
+            }
+            catch
+            {
+                return Array.Empty<string>();
+            }
+        }
+
+        private static int SafeCountMediaFiles(string folder)
+        {
+            try
+            {
+                // Minimal: alle Dateien zählen. Optional: Filter auf bekannte Media-Extensions.
+                return Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly).Count();
+            }
+            catch
+            {
+                return 0;
+            }
+        }
     }
 }
