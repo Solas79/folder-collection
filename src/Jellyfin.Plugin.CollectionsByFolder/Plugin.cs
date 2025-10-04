@@ -20,19 +20,11 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
-
-            // Logge ALLE eingebetteten Ressourcen, damit wir sofort sehen, wie sie wirklich heißen
-            try
-            {
-                foreach (var n in GetType().Assembly.GetManifestResourceNames())
-                    Console.WriteLine($"[CBF] EmbeddedResource: {n}");
-            }
-            catch { }
         }
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // Finde die echten Namen dynamisch, egal wie der RootNamespace/Ordner heißt
+            // Reale (eingebettete) Ressourcennamen ermitteln – robust gegen RootNamespace/Ordnerabweichungen
             var names = GetType().Assembly.GetManifestResourceNames();
 
             string? html = names.FirstOrDefault(n =>
@@ -40,28 +32,18 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             string? js = names.FirstOrDefault(n =>
                 n.EndsWith(".Configuration.index.js", StringComparison.OrdinalIgnoreCase));
 
-            if (html is null || js is null)
-            {
-                // Harte Fallbacks (falls oben nichts gefunden wurde)
-                html ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.html";
-                js   ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.js";
-                Console.WriteLine("[CBF] WARN: Using hardcoded EmbeddedResourcePath fallback.");
-            }
-            else
-            {
-                Console.WriteLine($"[CBF] Using resources: html={html}, js={js}");
-            }
+            // Fallbacks (wenn was schief eingebettet wurde)
+            html ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.html";
+            js   ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.js";
 
             return new[]
             {
-                // /web/collectionsbyfolder  -> index.html
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolder",
                     EmbeddedResourcePath = html,
                     EnableInMainMenu = true
                 },
-                // /web/collectionsbyfolderjs -> index.js
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolderjs",
