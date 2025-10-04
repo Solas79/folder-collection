@@ -11,6 +11,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.Entities.Movies; // BoxSet
+using Jellyfin.Data.Enums;                     // BaseItemKind
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services;
 
