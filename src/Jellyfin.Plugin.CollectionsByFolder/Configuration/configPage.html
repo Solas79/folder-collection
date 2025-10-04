@@ -5,71 +5,71 @@
   <title>CollectionsByFolder</title>
 </head>
 <body>
-  <div id="collectionsbyfolderPage"
+  <div id="cbf-Page"
        data-role="page"
        class="page type-interior pluginConfigurationPage"
        data-require="emby-button,emby-input,emby-select">
     <div data-role="content">
       <div class="content-primary">
-        <form class="collectionsbyfolderConfigForm">
+        <form class="cbf-Form">
           <div class="verticalSection">
             <h2>Sammlungen nach Ordnern</h2>
             <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
 
             <div class="inputContainer">
-              <label class="inputLabel">Filmverzeichnisse (kommasepariert)</label>
-              <input is="emby-input" id="folderPaths" type="text" />
+              <label class="inputLabel" for="cbf-folderPaths">Filmverzeichnisse (kommasepariert)</label>
+              <input is="emby-input" id="cbf-folderPaths" type="text" />
             </div>
 
             <div class="inputContainer">
-              <label class="inputLabel">Präfix</label>
-              <input is="emby-input" id="prefix" type="text" />
+              <label class="inputLabel" for="cbf-prefix">Präfix</label>
+              <input is="emby-input" id="cbf-prefix" type="text" />
             </div>
 
             <div class="inputContainer">
-              <label class="inputLabel">Suffix</label>
-              <input is="emby-input" id="suffix" type="text" />
+              <label class="inputLabel" for="cbf-suffix">Suffix</label>
+              <input is="emby-input" id="cbf-suffix" type="text" />
             </div>
 
             <div class="inputContainer">
-              <label class="inputLabel">Blacklist (kommasepariert)</label>
-              <input is="emby-input" id="blacklist" type="text" />
+              <label class="inputLabel" for="cbf-blacklist">Blacklist (kommasepariert)</label>
+              <input is="emby-input" id="cbf-blacklist" type="text" />
             </div>
 
             <div class="inputContainer">
-              <label class="inputLabel">Minimale Anzahl Filme pro Ordner</label>
-              <input is="emby-input" id="minItemCount" type="number" min="1" />
+              <label class="inputLabel" for="cbf-minItemCount">Minimale Anzahl Filme pro Ordner</label>
+              <input is="emby-input" id="cbf-minItemCount" type="number" min="1" />
             </div>
 
             <div class="inputContainer">
               <label class="checkboxLabel">
-                <input type="checkbox" id="enableDailyScan" />
+                <input type="checkbox" id="cbf-enableDailyScan" />
                 <span>Täglichen Scan aktivieren</span>
               </label>
             </div>
 
             <div class="inputContainer">
-              <label class="inputLabel">Uhrzeit (HH:MM)</label>
-              <input is="emby-input" id="scanTime" type="time" />
+              <label class="inputLabel" for="cbf-scanTime">Uhrzeit (HH:MM)</label>
+              <input is="emby-input" id="cbf-scanTime" type="time" />
             </div>
 
             <div class="fieldSet" style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-              <button is="emby-button" type="button" class="raised" id="btnSaveConfig">
+              <button is="emby-button" type="button" class="raised" id="cbf-btnSave">
                 <span>Speichern</span>
               </button>
-              <button is="emby-button" type="button" class="raised" id="btnScanNow">
+              <button is="emby-button" type="button" class="raised" id="cbf-btnScan">
                 <span>Jetzt scannen</span>
               </button>
             </div>
 
-            <div id="saveStatus" style="margin-top:10px;"></div>
+            <div id="cbf-status" style="margin-top:10px;"></div>
           </div>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- lädt die Embedded-Resource "collectionsbyfolderjs" (siehe Plugin.GetPages) -->
+  <!-- lädt die Embedded-Resource "collectionsbyfolderjs" -->
   <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
