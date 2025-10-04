@@ -21,23 +21,23 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             Instance = this;
         }
 
-        public IEnumerable<PluginPageInfo> GetPages()
-        {
-            var ns = GetType().Namespace; // "Jellyfin.Plugin.CollectionsByFolder"
-            return new[]
-            {
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolder",                           // URL: ...?name=collectionsbyfolder
-                    EmbeddedResourcePath = ns + ".Configuration.index.html",
-                    EnableInMainMenu = true
-                },
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolderjs",                         // MUSS mit <script src="..."> matchen
-                    EmbeddedResourcePath = ns + ".Configuration.index.js"
-                }
-            };
-        }
+       public IEnumerable<PluginPageInfo> GetPages()
+       {
+           return new[]
+           {
+               new PluginPageInfo
+               {
+                   Name = "collectionsbyfolder",
+                   EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.html",
+                   EnableInMainMenu = true
+               },
+               new PluginPageInfo
+               {
+                   Name = "collectionsbyfolderjs",
+                   EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.js"
+               }
+           };
+       }
+
     }
 }
