@@ -1,49 +1,34 @@
-using Jellyfin.Plugin.CollectionsByFolder.Services;
-using MediaBrowser.Model.Tasks;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.CollectionsByFolder.Services;
+using MediaBrowser.Model.Tasks;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.ScheduledTasks
 {
     public class CollectionsByFolderScanTask : IScheduledTask
     {
-        private readonly CollectionBuilder _builder;
-        private readonly ILogger<CollectionsByFolderScanTask> _logger;
-
-        public CollectionsByFolderScanTask(CollectionBuilder builder, ILogger<CollectionsByFolderScanTask> logger)
-        {
-            _builder = builder;
-            _logger = logger;
-        }
-
-        public string Key => "CollectionsByFolderScan";
-        public string Name => "CollectionsByFolder – Scan";
-        public string Description => "Erstellt/aktualisiert Sammlungen nach Ordnernamen.";
+        public string Name => "Collections by Folder: Scan";
+        public string Description => "Scannt die konfigurierten Ordner und plant Collections.";
         public string Category => "Library";
 
-        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
-        {
-            // Standard: täglich um 01:00, Benutzerzeit wird in der Config gesetzt (siehe UI)
-            return new[]
-            {
-                new TaskTriggerInfo
-                {
-                    Type = TaskTriggerInfo.TriggerDaily,
-                    TimeOfDayTicks = new TimeSpan(1,0,0).Ticks
-                }
-            };
-        }
+        // Ein stabiler Schlüsselname (wird u.a. im UI verwendet)
+        public string Key => "CollectionsByFolder.Scan";
+
+        // Minimal: keine Default-Trigger setzen → planbar im UI.
+        public IEnumerable<TaskTriggerInfo> GetDefaultTriggers() => Array.Empty<TaskTriggerInfo>();
 
         public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
         {
-            progress.Report(0);
-            var cfg = Plugin.Instance.Configuration;
-            var count = await _builder.RunAsync(cfg, cancellationToken);
-            _logger.LogInformation("[CollectionsByFolder] Geplanter Scan abgeschlossen: {Count} Collections aktualisiert", count);
-            progress.Report(100);
+            progress?.Report(0);
+
+            var builder = new CollectionBuilder();
+            var _ = await builder.BuildCollectionsAsync(cancellationToken);
+
+            // TODO: Hier später die echten Collection-Operationen (Erstellen/Aktualisieren) ausführen.
+
+            progress?.Report(100);
         }
     }
 }
