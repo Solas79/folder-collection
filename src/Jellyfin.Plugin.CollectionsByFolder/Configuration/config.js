@@ -1,6 +1,6 @@
 define(["globalize", "loading", "emby-button", "emby-input"], function (globalize, loading) {
 
-    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"; // GUID aus Plugin.cs
+    const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
 
     function loadConfiguration(page) {
         loading.show();
@@ -37,17 +37,15 @@ define(["globalize", "loading", "emby-button", "emby-input"], function (globaliz
 
     function scanNow(page) {
         loading.show();
-        ApiClient.getPluginConfiguration(pluginId).then(() => {
-            fetch(ApiClient.getUrl("CollectionsByFolder/ScanNow"), { method: "POST" })
-                .then(() => {
-                    page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-info'>Scan gestartet!</div>";
-                    loading.hide();
-                })
-                .catch(() => {
-                    page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-error'>Fehler beim Starten!</div>";
-                    loading.hide();
-                });
-        });
+        fetch(ApiClient.getUrl("CollectionsByFolder/ScanNow"), { method: "POST" })
+            .then(() => {
+                page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-info'>Scan gestartet!</div>";
+                loading.hide();
+            })
+            .catch(() => {
+                page.querySelector("#saveStatus").innerHTML = "<div class='alert alert-error'>Fehler beim Starten!</div>";
+                loading.hide();
+            });
     }
 
     return function (view, params) {
