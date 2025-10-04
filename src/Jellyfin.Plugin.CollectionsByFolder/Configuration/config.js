@@ -10,7 +10,7 @@ define(["globalize", "loading", "emby-button", "emby-input"], function (globaliz
             page.querySelector("#suffix").value = config.Suffix || "";
             page.querySelector("#blacklist").value = (config.Blacklist || []).join(", ");
             page.querySelector("#minItemCount").value = config.MinItemCount || 1;
-            page.querySelector("#enableDailyScan").checked = config.EnableDailyScan || false;
+            page.querySelector("#enableDailyScan").checked = !!config.EnableDailyScan;
             page.querySelector("#scanTime").value = config.ScanTime || "00:00";
             loading.hide();
         });
@@ -20,12 +20,12 @@ define(["globalize", "loading", "emby-button", "emby-input"], function (globaliz
         loading.show();
         ApiClient.getPluginConfiguration(pluginId).then(config => {
             config.FolderPaths = page.querySelector("#folderPaths").value.split(",").map(s => s.trim()).filter(Boolean);
-            config.Prefix = page.querySelector("#prefix").value.trim();
-            config.Suffix = page.querySelector("#suffix").value.trim();
+            config.Prefix = (page.querySelector("#prefix").value || "").trim();
+            config.Suffix = (page.querySelector("#suffix").value || "").trim();
             config.Blacklist = page.querySelector("#blacklist").value.split(",").map(s => s.trim()).filter(Boolean);
-            config.MinItemCount = parseInt(page.querySelector("#minItemCount").value) || 1;
+            config.MinItemCount = parseInt(page.querySelector("#minItemCount").value || "1", 10);
             config.EnableDailyScan = page.querySelector("#enableDailyScan").checked;
-            config.ScanTime = page.querySelector("#scanTime").value;
+            config.ScanTime = page.querySelector("#scanTime").value || "00:00";
 
             return ApiClient.updatePluginConfiguration(pluginId, config).then(() => {
                 Dashboard.processPluginConfigurationUpdateResult();
@@ -48,14 +48,12 @@ define(["globalize", "loading", "emby-button", "emby-input"], function (globaliz
             });
     }
 
-    return function (view, params) {
+    return function (view) {
         view.addEventListener("viewshow", function () {
             loadConfiguration(view);
-
             view.querySelector("#btnSaveConfig").addEventListener("click", function () {
                 saveConfiguration(view);
             });
-
             view.querySelector("#btnScanNow").addEventListener("click", function () {
                 scanNow(view);
             });
