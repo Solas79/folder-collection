@@ -1,3 +1,4 @@
+// src/Jellyfin.Plugin.CollectionsByFolder/Services/CollectionBuilder.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,7 +21,9 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         public async Task<IReadOnlyList<FolderCandidate>> BuildCollectionsAsync(CancellationToken ct = default)
         {
             var cfg = Plugin.Instance.Configuration;
-            var roots = cfg.FolderPaths ?? new List<string>();
+
+            // Whitelist bevorzugen, sonst Fallback auf alte FolderPaths
+            var roots = (cfg.Whitelist?.Count > 0 ? cfg.Whitelist : cfg.FolderPaths) ?? new List<string>();
             var blacklist = cfg.Blacklist ?? new List<string>();
 
             if (roots.Count == 0)
