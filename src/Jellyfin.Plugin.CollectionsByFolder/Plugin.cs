@@ -19,10 +19,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
+
+            // DEBUG: Eingebettete Ressourcen beim Start ausgeben
+            try
+            {
+                foreach (var n in GetType().Assembly.GetManifestResourceNames())
+                {
+                    Console.WriteLine($"[CBF] EmbeddedResource: {n}");
+                }
+            }
+            catch { }
         }
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
+            // /web/collectionsbyfolder  -> index.html
+            // /web/collectionsbyfolderjs -> index.js
             return new[]
             {
                 new PluginPageInfo
