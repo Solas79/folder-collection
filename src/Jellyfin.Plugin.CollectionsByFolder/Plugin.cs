@@ -4,6 +4,7 @@ using Jellyfin.Plugin.CollectionsByFolder.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
+using MediaBrowser.Model.Serialization; // IXmlSerializer
 
 namespace Jellyfin.Plugin.CollectionsByFolder;
 
