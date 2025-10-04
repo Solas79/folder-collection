@@ -3,9 +3,7 @@ define(["loading", "emby-button", "emby-input"], function (loading) {
 
   const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
 
-  function $id(view, id) {
-    return view.querySelector("#" + id);
-  }
+  function $id(view, id) { return view.querySelector("#" + id); }
 
   function loadConfig(view) {
     loading.show();
@@ -30,14 +28,13 @@ define(["loading", "emby-button", "emby-input"], function (loading) {
     loading.show();
     return ApiClient.getPluginConfiguration(pluginId)
       .then(cfg => {
-        cfg.FolderPaths   = $id(view, "cbf-folderPaths").value.split(",").map(s => s.trim()).filter(Boolean);
-        cfg.Prefix        = ($id(view, "cbf-prefix").value || "").trim();
-        cfg.Suffix        = ($id(view, "cbf-suffix").value || "").trim();
-        cfg.Blacklist     = $id(view, "cbf-blacklist").value.split(",").map(s => s.trim()).filter(Boolean);
-        cfg.MinItemCount  = parseInt($id(view, "cbf-minItemCount").value || "1", 10);
-        cfg.EnableDailyScan = $id(view, "cbf-enableDailyScan").checked;
-        cfg.ScanTime      = $id(view, "cbf-scanTime").value || "00:00";
-
+        cfg.FolderPaths    = $id(view, "cbf-folderPaths").value.split(",").map(s => s.trim()).filter(Boolean);
+        cfg.Prefix         = ($id(view, "cbf-prefix").value || "").trim();
+        cfg.Suffix         = ($id(view, "cbf-suffix").value || "").trim();
+        cfg.Blacklist      = $id(view, "cbf-blacklist").value.split(",").map(s => s.trim()).filter(Boolean);
+        cfg.MinItemCount   = parseInt($id(view, "cbf-minItemCount").value || "1", 10);
+        cfg.EnableDailyScan= $id(view, "cbf-enableDailyScan").checked;
+        cfg.ScanTime       = $id(view, "cbf-scanTime").value || "00:00";
         return ApiClient.updatePluginConfiguration(pluginId, cfg);
       })
       .then(() => {
@@ -69,16 +66,16 @@ define(["loading", "emby-button", "emby-input"], function (loading) {
       .finally(() => loading.hide());
   }
 
-  // Jellyfin initialisiert AMD-Module mit (view, params) auf viewshow
+  // Wichtig: KEIN view.id-Filter mehr – initialisiere auf jedem viewshow
   return function (view) {
     view.addEventListener("viewshow", function () {
-      // Nur unsere Seite initialisieren
-      if (view.id !== "cbf-Page") return;
+      // Wenn unsere Elemente nicht da sind (andere Seite), einfach nix tun:
+      if (!view.querySelector("#cbf-folderPaths")) return;
 
       loadConfig(view);
 
-      const btnSave = $id(view, "cbf-btnSave");
-      const btnScan = $id(view, "cbf-btnScan");
+      const btnSave = view.querySelector("#cbf-btnSave");
+      const btnScan = view.querySelector("#cbf-btnScan");
 
       if (btnSave && !btnSave._bound) {
         btnSave._bound = true;
