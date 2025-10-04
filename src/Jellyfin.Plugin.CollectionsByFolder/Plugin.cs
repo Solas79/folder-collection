@@ -24,19 +24,21 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
+            var ns = GetType().Namespace;
             return new[]
             {
                 new PluginPageInfo
                 {
-                    Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
+                    Name = "collectionsbyfolder", // URL: ...?name=collectionsbyfolder
+                    EmbeddedResourcePath = ns + ".Configuration.index.html"
                 },
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolderjs",
-                    EmbeddedResourcePath = GetType().Namespace + ".Configuration.config.js"
+                    EmbeddedResourcePath = ns + ".Configuration.index.js"
                 }
             };
         }
+
     }
 }
