@@ -1,45 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>Collections by Folder</title>
-  <style>
-    .pageContainer {
-      padding: 2em;
-    }
-  </style>
 </head>
 <body>
-<div id="collectionsByFolderPage"
-     data-role="page"
-     class="page type-interior pluginConfigurationPage"
-     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
+  <div id="collectionsByFolderPage"
+       data-role="page"
+       class="page type-interior pluginConfigurationPage"
+       data-require="emby-button,emby-input"
+       data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
+    <div data-role="content" class="content-primary" role="main">
+      <!-- deine Felder -->
+      <div class="inputContainer">
+        <label class="inputLabel" for="prefix">Präfix</label>
+        <input is="emby-input" id="prefix" type="text" />
+      </div>
+      <div class="inputContainer">
+        <label class="inputLabel" for="suffix">Suffix</label>
+        <input is="emby-input" id="suffix" type="text" />
+      </div>
+      <div class="inputContainer">
+        <label class="inputLabel" for="minItems">Mindestanzahl</label>
+        <input is="emby-input" id="minItems" type="number" min="1" />
+      </div>
+      <div class="inputContainer">
+        <label class="checkboxLabel">
+          <input type="checkbox" id="enableDailyScan" />
+          <span>Täglichen Scan aktivieren</span>
+        </label>
+      </div>
+      <div class="inputContainer">
+        <label class="inputLabel" for="scanTime">Uhrzeit</label>
+        <input is="emby-input" id="scanTime" type="time" />
+      </div>
+      <div class="inputContainer">
+        <label class="inputLabel" for="blacklist">Blacklist</label>
+        <input is="emby-input" id="blacklist" type="text" />
+      </div>
 
-  <div class="content-primary pageContainer" role="main">
-    <h1>Collections by Folder</h1>
+      <div class="fieldSet" style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;">
+        <button is="emby-button" type="button" class="raised" id="saveButton"><span>Speichern</span></button>
+        <button is="emby-button" type="button" class="raised" id="scanNowButton"><span>Jetzt scannen</span></button>
+      </div>
 
-    <!-- deine Eingabefelder -->
-    <div class="inputField">
-      <label for="prefix">Präfix</label>
-      <input type="text" id="prefix" />
+      <div id="cbf-status" style="margin-top:10px;"></div>
     </div>
-    <div class="inputField">
-      <label for="suffix">Suffix</label>
-      <input type="text" id="suffix" />
-    </div>
-
-    <div class="inputField">
-      <label>
-        <input type="checkbox" id="enableDailyScan" />
-        Täglichen Scan aktivieren
-      </label>
-    </div>
-
-    <button id="saveButton" class="raised button-submit block">Speichern</button>
-    <button id="scanNowButton" class="raised button block">Jetzt scannen</button>
   </div>
-</div>
 
-<script src="collectionsbyfolderjs"></script>
+  <!-- Name MUSS mit PluginPageInfo-Name der JS-Ressource übereinstimmen -->
+  <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
