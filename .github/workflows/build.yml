@@ -1,10 +1,9 @@
-name: Build Jellyfin Plugin
+name: Build and Release Jellyfin Plugin
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*' # startet automatisch bei jedem Tag wie v0.1.0, v0.1.1 usw.
   workflow_dispatch:
 
 jobs:
@@ -12,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -20,17 +19,59 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj
 
       - name: Build
         run: dotnet build src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --no-restore
 
-      - name: Publish plugin
+      - name: Publish
         run: dotnet publish src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --output ./publish
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - name: Create ZIP
+        run: |
+          cd publish
+          zip -r ../Jellyfin.Plugin.CollectionsByFolder.zip Jellyfin.Plugin.CollectionsByFolder.dll
+          cd ..
+
+      - name: Compute checksum
+        id: md5
+        run: echo "md5=$(md5sum Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
+
+      - name: Generate manifest.json
+        run: |
+          TAG=${GITHUB_REF_NAME}
+          VERSION=${TAG#v}
+          cat > manifest.json <<JSON
+          [
+            {
+              "category": "Library",
+              "guid": "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41",
+              "name": "CollectionsByFolder",
+              "owner": "Solas79",
+              "overview": "Erstellt/aktualisiert Collections anhand des letzten Ordnernamens.",
+              "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und täglicher Scan inkl. 'Jetzt scannen'-Button.",
+              "versions": [
+                {
+                  "version": "${VERSION}.0",
+                  "targetAbi": "10.10.0.0",
+                  "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/${TAG}/Jellyfin.Plugin.CollectionsByFolder.zip",
+                  "checksum": "${{ steps.md5.outputs.md5 }}",
+                  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+                  "changelog": "Automatischer Build für ${TAG}"
+                }
+              ]
+            }
+          ]
+          JSON
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: Jellyfin.Plugin.CollectionsByFolder
-          path: ./publish
+          name: CollectionsByFolder ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            Jellyfin.Plugin.CollectionsByFolder.zip
+            manifest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
