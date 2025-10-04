@@ -6,7 +6,37 @@
 </head>
 
   <script src="collectionsbyfolderjs"></script>
+  <script>
+  // [CBF PATCH] sanitize scrollTo options: behavior=null -> remove
+  (function () {
+    function sanitizeAndCall(orig, ctx, args) {
+      try {
+        if (args && args.length > 0 && typeof args[0] === "object" && args[0] !== null) {
+          if (Object.prototype.hasOwnProperty.call(args[0], "behavior") && args[0].behavior == null) {
+            // Verhalten "null" ist ungültig -> Property entfernen
+            args[0] = Object.assign({}, args[0]);
+            delete args[0].behavior;
+          }
+        }
+      } catch (e) { /* ignore */ }
+      return orig.apply(ctx, args || []);
+    }
 
+    try {
+      if (typeof window.scrollTo === "function") {
+        const _w = window.scrollTo;
+        window.scrollTo = function () { return sanitizeAndCall(_w, window, arguments); };
+        }
+
+      if (typeof Element !== "undefined" && Element.prototype && typeof Element.prototype.scrollTo === "function") {
+        const _e = Element.prototype.scrollTo;
+        Element.prototype.scrollTo = function () { return sanitizeAndCall(_e, this, arguments); };
+      }
+    } catch (e) {
+      // Falls ein Skin das verbietet: schweigend weitermachen
+    }
+  })();
+</script>
   <script>
   (function () {
     try {
