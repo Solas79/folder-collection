@@ -1,15 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-
-    <!-- Fix: Namen deterministisch machen -->
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
-
 
   <ItemGroup>
     <PackageReference Include="Jellyfin.Common" Version="10.10.0" />
@@ -18,10 +13,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
   </ItemGroup>
 
-  <!-- WICHTIG: so werden HTML/JS in die DLL eingebettet -->
+  <!-- Wichtig: Dateien im PROJEKT-ROOT einbetten -->
   <ItemGroup>
-    <EmbeddedResource Include="Configuration/index.html" />
-    <EmbeddedResource Include="Configuration/index.js" />
+    <EmbeddedResource Include="configPage.html" />
+    <EmbeddedResource Include="configPage.js" />
   </ItemGroup>
-
 </Project>
