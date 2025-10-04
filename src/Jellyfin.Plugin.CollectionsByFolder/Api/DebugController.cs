@@ -1,5 +1,5 @@
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
-using MediaBrowser.Controller.Library;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Api
 {
@@ -8,10 +8,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Api
     public class DebugController : ControllerBase
     {
         [HttpGet("Resources")]
-        public ActionResult GetResources()
+        public IActionResult Resources()
         {
-            var names = typeof(Plugin).Assembly.GetManifestResourceNames();
-            return Ok(names); // gibt ein Array mit allen eingebetteten Ressourcennamen zurück
+            var names = typeof(Plugin).Assembly.GetManifestResourceNames().OrderBy(n => n);
+            return Ok(names);
         }
     }
 }
