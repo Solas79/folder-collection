@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.CollectionsByFolder.Services;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using MediaBrowser.Model.Tasks;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.ScheduledTasks;
 
