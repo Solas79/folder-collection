@@ -8,11 +8,17 @@
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
   </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Server" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Controller" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.10.0" />
     <PackageReference Include="Jellyfin.Common" Version="10.10.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
+  </ItemGroup>
+
+  <!-- wichtig für die Konfig-Seite -->
+  <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\config.js" />
   </ItemGroup>
 </Project>
