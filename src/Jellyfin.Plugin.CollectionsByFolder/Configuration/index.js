@@ -1,9 +1,17 @@
-console.log("[CBF] index.js LOADED"); // Sichtbar, wenn Ressource OK geladen wurde
+console.log("[CBF] index.js LOADED");
 
 define(["loading"], function (loading) {
   "use strict";
   const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
   const $ = (id) => document.getElementById(id);
+
+  function status(msg) {
+    const el = $("cbf-status");
+    if (!el) return;
+    el.textContent = msg;
+    clearTimeout(el._t);
+    el._t = setTimeout(() => (el.textContent = ""), 4000);
+  }
 
   async function loadConfig() {
     try {
@@ -14,6 +22,7 @@ define(["loading"], function (loading) {
       $("enableDailyScan").checked = !!cfg.EnableDailyScan;
       $("scanTime").value = cfg.ScanTime || "03:00";
       $("blacklist").value = (cfg.Blacklist || []).join(", ");
+      $("folderPaths").value = (cfg.FolderPaths || []).join("\n");
     } catch (e) {
       console.error("[CBF] loadConfig", e);
       Dashboard.alert("Konfiguration konnte nicht geladen werden.");
@@ -29,7 +38,8 @@ define(["loading"], function (loading) {
       cfg.MinItemCount = parseInt($("minItems").value || "1", 10);
       cfg.EnableDailyScan = $("enableDailyScan").checked;
       cfg.ScanTime = $("scanTime").value || "03:00";
-      cfg.Blacklist = $("blacklist").value.split(",").map(s => s.trim()).filter(Boolean);
+      cfg.Blacklist = $("blacklist").value.split(",").map(s=>s.trim()).filter(Boolean);
+      cfg.FolderPaths = $("folderPaths").value.split("\n").map(s=>s.trim()).filter(Boolean);
 
       await ApiClient.updatePluginConfiguration(pluginId, cfg);
       Dashboard.processPluginConfigurationUpdateResult();
@@ -50,7 +60,8 @@ define(["loading"], function (loading) {
         method: "POST"
       });
       if (!resp.ok) throw new Error("HTTP " + resp.status);
-      status("Scan gestartet.");
+      const json = await resp.json();
+      status(`Scan gestartet: Kandidaten=${json.candidates}, erstellt=${json.created}, aktualisiert=${json.updated}, übersprungen=${json.skipped}`);
     } catch (e) {
       console.error("[CBF] scanNow", e);
       Dashboard.alert("Scan konnte nicht gestartet werden.");
@@ -59,19 +70,11 @@ define(["loading"], function (loading) {
     }
   }
 
-  function status(msg) {
-    const el = document.getElementById("cbf-status");
-    if (!el) return;
-    el.textContent = msg;
-    clearTimeout(el._t);
-    el._t = setTimeout(() => (el.textContent = ""), 4000);
-  }
-
   function bind() {
     const root = document.getElementById("collectionsByFolderPage");
-    if (!root) return; // nicht unsere Seite
-    document.getElementById("saveButton").addEventListener("click", e => { e.preventDefault(); saveConfig(); });
-    document.getElementById("scanNowButton").addEventListener("click", e => { e.preventDefault(); scanNow(); });
+    if (!root) return;
+    $("saveButton").addEventListener("click", e => { e.preventDefault(); saveConfig(); });
+    $("scanNowButton").addEventListener("click", e => { e.preventDefault(); scanNow(); });
     loadConfig();
   }
 
