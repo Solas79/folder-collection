@@ -1,7 +1,6 @@
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Model.IO; // <- wichtig für IApplicationPaths
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
@@ -12,8 +11,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public static Plugin Instance { get; private set; }
 
-        public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
-            : base(appPaths, xmlSerializer)
+        // 10.10: BasePlugin benötigt nur noch IXmlSerializer
+        public Plugin(IXmlSerializer xmlSerializer) : base(xmlSerializer)
         {
             Instance = this;
         }
@@ -27,7 +26,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
                 {
                     Name = "collectionsbyfolder",
                     EmbeddedResourcePath = ns + ".Configuration.index.html",
-                    Type = PluginPageType.Html,     // iframe-Seite
+                    Type = PluginPageType.Html,    // iframe-Seite
                     EnableInMainMenu = true
                 },
                 new PluginPageInfo
