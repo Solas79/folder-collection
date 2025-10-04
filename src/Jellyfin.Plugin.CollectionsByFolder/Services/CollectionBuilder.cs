@@ -84,7 +84,7 @@ public class CollectionBuilder
 
             var collection = await EnsureCollectionAsync(collName, ct);
 
-            await _collectionManager.AddToCollectionAsync(collection.Id, items.Select(i => i.Id).ToArray(), ct)
+            await _collectionManager.AddToCollectionAsync(collection.Id, items.Select(i => i.Id).ToArray())
                                     .ConfigureAwait(false);
             _logger.LogInformation("Collection '{Name}' aktualisiert: {Count} Einträge", collName, items.Count);
             affectedCollections++;
@@ -108,7 +108,7 @@ public class CollectionBuilder
             Name = name
         };
 
-        var created = await _collectionManager.CreateCollectionAsync(options, ct)
+       var created = await _collectionManager.CreateCollectionAsync(options)
                                              .ConfigureAwait(false);
         return created;
     }
