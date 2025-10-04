@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Globalization;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -11,7 +11,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         public static Plugin Instance { get; private set; } = null!;
-
         public override string Name => "CollectionsByFolder";
         public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
@@ -24,30 +23,21 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // Reale (eingebettete) Ressourcennamen ermitteln – robust gegen RootNamespace/Ordnerabweichungen
-            var names = GetType().Assembly.GetManifestResourceNames();
-
-            string? html = names.FirstOrDefault(n =>
-                n.EndsWith(".Configuration.index.html", StringComparison.OrdinalIgnoreCase));
-            string? js = names.FirstOrDefault(n =>
-                n.EndsWith(".Configuration.index.js", StringComparison.OrdinalIgnoreCase));
-
-            // Fallbacks (wenn was schief eingebettet wurde)
-            html ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.html";
-            js   ??= "Jellyfin.Plugin.CollectionsByFolder.Configuration.index.js";
-
+            var ns = GetType().Namespace!;
             return new[]
             {
+                // /web/collectionsbyfolder  -> html
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = html,
+                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.configPage.html", ns),
                     EnableInMainMenu = true
                 },
+                // /web/collectionsbyfolderjs -> js
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolderjs",
-                    EmbeddedResourcePath = js
+                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.configPage.js", ns)
                 }
             };
         }
