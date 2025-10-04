@@ -27,10 +27,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             var ns = GetType().Namespace;
             return new[]
             {
-                new PluginPageInfo
+            new PluginPageInfo
                 {
-                    Name = "collectionsbyfolder", // URL: ...?name=collectionsbyfolder
-                    EmbeddedResourcePath = ns + ".Configuration.index.html"
+                    Name = "collectionsbyfolder",
+                EmbeddedResourcePath = ns + ".Configuration.index.html",
+                    EnableInMainMenu = true,   // macht einen Menüeintrag
+                    Embedded = true            // sagt Jellyfin: im iframe laden!
                 },
                 new PluginPageInfo
                 {
