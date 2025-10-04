@@ -4,98 +4,109 @@
   <meta charset="utf-8" />
   <title>CollectionsByFolder</title>
 
-  <!-- Muss GANZ OBEN stehen: Patcht scrollTo bevor die Seite gerendert wird -->
+  <!-- 1) Patch: scrollTo-Sanitizer + Rejection-Handler (muss GANZ OBEN stehen) -->
   <script>
   (function () {
-    function wrap(fn) {
+    // Sanitize Element/window.scrollTo options: drop invalid behavior=null/undefined
+    function wrapScroll(fn) {
       return function () {
         try {
           var a0 = arguments[0];
-          if (a0 && typeof a0 === "object" && "behavior" in a0 && (a0.behavior === null || a0.behavior === "null")) {
+          if (a0 && typeof a0 === "object" && "behavior" in a0 && (a0.behavior == null || a0.behavior === "null")) {
             var copy = {};
             for (var k in a0) if (Object.prototype.hasOwnProperty.call(a0, k)) copy[k] = a0[k];
-            delete copy.behavior;         // ungültigen Wert entfernen
+            delete copy.behavior;
             arguments[0] = copy;
           }
         } catch (e) { /* no-op */ }
         return fn.apply(this, arguments);
       };
     }
-    if (typeof Element !== "undefined" && Element.prototype.scrollTo) {
-      Element.prototype.scrollTo = wrap(Element.prototype.scrollTo);
-    }
-    if (typeof window !== "undefined" && window.scrollTo) {
-      window.scrollTo = wrap(window.scrollTo);
-    }
+    try {
+      if (typeof Element !== "undefined" && Element.prototype.scrollTo) {
+        Element.prototype.scrollTo = wrapScroll(Element.prototype.scrollTo);
+      }
+      if (typeof window !== "undefined" && window.scrollTo) {
+        window.scrollTo = wrapScroll(window.scrollTo);
+      }
+    } catch (e) { /* no-op */ }
+
+    // 2) Fange den ersten unhandled rejection ab, damit Jellyfin nicht im Spinner bleibt
+    window.addEventListener("unhandledrejection", function (ev) {
+      try {
+        var msg = String(ev.reason && ev.reason.message || ev.reason || "");
+        if (msg.indexOf("Failed to read the 'behavior' property from 'ScrollOptions'") !== -1) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          return false;
+        }
+      } catch (e) { /* no-op */ }
+    }, true);
   })();
   </script>
 </head>
 <body>
-  <div id="cbf-Page"
-       data-role="page"
-       class="page type-interior pluginConfigurationPage"
-       data-require="emby-button,emby-input,emby-select">
-    <div data-role="content">
-      <div class="content-primary">
-        <form class="cbf-Form">
-          <div class="verticalSection">
-            <h2>Sammlungen nach Ordnern</h2>
-            <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
+  <!-- 3) WICHTIG: KEIN data-role="page" mehr -> vermeidet jQM-Auto-Scroll -->
+  <div id="cbf-Root" class="page type-interior pluginConfigurationPage" data-require="emby-button,emby-input,emby-select">
+    <div class="content-primary">
+      <form class="cbf-Form">
+        <div class="verticalSection">
+          <h2>Sammlungen nach Ordnern</h2>
+          <p>Erstellt Collections anhand des letzten Ordnernamens.</p>
 
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-folderPaths">Filmverzeichnisse (kommasepariert)</label>
-              <input is="emby-input" id="cbf-folderPaths" type="text" />
-            </div>
-
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-prefix">Präfix</label>
-              <input is="emby-input" id="cbf-prefix" type="text" />
-            </div>
-
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-suffix">Suffix</label>
-              <input is="emby-input" id="cbf-suffix" type="text" />
-            </div>
-
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-blacklist">Blacklist (kommasepariert)</label>
-              <input is="emby-input" id="cbf-blacklist" type="text" />
-            </div>
-
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-minItemCount">Minimale Anzahl Filme pro Ordner</label>
-              <input is="emby-input" id="cbf-minItemCount" type="number" min="1" />
-            </div>
-
-            <div class="inputContainer">
-              <label class="checkboxLabel">
-                <input type="checkbox" id="cbf-enableDailyScan" />
-                <span>Täglichen Scan aktivieren</span>
-              </label>
-            </div>
-
-            <div class="inputContainer">
-              <label class="inputLabel" for="cbf-scanTime">Uhrzeit (HH:MM)</label>
-              <input is="emby-input" id="cbf-scanTime" type="time" />
-            </div>
-
-            <div class="fieldSet" style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
-              <button is="emby-button" type="button" class="raised" id="cbf-btnSave">
-                <span>Speichern</span>
-              </button>
-              <button is="emby-button" type="button" class="raised" id="cbf-btnScan">
-                <span>Jetzt scannen</span>
-              </button>
-            </div>
-
-            <div id="cbf-status" style="margin-top:10px;"></div>
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-folderPaths">Filmverzeichnisse (kommasepariert)</label>
+            <input is="emby-input" id="cbf-folderPaths" type="text" />
           </div>
-        </form>
-      </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-prefix">Präfix</label>
+            <input is="emby-input" id="cbf-prefix" type="text" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-suffix">Suffix</label>
+            <input is="emby-input" id="cbf-suffix" type="text" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-blacklist">Blacklist (kommasepariert)</label>
+            <input is="emby-input" id="cbf-blacklist" type="text" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-minItemCount">Minimale Anzahl Filme pro Ordner</label>
+            <input is="emby-input" id="cbf-minItemCount" type="number" min="1" />
+          </div>
+
+          <div class="inputContainer">
+            <label class="checkboxLabel">
+              <input type="checkbox" id="cbf-enableDailyScan" />
+              <span>Täglichen Scan aktivieren</span>
+            </label>
+          </div>
+
+          <div class="inputContainer">
+            <label class="inputLabel" for="cbf-scanTime">Uhrzeit (HH:MM)</label>
+            <input is="emby-input" id="cbf-scanTime" type="time" />
+          </div>
+
+          <div class="fieldSet" style="margin-top:.5rem; display:flex; gap:.5rem; flex-wrap:wrap;">
+            <button is="emby-button" type="button" class="raised" id="cbf-btnSave">
+              <span>Speichern</span>
+            </button>
+            <button is="emby-button" type="button" class="raised" id="cbf-btnScan">
+              <span>Jetzt scannen</span>
+            </button>
+          </div>
+
+          <div id="cbf-status" style="margin-top:10px;"></div>
+        </div>
+      </form>
     </div>
   </div>
 
-  <!-- unsere AMD-Logik -->
+  <!-- Lädt unsere AMD-Logik -->
   <script src="collectionsbyfolderjs"></script>
 </body>
 </html>
