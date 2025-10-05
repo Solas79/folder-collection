@@ -19,18 +19,24 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             Instance = this;
         }
 
-        public IEnumerable<PluginPageInfo> GetPages() => new[]
+        public IEnumerable<PluginPageInfo> GetPages()
         {
-            // HTML → /web/configurationpage?name=collectionsbyfolder
-            new PluginPageInfo {
-                Name = "collectionsbyfolder",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
-            },
-            // JS   → /web/configurationpage?name=configPage.js
-            new PluginPageInfo {
-                Name = "configPage.js",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
-            }
-        };
+            var ns = typeof(Plugin).Namespace!;
+            return new[]
+            {
+                // HTML: /web/configurationpage?name=collectionsbyfolder
+                new PluginPageInfo
+                {
+                    Name = "collectionsbyfolder",
+                    EmbeddedResourcePath = $"{ns}.Web.config.html"
+                },
+                // JS: /web/collectionsbyfolderjs   (KEIN configurationpage!)
+                new PluginPageInfo
+                {
+                    Name = "collectionsbyfolderjs",
+                    EmbeddedResourcePath = $"{ns}.Web.config.js"
+                }
+            };
+        }
     }
 }
