@@ -22,6 +22,12 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
   </ItemGroup>
 
+  <!-- Entferne evtl. Default-None-Einträge -->
+   <ItemGroup>
+     <None Remove="configPage.html" />
+     <None Remove="configPage.js" />
+   </ItemGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="configPage.html">
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
