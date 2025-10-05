@@ -25,14 +25,16 @@ namespace Jellyfin.Plugin.CollectionsByFolder
         {
             new PluginPageInfo
             {
+                // /web/collectionsbyfolder  → HTML
                 Name = "collectionsbyfolder",
-                EmbeddedResourcePath = $"{GetType().Namespace}.configPage.html"
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
             new PluginPageInfo
             {
+                // /web/collectionsbyfolderjs → JS
                 Name = "collectionsbyfolderjs",
-                EmbeddedResourcePath = $"{GetType().Namespace}.configPage.js"
-            }
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
+            }    
         };
 
     }
