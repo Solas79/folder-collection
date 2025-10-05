@@ -1,54 +1,40 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Collections by Folder</title>
-</head>
-<body>
-  <div id="collectionsByFolderPage"
-       data-role="page"
-       class="page type-interior pluginConfigurationPage"
-       data-require="emby-button,emby-input,collectionsbyfolderjs"
-       data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
+<!-- configPage.html -->
+<div data-role="page" class="page type-interior pluginConfigurationPage" data-title="Collections by Folder">
+  <div class="content-primary">
+    <h1>Collections by Folder</h1>
 
-    <div data-role="content" class="content-primary" role="main">
-      <h1>Collections by Folder</h1>
-      <p>Erstellt automatisch Sammlungen anhand von Verzeichnissen.</p>
+    <div class="inputContainer">
+      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+      <textarea id="whitelist" rows="6"></textarea>
+    </div>
 
-      <form class="pluginConfigurationForm">
-        <div class="inputContainer">
-          <label class="inputLabel">Whitelist (ein Pfad pro Zeile)</label>
-          <textarea id="whitelist" class="emby-input" rows="6"></textarea>
-        </div>
+    <div class="inputContainer">
+      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+      <textarea id="blacklist" rows="6"></textarea>
+    </div>
 
-        <div class="inputContainer">
-          <label class="inputLabel">Blacklist (ein Pfad pro Zeile)</label>
-          <textarea id="blacklist" class="emby-input" rows="6"></textarea>
-        </div>
+    <div class="inputContainer">
+      <label for="prefix">Präfix</label>
+      <input id="prefix" type="text"/>
+    </div>
 
-        <div class="inputContainer">
-          <label class="inputLabel">Präfix</label>
-          <input id="prefix" type="text" class="emby-input" />
-        </div>
+    <div class="inputContainer">
+      <label for="suffix">Suffix</label>
+      <input id="suffix" type="text"/>
+    </div>
 
-        <div class="inputContainer">
-          <label class="inputLabel">Suffix</label>
-          <input id="suffix" type="text" class="emby-input" />
-        </div>
+    <div class="inputContainer">
+      <label for="minfiles">Mindestanzahl Dateien</label>
+      <input id="minfiles" type="number" min="1"/>
+    </div>
 
-        <div class="inputContainer">
-          <label class="inputLabel">Mindestanzahl Dateien</label>
-          <input id="minfiles" type="number" min="1" class="emby-input" value="2" />
-        </div>
-
-        <div style="margin-top:1.2em">
-          <button id="saveButton" is="emby-button" type="button" class="raised button-submit block">Speichern</button>
-          <button id="scanNowButton" is="emby-button" type="button" class="raised button-cancel block" style="margin-top:.5em;">Jetzt scannen</button>
-        </div>
-
-        <div id="cbf-status" style="margin-top:.75em;"></div>
-      </form>
+    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
+      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <span id="cbf-status" style="margin-left:1rem;"></span>
     </div>
   </div>
-</body>
-</html>
+
+  <!-- Wichtig: JS der Seite laden -->
+  <script src="collectionsbyfolderjs"></script>
+</div>
