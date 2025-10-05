@@ -1,3 +1,4 @@
+<!-- CollectionsByFolder Config (minimal) -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -8,13 +9,13 @@
     <h1>Collections by Folder</h1>
 
     <div class="inputContainer">
-      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-      <textarea id="whitelist" rows="6" spellcheck="false"></textarea>
+      <label for="whitelist">Whitelist</label>
+      <textarea id="whitelist" rows="4"></textarea>
     </div>
 
     <div class="inputContainer">
-      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-      <textarea id="blacklist" rows="6" spellcheck="false"></textarea>
+      <label for="blacklist">Blacklist</label>
+      <textarea id="blacklist" rows="4"></textarea>
     </div>
 
     <div class="inputContainer">
@@ -29,7 +30,7 @@
 
     <div class="inputContainer">
       <label for="minfiles">Mindestanzahl Dateien</label>
-      <input id="minfiles" type="number" min="0" value="0" />
+      <input id="minfiles" type="number" min="0" value="2" />
     </div>
 
     <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
@@ -39,16 +40,6 @@
     </div>
   </div>
 
-  <!-- WICHTIG: so lädt Jellyfin Plugin-JS -->
-  <script>
-    (function(){
-      var url = (window.ApiClient && typeof ApiClient.getUrl === 'function')
-        ? ApiClient.getUrl('web/configPage.js')
-        : '/web/configPage.js';
-      var s = document.createElement('script');
-      s.src = url;
-      s.async = false;
-      document.body.appendChild(s);
-    })();
-  </script>
+  <!-- JS direkt über /web/<Name> laden -->
+  <script src="configPage.js"></script>
 </div>
