@@ -18,14 +18,15 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            // HTML-Seite unter /web/collectionsbyfolder
-            new PluginPageInfo {
+            // HTML → /web/collectionsbyfolder
+            new PluginPageInfo
+            {
                 Name = "collectionsbyfolder",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html",
-                IsMainConfigPage = true
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
-            // JS explizit mit .js -> /web/configPage.js
-            new PluginPageInfo {
+            // JS   → /web/configPage.js  (genau so im HTML referenzieren)
+            new PluginPageInfo
+            {
                 Name = "configPage.js",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }
