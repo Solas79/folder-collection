@@ -21,25 +21,19 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             Instance = this;
         }
 
-        public IEnumerable<PluginPageInfo> GetPages()
+        public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            var ns = GetType().Namespace!;
-            return new[]
+            new PluginPageInfo
             {
-                // /web/collectionsbyfolder  -> html
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.configPage.html", ns),
-                    EnableInMainMenu = true
-                },
-                // /web/collectionsbyfolderjs -> js
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolderjs",
-                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.configPage.js", ns)
-                }
-            };
-        }
+                Name = "collectionsbyfolder",
+                EmbeddedResourcePath = $"{GetType().Namespace}.configPage.html"
+            },
+            new PluginPageInfo
+            {
+                Name = "collectionsbyfolderjs",
+                EmbeddedResourcePath = $"{GetType().Namespace}.configPage.js"
+            }
+        };
+
     }
 }
