@@ -60,7 +60,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             return new[]
             {
                 new PluginPageInfo { Name = "collectionsbyfolder",  EmbeddedResourcePath = find(".configPage.html") },
-                new PluginPageInfo { Name = "collectionsbyfolderjs", EmbeddedResourcePath = find(".configPage.js") }
+                new PluginPageInfo { Name = "cbf_js", EmbeddedResourcePath = find(".configPage.js") }
             };
         }
 
