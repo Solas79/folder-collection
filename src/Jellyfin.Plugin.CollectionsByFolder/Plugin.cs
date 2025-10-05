@@ -15,41 +15,49 @@ namespace Jellyfin.Plugin.CollectionsByFolder
         public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
 
-        // ✅ Richtig für 10.10/net8: nur IXmlSerializer
-        public Plugin(IApplicationPaths paths, IXmlSerializer xml)
-            : base(paths, xml)
+        public Plugin(IApplicationPaths paths, IXmlSerializer xml) : base(paths, xml)
         {
             Instance = this;
         }
 
-        private static string FindRes(string suffix)
+        // 🔎 wirf NICHT mehr – liefere null, wenn nicht gefunden
+        private static string? TryFindRes(string suffix)
         {
             var names = typeof(Plugin).Assembly.GetManifestResourceNames();
-            var hit = names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
-            if (hit == null)
-                throw new InvalidOperationException($"CBF: EmbeddedResource '{suffix}' nicht gefunden. Vorhanden: {string.Join(" | ", names)}");
-            return hit;
+            return names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
         }
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            Console.WriteLine("[CBF] GetPages() aufgerufen");
-            var names = typeof(Plugin).Assembly.GetManifestResourceNames();
-            Console.WriteLine("[CBF] Res in DLL: " + string.Join(" | ", names));
+            // HTML **immer** registrieren (mit robustem Fallback auf den erwarteten LogicalName)
+            var htmlRes = TryFindRes(".configPage.html")
+                          ?? "Jellyfin.Plugin.CollectionsByFolder.configPage.html";
 
-            string find(string suffix)
+            var pages = new List<PluginPageInfo>
             {
-                var hit = names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
-                if (hit == null) throw new InvalidOperationException($"[CBF] '{suffix}' nicht gefunden.");
-                Console.WriteLine("[CBF] Treffer " + suffix + ": " + hit);
-                return hit;
+                new PluginPageInfo
+                {
+                    Name = "collectionsbyfolder",              // → /web/collectionsbyfolder
+                    EmbeddedResourcePath = htmlRes
+                }
+            };
+
+            // JS **nur** registrieren, wenn vorhanden – sonst macht später die HTML den Inline-Fallback
+            var jsRes = TryFindRes(".configPage.js");
+            if (jsRes != null)
+            {
+                pages.Add(new PluginPageInfo
+                {
+                    Name = "cbf_js",                           // → /web/cbf_js
+                    EmbeddedResourcePath = jsRes
+                });
+            }
+            else
+            {
+                Console.WriteLine("[CBF] WARN: JS-Ressource nicht gefunden – Inline-Fallback nutzen.");
             }
 
-            return new[]
-            {
-                new PluginPageInfo { Name = "collectionsbyfolder", EmbeddedResourcePath = find(".configPage.html") },
-                new PluginPageInfo { Name = "cbf_js", EmbeddedResourcePath = find(".configPage.js") }
-            };
+            return pages;
         }
     }
 }
