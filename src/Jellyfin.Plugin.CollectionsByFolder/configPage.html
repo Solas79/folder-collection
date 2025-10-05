@@ -1,4 +1,4 @@
-<!-- Config-Seite: /web/collectionsbyfolder -->
+<!-- Datei: configPage.html -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -39,76 +39,6 @@
     </div>
   </div>
 
-  <!-- Sichtbarer Hinweis, dass diese HTML aus der aktuellen DLL kommt -->
-  <div style="margin-top:1rem;padding:.5rem;border:1px dashed;opacity:.8">
-    <strong>CBF INLINE DEBUG AKTIV</strong> – wenn du das siehst, kommt die HTML von der NEUEN DLL.
-  </div>
-
-  <!-- Inline-JS: macht die Buttons SOFORT funktionsfähig (kein externer /web/...-Pfad nötig) -->
-  <script>
-  (function(){
-    console.log('[CBF] Inline-Script gestartet');
-    const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-
-    function setStatus(msg){
-      const el = document.getElementById('cbf-status');
-      if (el) el.textContent = msg;
-      console.log('[CBF]', msg);
-    }
-
-    function loadConfig(){
-      if (!window.ApiClient?.getPluginConfiguration) {
-        setStatus('ApiClient fehlt (Inline)');
-        return;
-      }
-      ApiClient.getPluginConfiguration(pluginId).then(cfg=>{
-        (document.getElementById('whitelist')||{}).value=(cfg?.Whitelist||[]).join('\n');
-        (document.getElementById('blacklist')||{}).value=(cfg?.Blacklist||[]).join('\n');
-        (document.getElementById('prefix')||{}).value=cfg?.Prefix||'';
-        (document.getElementById('suffix')||{}).value=cfg?.Suffix||'';
-        (document.getElementById('minfiles')||{}).value=String(cfg?.MinFiles||0);
-        setStatus('Konfiguration geladen (Inline)');
-      }).catch(err=>setStatus('Fehler Laden (Inline): '+(err?.message||err)));
-    }
-
-    function onSave(e){
-      e?.preventDefault();
-      setStatus('Speichern… (Inline)');
-      const cfg={
-        Whitelist:(document.getElementById('whitelist')?.value||'').split('\n').filter(Boolean),
-        Blacklist:(document.getElementById('blacklist')?.value||'').split('\n').filter(Boolean),
-        Prefix:document.getElementById('prefix')?.value||'',
-        Suffix:document.getElementById('suffix')?.value||'',
-        MinFiles:parseInt(document.getElementById('minfiles')?.value||'0',10)||0
-      };
-      if (!window.ApiClient?.updatePluginConfiguration) {
-        setStatus('Klick erkannt ✔ (Inline, kein ApiClient)');
-        return;
-      }
-      ApiClient.updatePluginConfiguration(pluginId, cfg)
-        .then(()=>setStatus('Gespeichert ✔ (Inline)'))
-        .catch(err=>setStatus('Fehler: '+(err?.message||err)));
-    }
-
-    function onScan(e){
-      e?.preventDefault();
-      setStatus('Scan gestartet… (Inline)');
-      setTimeout(()=>setStatus('Scan abgeschlossen ✔ (Inline Demo)'), 800);
-    }
-
-    function init(){
-      document.getElementById('saveButton')?.addEventListener('click', onSave);
-      document.getElementById('scanNowButton')?.addEventListener('click', onScan);
-      loadConfig();
-      setStatus('Bereit (Inline)');
-      console.log('[CBF] Listener gebunden (Inline)');
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
-  })();
-  </script>
+  <!-- Wichtig: externes JS laden; Inline-Script NICHT benutzen -->
+  <script src="collectionsbyfolderjs"></script>
 </div>
