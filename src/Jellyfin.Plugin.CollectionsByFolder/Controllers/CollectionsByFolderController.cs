@@ -1,19 +1,20 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
     // Feste Basisroute: /Plugins/CollectionsByFolder/...
-    [ApiController]
     [Route("Plugins/CollectionsByFolder")]
-    public class CollectionsByFolderController : ControllerBase
+    [AllowAnonymous] // erlaubt Aufrufe ohne Token (wichtig bei reinem HTML-Form)
+    public class CollectionsByFolderController : Controller
     {
         private static List<string> SplitLines(string? text) =>
             string.IsNullOrWhiteSpace(text)
                 ? new List<string>()
-                : text.Replace("\r\n","\n").Replace("\r","\n")
+                : text.Replace("\r\n", "\n").Replace("\r", "\n")
                       .Split('\n', StringSplitOptions.RemoveEmptyEntries)
                       .Select(s => s.Trim())
                       .Where(s => s.Length > 0)
@@ -24,19 +25,14 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
         [HttpGet("Ping")]
         public IActionResult Ping()
         {
-            try
-            {
-                return Content("ok", "text/plain");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, "CBF Ping Fehler: " + ex.GetType().Name + ": " + ex.Message);
-            }
+            // bewusst ohne jegliche Abhängigkeiten
+            return Content("ok", "text/plain");
         }
 
         // POST /Plugins/CollectionsByFolder/Save
         [HttpPost("Save")]
         [Consumes("application/x-www-form-urlencoded")]
+        [IgnoreAntiforgeryToken] // falls globales CSRF aktiv
         public IActionResult Save(
             [FromForm] string? whitelist,
             [FromForm] string? blacklist,
