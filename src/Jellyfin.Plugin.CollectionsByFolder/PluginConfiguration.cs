@@ -3,23 +3,19 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
+    /// <summary>
+    /// Persistente Plugin-Einstellungen. Wird automatisch (de)serialisiert.
+    /// </summary>
     public class PluginConfiguration : BasePluginConfiguration
     {
-        // Whitelist (Scan-Verzeichnisse), ein Pfad pro Zeile (in UI)
         public List<string> Whitelist { get; set; } = new();
-
-        // Fallback: alte Eigenschaft – wird genutzt, wenn Whitelist leer bleibt
-        public List<string> FolderPaths { get; set; } = new();
-
-        // Blacklist: Ordnernamen oder Teilstrings (ein Eintrag pro Zeile in UI)
         public List<string> Blacklist { get; set; } = new();
 
-        public string? Prefix { get; set; }
-        public string? Suffix { get; set; }
+        public string Prefix { get; set; } = string.Empty;
+        public string Suffix { get; set; } = string.Empty;
 
-        public int MinItemCount { get; set; } = 1;
-
-        public bool EnableDailyScan { get; set; } = false;
-        public string ScanTime { get; set; } = "03:00";
+        // 👇 Das fehlte dir – Standard 0, damit Builds und Deserialisierung sicher sind.
+        public int MinFiles { get; set; } = 0;
     }
 }
+
