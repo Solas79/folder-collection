@@ -1,6 +1,5 @@
 using System;
-using System.Collections.Generic;    
-using System.Linq;
+using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -21,30 +20,17 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             Instance = this;
         }
 
-        private static string FindRes(string suffix)
-        {
-            var asm = typeof(Plugin).Assembly;
-            var names = asm.GetManifestResourceNames();
-            var hit = names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
-            if (hit == null)
-            {
-                throw new InvalidOperationException(
-                    $"CBF: EmbeddedResource '{suffix}' nicht gefunden. Vorhanden: {string.Join(", ", names)}");
-            }
-            return hit;
-        }
-
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
             new PluginPageInfo
             {
-                Name = "collectionsbyfolder",          // /web/collectionsbyfolder
-                EmbeddedResourcePath = FindRes(".configPage.html")
+                Name = "collectionsbyfolder",      // -> /web/collectionsbyfolder
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
             new PluginPageInfo
             {
-                Name = "collectionsbyfolderjs",       // /web/collectionsbyfolderjs
-                EmbeddedResourcePath = FindRes(".configPage.js")
+                Name = "collectionsbyfolderjs",    // -> /web/collectionsbyfolderjs
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }
         };
     }
