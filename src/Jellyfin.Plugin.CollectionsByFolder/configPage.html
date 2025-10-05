@@ -1,35 +1,35 @@
-<!-- configPage.html -->
+<!-- Config-Seite: /web/collectionsbyfolder -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
-     data-pluginid="cda3a99a-7db0-4a69-a9c4-2238e1d5b9b4">
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
 
   <div class="content-primary">
     <h1>Collections by Folder</h1>
 
     <div class="inputContainer">
       <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-      <textarea id="whitelist" rows="4"></textarea>
+      <textarea id="whitelist" rows="5"></textarea>
     </div>
 
     <div class="inputContainer">
       <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-      <textarea id="blacklist" rows="4"></textarea>
+      <textarea id="blacklist" rows="5"></textarea>
     </div>
 
     <div class="inputContainer">
       <label for="prefix">Präfix</label>
-      <input id="prefix" type="text">
+      <input id="prefix" type="text" />
     </div>
 
     <div class="inputContainer">
       <label for="suffix">Suffix</label>
-      <input id="suffix" type="text">
+      <input id="suffix" type="text" />
     </div>
 
     <div class="inputContainer">
       <label for="minfiles">Mindestanzahl Dateien</label>
-      <input id="minfiles" type="number" min="1">
+      <input id="minfiles" type="number" min="0" />
     </div>
 
     <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
@@ -39,84 +39,76 @@
     </div>
   </div>
 
-  <!-- WICHTIG: dein eingebettetes JS laden -->
-  <!-- Datei: configPage.html -->
-<script>
-(function () {
-  var s = document.createElement('script');
+  <!-- Sichtbarer Hinweis, dass diese HTML aus der aktuellen DLL kommt -->
+  <div style="margin-top:1rem;padding:.5rem;border:1px dashed;opacity:.8">
+    <strong>CBF INLINE DEBUG AKTIV</strong> – wenn du das siehst, kommt die HTML von der NEUEN DLL.
+  </div>
 
-  // Base-URL-sicher (funktioniert mit /, /jellyfin, Reverse Proxy etc.)
-  var url = (window.ApiClient && typeof ApiClient.getUrl === 'function')
-    ? ApiClient.getUrl('web/cbf_js')
-    : '/web/cbf_js';
+  <!-- Inline-JS: macht die Buttons SOFORT funktionsfähig (kein externer /web/...-Pfad nötig) -->
+  <script>
+  (function(){
+    console.log('[CBF] Inline-Script gestartet');
+    const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
 
-  s.src = url;
+    function setStatus(msg){
+      const el = document.getElementById('cbf-status');
+      if (el) el.textContent = msg;
+      console.log('[CBF]', msg);
+    }
 
-  // 👇 Fallback: Wenn /web/cbf_js 404 liefert, binden wir Inline-JS
-  s.onerror = function () {
-    console.warn('[CBF] /web/cbf_js nicht erreichbar – Fallback auf Inline-JS');
-    var f = document.createElement('script');
-    f.type = 'text/javascript';
-    f.text = `
-      (function(){
-        const pluginId='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-        function setStatus(m){const el=document.getElementById('cbf-status'); if(el) el.textContent=m; console.log('[CBF]',m);}
+    function loadConfig(){
+      if (!window.ApiClient?.getPluginConfiguration) {
+        setStatus('ApiClient fehlt (Inline)');
+        return;
+      }
+      ApiClient.getPluginConfiguration(pluginId).then(cfg=>{
+        (document.getElementById('whitelist')||{}).value=(cfg?.Whitelist||[]).join('\n');
+        (document.getElementById('blacklist')||{}).value=(cfg?.Blacklist||[]).join('\n');
+        (document.getElementById('prefix')||{}).value=cfg?.Prefix||'';
+        (document.getElementById('suffix')||{}).value=cfg?.Suffix||'';
+        (document.getElementById('minfiles')||{}).value=String(cfg?.MinFiles||0);
+        setStatus('Konfiguration geladen (Inline)');
+      }).catch(err=>setStatus('Fehler Laden (Inline): '+(err?.message||err)));
+    }
 
-        function load(){
-          if (window.ApiClient && typeof ApiClient.getPluginConfiguration==='function') {
-            ApiClient.getPluginConfiguration(pluginId).then(cfg=>{
-              (document.getElementById('whitelist')||{}).value=(cfg.Whitelist||[]).join('\\n');
-              (document.getElementById('blacklist')||{}).value=(cfg.Blacklist||[]).join('\\n');
-              (document.getElementById('prefix')||{}).value=cfg.Prefix||'';
-              (document.getElementById('suffix')||{}).value=cfg.Suffix||'';
-              (document.getElementById('minfiles')||{}).value=String(cfg.MinFiles||0);
-              setStatus('Konfiguration geladen (Fallback)');
-            }).catch(err=>setStatus('Fehler beim Laden (Fallback): '+(err?.message||err)));
-          } else {
-            setStatus('Fallback aktiv – ApiClient nicht gefunden');
-          }
-        }
+    function onSave(e){
+      e?.preventDefault();
+      setStatus('Speichern… (Inline)');
+      const cfg={
+        Whitelist:(document.getElementById('whitelist')?.value||'').split('\n').filter(Boolean),
+        Blacklist:(document.getElementById('blacklist')?.value||'').split('\n').filter(Boolean),
+        Prefix:document.getElementById('prefix')?.value||'',
+        Suffix:document.getElementById('suffix')?.value||'',
+        MinFiles:parseInt(document.getElementById('minfiles')?.value||'0',10)||0
+      };
+      if (!window.ApiClient?.updatePluginConfiguration) {
+        setStatus('Klick erkannt ✔ (Inline, kein ApiClient)');
+        return;
+      }
+      ApiClient.updatePluginConfiguration(pluginId, cfg)
+        .then(()=>setStatus('Gespeichert ✔ (Inline)'))
+        .catch(err=>setStatus('Fehler: '+(err?.message||err)));
+    }
 
-        function save(e){
-          e && e.preventDefault();
-          setStatus('Speichern… (Fallback)');
-          const cfg={
-            Whitelist:(document.getElementById('whitelist')?.value||'').split('\\n').filter(Boolean),
-            Blacklist:(document.getElementById('blacklist')?.value||'').split('\\n').filter(Boolean),
-            Prefix:document.getElementById('prefix')?.value||'',
-            Suffix:document.getElementById('suffix')?.value||'',
-            MinFiles:parseInt(document.getElementById('minfiles')?.value||'0',10)||0
-          };
-          if(window.ApiClient?.updatePluginConfiguration){
-            ApiClient.updatePluginConfiguration(pluginId,cfg)
-              .then(()=>setStatus('Gespeichert ✔ (Fallback)'))
-              .catch(err=>setStatus('Fehler: '+(err?.message||err)));
-          } else {
-            setStatus('Klick erkannt ✔ (Fallback, kein ApiClient)');
-          }
-        }
+    function onScan(e){
+      e?.preventDefault();
+      setStatus('Scan gestartet… (Inline)');
+      setTimeout(()=>setStatus('Scan abgeschlossen ✔ (Inline Demo)'), 800);
+    }
 
-        function scan(e){
-          e && e.preventDefault();
-          setStatus('Scan gestartet… (Fallback)');
-          setTimeout(()=>setStatus('Scan abgeschlossen ✔ (Fallback)'),800);
-        }
+    function init(){
+      document.getElementById('saveButton')?.addEventListener('click', onSave);
+      document.getElementById('scanNowButton')?.addEventListener('click', onScan);
+      loadConfig();
+      setStatus('Bereit (Inline)');
+      console.log('[CBF] Listener gebunden (Inline)');
+    }
 
-        function init(){
-          document.getElementById('saveButton')?.addEventListener('click',save);
-          document.getElementById('scanNowButton')?.addEventListener('click',scan);
-          load();
-          setStatus('Bereit (Fallback)');
-          console.log('[CBF] Listener gebunden (Fallback)');
-        }
-
-        if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);} else {init();}
-      })();`;
-    document.currentScript.parentNode.appendChild(f);
-  };
-
-  document.currentScript.parentNode.appendChild(s);
-})();
-</script>
-
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
 </div>
