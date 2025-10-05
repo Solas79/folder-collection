@@ -18,20 +18,12 @@
   </ItemGroup>
 
   <ItemGroup>
-   <None Remove="configPage.html" />
-   <None Remove="configPage.js" />
-   <None Remove="ping.txt" />
+   <None Remove="configPage.html" />   
  </ItemGroup>
 
  <ItemGroup>
    <EmbeddedResource Include="configPage.html">
      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
-   </EmbeddedResource>
-   <EmbeddedResource Include="configPage.js">
-     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
-   </EmbeddedResource>
-   <EmbeddedResource Include="ping.txt">
-     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.ping.txt</LogicalName>
    </EmbeddedResource>
  </ItemGroup>
 
