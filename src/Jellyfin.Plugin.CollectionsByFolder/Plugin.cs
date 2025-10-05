@@ -1,6 +1,6 @@
+// Datei: Plugin.cs
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -15,49 +15,27 @@ namespace Jellyfin.Plugin.CollectionsByFolder
         public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
 
+        // 10.10/net8 → IXmlSerializer
         public Plugin(IApplicationPaths paths, IXmlSerializer xml) : base(paths, xml)
         {
             Instance = this;
         }
 
-        // 🔎 wirf NICHT mehr – liefere null, wenn nicht gefunden
-        private static string? TryFindRes(string suffix)
+        // Registriere BEIDE Seiten mit festen, geprüften Ressourcennamen:
+        public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            var names = typeof(Plugin).Assembly.GetManifestResourceNames();
-            return names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
-        }
-
-        public IEnumerable<PluginPageInfo> GetPages()
-        {
-            // HTML **immer** registrieren (mit robustem Fallback auf den erwarteten LogicalName)
-            var htmlRes = TryFindRes(".configPage.html")
-                          ?? "Jellyfin.Plugin.CollectionsByFolder.configPage.html";
-
-            var pages = new List<PluginPageInfo>
+            new PluginPageInfo
             {
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolder",              // → /web/collectionsbyfolder
-                    EmbeddedResourcePath = htmlRes
-                }
-            };
-
-            // JS **nur** registrieren, wenn vorhanden – sonst macht später die HTML den Inline-Fallback
-            var jsRes = TryFindRes(".configPage.js");
-            if (jsRes != null)
+                // HTML → /web/collectionsbyfolder
+                Name = "collectionsbyfolder",
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
+            },
+            new PluginPageInfo
             {
-                pages.Add(new PluginPageInfo
-                {
-                    Name = "cbf_js",                           // → /web/cbf_js
-                    EmbeddedResourcePath = jsRes
-                });
+                // JS → /web/collectionsbyfolderjs
+                Name = "collectionsbyfolderjs",
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }
-            else
-            {
-                Console.WriteLine("[CBF] WARN: JS-Ressource nicht gefunden – Inline-Fallback nutzen.");
-            }
-
-            return pages;
-        }
+        };
     }
 }
