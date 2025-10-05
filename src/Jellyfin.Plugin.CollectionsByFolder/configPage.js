@@ -1,6 +1,5 @@
 define([], function () {
   'use strict';
-
   const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
 
   function setStatus(view, msg) {
@@ -9,15 +8,12 @@ define([], function () {
     console.log('[CBF]', msg);
   }
 
-  function linesToList(text) {
-    return (text || '').replace(/\r\n?/g, '\n').split('\n').map(s=>s.trim()).filter(Boolean);
+  function linesToList(t) {
+    return (t || '').replace(/\r\n?/g, '\n').split('\n').map(s=>s.trim()).filter(Boolean);
   }
 
   function loadConfig(view) {
-    if (!window.ApiClient?.getPluginConfiguration) {
-      setStatus(view, 'ApiClient nicht verfügbar');
-      return Promise.resolve();
-    }
+    if (!window.ApiClient?.getPluginConfiguration) { setStatus(view,'ApiClient nicht verfügbar'); return Promise.resolve(); }
     return ApiClient.getPluginConfiguration(pluginId).then(cfg => {
       view.querySelector('#whitelist').value = (cfg.Whitelist || []).join('\n');
       view.querySelector('#blacklist').value = (cfg.Blacklist || []).join('\n');
@@ -29,11 +25,8 @@ define([], function () {
   }
 
   function onSave(view, e) {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
-    e?.stopImmediatePropagation?.();
+    e?.preventDefault?.(); e?.stopPropagation?.(); e?.stopImmediatePropagation?.();
     setStatus(view, 'Speichern…');
-
     const cfg = {
       Whitelist:  linesToList(view.querySelector('#whitelist').value),
       Blacklist:  linesToList(view.querySelector('#blacklist').value),
@@ -42,21 +35,18 @@ define([], function () {
       MinFiles:   parseInt(view.querySelector('#minfiles').value || '0', 10) || 0,
       FolderPaths: linesToList(view.querySelector('#whitelist').value)
     };
-
     ApiClient.updatePluginConfiguration(pluginId, cfg)
       .then(() => setStatus(view, 'Gespeichert ✔'))
       .catch(err => setStatus(view, 'Fehler: ' + (err?.message || err)));
   }
 
   function onScan(view, e) {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
-    e?.stopImmediatePropagation?.();
+    e?.preventDefault?.(); e?.stopPropagation?.(); e?.stopImmediatePropagation?.();
     setStatus(view, 'Scan gestartet…');
     setTimeout(() => setStatus(view, 'Scan abgeschlossen ✔ (Demo)'), 800);
   }
 
-  // Jellyfin ruft dieses Init mit der gerenderten View auf
+  // Jellyfin ruft dieses Init mit der View auf
   return function (view) {
     view.addEventListener('viewshow', function () {
       view.querySelector('#saveButton')?.addEventListener('click', (e)=>onSave(view,e), {capture:true});
