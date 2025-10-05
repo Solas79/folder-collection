@@ -1,4 +1,3 @@
-/* AMD-Modul, wie von Jellyfin-Pluginseiten erwartet */
 define([], function () {
   'use strict';
 
@@ -11,10 +10,7 @@ define([], function () {
   }
 
   function loadConfig() {
-    if (!window.ApiClient?.getPluginConfiguration) {
-      setStatus('ApiClient nicht verfügbar');
-      return Promise.resolve();
-    }
+    if (!window.ApiClient?.getPluginConfiguration) return Promise.resolve();
     return ApiClient.getPluginConfiguration(pluginId).then(cfg => {
       document.getElementById('whitelist').value = (cfg.Whitelist || []).join('\n');
       document.getElementById('blacklist').value = (cfg.Blacklist || []).join('\n');
@@ -35,10 +31,6 @@ define([], function () {
       Suffix: document.getElementById('suffix').value || '',
       MinFiles: parseInt(document.getElementById('minfiles').value || '0', 10) || 0
     };
-    if (!window.ApiClient?.updatePluginConfiguration) {
-      setStatus('Kein ApiClient verfügbar');
-      return;
-    }
     ApiClient.updatePluginConfiguration(pluginId, cfg)
       .then(() => setStatus('Gespeichert ✔'))
       .catch(err => setStatus('Fehler: ' + (err?.message || err)));
@@ -47,11 +39,9 @@ define([], function () {
   function onScan(e) {
     e.preventDefault();
     setStatus('Scan gestartet…');
-    // TODO: Hier später echten Server-Call einhängen
     setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
   }
 
-  // Jellyfin ruft das zurückgegebene Init mit der View auf
   return function (view) {
     view.addEventListener('viewshow', function () {
       document.getElementById('saveButton')?.addEventListener('click', onSave);
