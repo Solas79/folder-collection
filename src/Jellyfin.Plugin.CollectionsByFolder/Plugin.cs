@@ -22,18 +22,19 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            // HTML (wird über /web/configurationpage?name=collectionsbyfolder geladen)
-            new PluginPageInfo
-            {
+            new PluginPageInfo {
                 Name = "collectionsbyfolder",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
-            // JS – Route heißt **collectionsbyfolder.js**  -> /web/collectionsbyfolder.js
-            new PluginPageInfo
-            {
-                Name = "collectionsbyfolder.js",
+            new PluginPageInfo {
+                Name = "collectionsbyfolderjs",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
+            },
+            new PluginPageInfo {
+                Name = "cbf_ping",
+                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.ping.txt"
             }
         };
+
     }
 }
