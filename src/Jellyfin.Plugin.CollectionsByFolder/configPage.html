@@ -1,4 +1,4 @@
-<!-- Eine Datei, kein externes JS, kein Inline-JS. -->
+<!-- Eine Datei, KEIN JS nötig. POST geht direkt an den Controller. -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -8,10 +8,7 @@
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <!-- WICHTIG: action="../Plugins/..." ist Base-URL-sicher.
-         Beispiel:
-           /web/configurationpage         + ../Plugins/... => /Plugins/...
-           /jellyfin/web/configurationpage + ../Plugins/... => /jellyfin/Plugins/... -->
+    <!-- Base-URL-sicher: von /web/configurationpage relativ zu /Plugins/... -->
     <form method="post" action="../Plugins/CollectionsByFolder/Save">
       <div class="inputContainer">
         <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
@@ -38,15 +35,16 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
+      <!-- Optional: eigenes Feld für FolderPaths -->
+      <!--
+      <div class="inputContainer">
+        <label for="folderpaths">Ordnerpfade (ein Pfad pro Zeile)</label>
+        <textarea id="folderpaths" name="folderpaths" rows="6" spellcheck="false"></textarea>
+      </div>
+      -->
+
       <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
         <button is="emby-button" type="submit" class="raised button submit block">Speichern</button>
-
-        <!-- Optional: „Soft“-Submit im Hintergrund ohne JS, per hidden iframe -->
-        <!--
-        <iframe name="cbf_sink" hidden></iframe>
-        <button is="emby-button" type="submit" class="raised button block"
-                formtarget="cbf_sink">Speichern (ohne Seitenwechsel)</button>
-        -->
       </div>
     </form>
 
