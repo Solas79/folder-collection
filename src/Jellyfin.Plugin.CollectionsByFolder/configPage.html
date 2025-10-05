@@ -1,89 +1,58 @@
-<!-- Eine Datei, keine externe JS-Route nötig -->
+<!-- Eine Datei, kein externes JS, kein Inline-JS. -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
      data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
-     id="cbfPage"
-
-     <!-- Einmalige Initialisierung, sobald die Seite „berührt“ wird -->
-     onmouseenter="(async(el)=>{ if(el.dataset.init) return; el.dataset.init=1;
-       const id='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-       const g=n=>document.getElementById(n);
-       const s=m=>{const e=g('cbf-status'); if(e) e.textContent=m;};
-       try{
-         if(window.ApiClient?.getPluginConfiguration){
-           const cfg=await ApiClient.getPluginConfiguration(id);
-           (g('whitelist')||{}).value=(cfg?.Whitelist||[]).join('\n');
-           (g('blacklist')||{}).value=(cfg?.Blacklist||[]).join('\n');
-           (g('prefix')||{}).value=cfg?.Prefix||'';
-           (g('suffix')||{}).value=cfg?.Suffix||'';
-           (g('minfiles')||{}).value=String(cfg?.MinFiles??0);
-           s('Konfiguration geladen');
-         } else { s('ApiClient nicht verfügbar'); }
-       }catch(e){ s('Fehler Laden: '+(e?.message||e)); }
-     })(this)"
-     onfocusin="this.onmouseenter(event)"
-     onpointerdown="this.onmouseenter(event)">
+     id="cbfPage">
 
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <div class="inputContainer">
-      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-      <textarea id="whitelist" rows="5"></textarea>
-    </div>
+    <!-- WICHTIG: action="../Plugins/..." ist Base-URL-sicher.
+         Beispiel:
+           /web/configurationpage         + ../Plugins/... => /Plugins/...
+           /jellyfin/web/configurationpage + ../Plugins/... => /jellyfin/Plugins/... -->
+    <form method="post" action="../Plugins/CollectionsByFolder/Save">
+      <div class="inputContainer">
+        <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+        <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
+      </div>
 
-    <div class="inputContainer">
-      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-      <textarea id="blacklist" rows="5"></textarea>
-    </div>
+      <div class="inputContainer">
+        <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+        <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
+      </div>
 
-    <div class="inputContainer">
-      <label for="prefix">Präfix</label>
-      <input id="prefix" type="text" />
-    </div>
+      <div class="inputContainer">
+        <label for="prefix">Präfix</label>
+        <input id="prefix" name="prefix" type="text" />
+      </div>
 
-    <div class="inputContainer">
-      <label for="suffix">Suffix</label>
-      <input id="suffix" type="text" />
-    </div>
+      <div class="inputContainer">
+        <label for="suffix">Suffix</label>
+        <input id="suffix" name="suffix" type="text" />
+      </div>
 
-    <div class="inputContainer">
-      <label for="minfiles">Mindestanzahl Dateien</label>
-      <input id="minfiles" type="number" min="0" />
-    </div>
+      <div class="inputContainer">
+        <label for="minfiles">Mindestanzahl Dateien</label>
+        <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
+      </div>
 
-    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <!-- SPEICHERN – komplett inline -->
-      <button is="emby-button" type="button" class="raised button submit block" id="saveButton"
-        onclick="(async()=>{ try{
-          const id='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-          const g=n=>document.getElementById(n);
-          const s=m=>{const e=g('cbf-status'); if(e) e.textContent=m;};
-          const lines=t=>(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
-          const cfg={
-            Whitelist:lines(g('whitelist')?.value),
-            Blacklist:lines(g('blacklist')?.value),
-            Prefix:g('prefix')?.value||'',
-            Suffix:g('suffix')?.value||'',
-            MinFiles:parseInt(g('minfiles')?.value||'0',10)||0
-          };
-          s('Speichern…');
-          if(window.ApiClient?.updatePluginConfiguration){
-            await ApiClient.updatePluginConfiguration(id,cfg);
-            s('Gespeichert ✔');
-          } else { s('Kein ApiClient (Klick erkannt)'); }
-        }catch(e){ document.getElementById('cbf-status').textContent='Fehler: '+(e?.message||e); } })()">
-        Speichern
-      </button>
+      <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
+        <button is="emby-button" type="submit" class="raised button submit block">Speichern</button>
 
-      <!-- SCAN – Demo -->
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton"
-        onclick="(s=>{ s.textContent='Scan gestartet…'; setTimeout(()=>s.textContent='Scan abgeschlossen ✔ (Demo)',800); })(document.getElementById('cbf-status'))">
-        Jetzt scannen
-      </button>
+        <!-- Optional: „Soft“-Submit im Hintergrund ohne JS, per hidden iframe -->
+        <!--
+        <iframe name="cbf_sink" hidden></iframe>
+        <button is="emby-button" type="submit" class="raised button block"
+                formtarget="cbf_sink">Speichern (ohne Seitenwechsel)</button>
+        -->
+      </div>
+    </form>
 
-      <span id="cbf-status" style="margin-left:1rem;"></span>
-    </div>
+    <p class="fieldDescription" style="margin-top:1rem;">
+      Hinweis: Diese Seite lädt keine bisherigen Werte vor (kein JS).
+      Nach dem Speichern erscheint eine Bestätigungsseite mit Link zurück.
+    </p>
   </div>
 </div>
