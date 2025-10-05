@@ -17,18 +17,22 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
   </ItemGroup>
 
-  <!-- Sicherstellen, dass NUR als EmbeddedResource drin sind -->
   <ItemGroup>
-    <None Remove="configPage.html" />
-    <None Remove="configPage.js" />
-  </ItemGroup>
+   <None Remove="configPage.html" />
+   <None Remove="configPage.js" />
+   <None Remove="ping.txt" />
+ </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="configPage.html">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="configPage.js">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
+ <ItemGroup>
+   <EmbeddedResource Include="configPage.html">
+     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
+   </EmbeddedResource>
+   <EmbeddedResource Include="configPage.js">
+     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
+   </EmbeddedResource>
+   <EmbeddedResource Include="ping.txt">
+     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.ping.txt</LogicalName>
+   </EmbeddedResource>
+ </ItemGroup>
+
 </Project>
