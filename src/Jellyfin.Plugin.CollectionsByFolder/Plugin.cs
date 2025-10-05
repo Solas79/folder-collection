@@ -11,23 +11,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder
     {
         public Plugin(IApplicationPaths paths, IXmlSerializer xml) : base(paths, xml) { }
 
-        public static Plugin Instance { get; private set; } = null!;
         public override string Name => "CollectionsByFolder";
         public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            // HTML → /web/collectionsbyfolder
             new PluginPageInfo
             {
+                // HTML → /web/collectionsbyfolder
                 Name = "collectionsbyfolder",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
-            // JS   → /web/configPage.js  (genau so im HTML referenzieren)
             new PluginPageInfo
             {
-                Name = "configPage.js",
+                // JS → /web/collectionsbyfolderjs  (ohne Punkt/Erweiterung im Namen!)
+                Name = "collectionsbyfolderjs",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }
         };
