@@ -1,4 +1,3 @@
-<!-- CBF inline-only config page (kein Controller, keine externe JS-Datei) -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -34,121 +33,22 @@
     </div>
 
     <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <!-- WICHTIG: keine 'submit' / 'button-submit' Klasse -->
-      <button is="emby-button" type="button" class="raised button block" id="saveButton" role="button">
-        Speichern
-      </button>
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton" role="button">
-        Jetzt scannen
-      </button>
+      <button is="emby-button" type="button" class="raised button block" id="saveButton">Speichern</button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
       <span id="cbf-status" style="margin-left:1rem;"></span>
     </div>
   </div>
 
+  <!-- WICHTIG: so lädt Jellyfin Plugin-JS -->
   <script>
-  (function () {
-    'use strict';
-
-    const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-    const page = document.getElementById('cbfPage');
-    if (!page) return;
-
-    const $ = (sel) => page.querySelector(sel);
-    const statusEl = $('#cbf-status');
-
-    function setStatus(msg) {
-      if (statusEl) statusEl.textContent = msg;
-      console.log('[CBF]', msg);
-    }
-
-    function linesToList(text) {
-      return (text || '')
-        .replace(/\r\n?/g, '\n')
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean);
-    }
-
-    async function loadConfig() {
-      try {
-        if (!window.ApiClient || typeof ApiClient.getPluginConfiguration !== 'function') {
-          setStatus('ApiClient nicht verfügbar');
-          return;
-        }
-        const cfg = await ApiClient.getPluginConfiguration(pluginId);
-        $('#whitelist').value = (cfg.Whitelist || []).join('\n');
-        $('#blacklist').value = (cfg.Blacklist || []).join('\n');
-        $('#prefix').value    = cfg.Prefix || '';
-        $('#suffix').value    = cfg.Suffix || '';
-        $('#minfiles').value  = String(cfg.MinFiles ?? 0);
-        setStatus('Konfiguration geladen');
-      } catch (e) {
-        setStatus('Fehler beim Laden: ' + (e && e.message ? e.message : e));
-      }
-    }
-
-    async function onSave(ev) {
-      try {
-        // JEGLICHE Default-/Global-Handler unterbinden:
-        ev?.preventDefault?.();
-        ev?.stopPropagation?.();
-        ev?.stopImmediatePropagation?.();
-
-        setStatus('Speichern…');
-
-        const cfg = {
-          Whitelist:  linesToList($('#whitelist').value),
-          Blacklist:  linesToList($('#blacklist').value),
-          Prefix:     $('#prefix').value || '',
-          Suffix:     $('#suffix').value || '',
-          MinFiles:   parseInt($('#minfiles').value || '0', 10) || 0,
-          // Kompatibilität für bestehenden Code:
-          FolderPaths: linesToList($('#whitelist').value)
-        };
-
-        if (!window.ApiClient || typeof ApiClient.updatePluginConfiguration !== 'function') {
-          setStatus('ApiClient nicht verfügbar (aber Klick erkannt)');
-          return false;
-        }
-
-        await ApiClient.updatePluginConfiguration(pluginId, cfg);
-        setStatus('Gespeichert ✔');
-        return false;
-      } catch (e) {
-        setStatus('Fehler: ' + (e && e.message ? e.message : e));
-        return false;
-      }
-    }
-
-    function onScan(ev) {
-      ev?.preventDefault?.();
-      ev?.stopPropagation?.();
-      ev?.stopImmediatePropagation?.();
-      setStatus('Scan gestartet…');
-      setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
-      return false;
-    }
-
-    function bind() {
-      const saveBtn = $('#saveButton');
-      const scanBtn = $('#scanNowButton');
-
-      // Capture-Phase, um Jellyfin-Handler zuvorzukommen
-      saveBtn?.addEventListener('click', onSave, { capture: true });
-      scanBtn?.addEventListener('click', onScan, { capture: true });
-
-      setStatus('Bereit');
-    }
-
-    // In der Jellyfin-Shell kann DOMContentLoaded schon durch sein
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function onDom() {
-        document.removeEventListener('DOMContentLoaded', onDom);
-        bind(); loadConfig();
-      });
-    } else {
-      bind(); loadConfig();
-    }
-  })();
+    (function(){
+      var url = (window.ApiClient && typeof ApiClient.getUrl === 'function')
+        ? ApiClient.getUrl('web/configurationpage?name=configPage.js')
+        : '/web/configurationpage?name=configPage.js';
+      var s = document.createElement('script');
+      s.src = url;
+      s.async = false;
+      document.body.appendChild(s);
+    })();
   </script>
 </div>
