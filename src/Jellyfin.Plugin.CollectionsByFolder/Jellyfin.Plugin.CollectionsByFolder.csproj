@@ -37,5 +37,9 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!-- Debug-Ausgabe im Build-Log -->
+  <Target Name="ListEmbedded" AfterTargets="CoreCompile">
+    <Message Text="ER: %(EmbeddedResource.Identity) -> %(EmbeddedResource.LogicalName)" Importance="High" />
+  </Target>
 
 </Project>
