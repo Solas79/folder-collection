@@ -1,3 +1,4 @@
+// Datei: src/Jellyfin.Plugin.CollectionsByFolder/Plugin.cs
 using System;
 using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
@@ -21,23 +22,17 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
-            // HTML → /web/collectionsbyfolder
+            // HTML (wird über /web/configurationpage?name=collectionsbyfolder geladen)
             new PluginPageInfo
             {
                 Name = "collectionsbyfolder",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
             },
-            // JS → /web/collectionsbyfolderjs  (gleichnamig zum <script src>)
+            // JS – Route heißt **collectionsbyfolder.js**  -> /web/collectionsbyfolder.js
             new PluginPageInfo
             {
-                Name = "collectionsbyfolderjs",
+                Name = "collectionsbyfolder.js",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
-            },
-            // Diagnose: /web/cbf_ping → muss "ok" liefern
-            new PluginPageInfo
-            {
-                Name = "cbf_ping",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.ping.txt"
             }
         };
     }
