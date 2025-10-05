@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -21,20 +22,26 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            var ns = typeof(Plugin).Namespace!;
+            // exakt wie im referenz-projekt: Pfade mit GetType().Namespace + string.Format
+            var ns = GetType().Namespace;
+
             return new[]
             {
-                // HTML: /web/configurationpage?name=collectionsbyfolder
+                // HTML → /web/configurationpage?name=collectionsbyfolder
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = $"{ns}.Web.config.html"
+                    EmbeddedResourcePath = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}.Web.collectionsbyfolder.html", ns)
                 },
-                // JS: /web/collectionsbyfolderjs   (KEIN configurationpage!)
+                // JS  → /web/collectionsbyfolderjs  (kein configurationpage!)
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolderjs",
-                    EmbeddedResourcePath = $"{ns}.Web.config.js"
+                    EmbeddedResourcePath = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0}.Web.collectionsbyfolder.js", ns)
                 }
             };
         }
