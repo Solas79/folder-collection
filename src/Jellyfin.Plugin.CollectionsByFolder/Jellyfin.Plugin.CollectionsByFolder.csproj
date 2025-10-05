@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -16,7 +15,6 @@
     <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
   </ItemGroup>
 
-  <!-- eingebettete Web-Ressourcen -->
   <ItemGroup>
     <None Remove="Web/collectionsbyfolder.html" />
     <None Remove="Web/collectionsbyfolder.js" />
@@ -30,5 +28,4 @@
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-
 </Project>
