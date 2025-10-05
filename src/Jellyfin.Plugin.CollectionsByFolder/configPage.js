@@ -1,53 +1,81 @@
+/* Jellyfin Config-Page JS (AMD)
+   Route (Beispiel): /web/collectionsbyfolderjs
+   Plugin.cs:
+     new PluginPageInfo { Name = "collectionsbyfolderjs", EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js" }
+   HTML (configPage.html):
+     <script src="collectionsbyfolderjs"></script>
+*/
 define([], function () {
   'use strict';
 
+  // ← deine Plugin-GUID (muss mit Plugin.Id übereinstimmen)
   const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
 
-  function setStatus(msg) {
-    const el = document.getElementById('cbf-status');
+  // Helpers (auf die aktuelle View scopen)
+  function q(view, sel)       { return view.querySelector(sel); }
+  function byId(view, id)     { return view.querySelector('#' + id); }
+  function val(el)            { return (el && el.value != null) ? el.value : ''; }
+  function linesToList(text)  { return (text || '').split('\n').map(s => s.trim()).filter(Boolean); }
+
+  function setStatus(view, msg) {
+    const el = byId(view, 'cbf-status');
     if (el) el.textContent = msg;
     console.log('[CBF]', msg);
   }
 
-  function loadConfig() {
-    if (!window.ApiClient?.getPluginConfiguration) return Promise.resolve();
+  function loadConfig(view) {
+    if (!window.ApiClient?.getPluginConfiguration) {
+      setStatus(view, 'ApiClient nicht verfügbar');
+      return Promise.resolve();
+    }
     return ApiClient.getPluginConfiguration(pluginId).then(cfg => {
-      document.getElementById('whitelist').value = (cfg.Whitelist || []).join('\n');
-      document.getElementById('blacklist').value = (cfg.Blacklist || []).join('\n');
-      document.getElementById('prefix').value    = cfg.Prefix || '';
-      document.getElementById('suffix').value    = cfg.Suffix || '';
-      document.getElementById('minfiles').value  = String(cfg.MinFiles || 0);
-      setStatus('Konfiguration geladen');
-    }).catch(err => setStatus('Fehler beim Laden: ' + (err?.message || err)));
+      byId(view, 'whitelist').value = (cfg?.Whitelist || []).join('\n');
+      byId(view, 'blacklist').value = (cfg?.Blacklist || []).join('\n');
+      byId(view, 'prefix').value    = cfg?.Prefix || '';
+      byId(view, 'suffix').value    = cfg?.Suffix || '';
+      byId(view, 'minfiles').value  = String(cfg?.MinFiles ?? 0);
+      setStatus(view, 'Konfiguration geladen');
+    }).catch(err => setStatus(view, 'Fehler beim Laden: ' + (err?.message || err)));
   }
 
-  function onSave(e) {
-    e.preventDefault();
-    setStatus('Speichern…');
+  function onSave(view, e) {
+    e?.preventDefault();
+    setStatus(view, 'Speichern…');
+
     const cfg = {
-      Whitelist: (document.getElementById('whitelist').value || '').split('\n').filter(Boolean),
-      Blacklist: (document.getElementById('blacklist').value || '').split('\n').filter(Boolean),
-      Prefix: document.getElementById('prefix').value || '',
-      Suffix: document.getElementById('suffix').value || '',
-      MinFiles: parseInt(document.getElementById('minfiles').value || '0', 10) || 0
+      Whitelist: linesToList(val(byId(view, 'whitelist'))),
+      Blacklist: linesToList(val(byId(view, 'blacklist'))),
+      Prefix:    val(byId(view, 'prefix')),
+      Suffix:    val(byId(view, 'suffix')),
+      MinFiles:  parseInt(val(byId(view, 'minfiles')) || '0', 10) || 0
     };
+
+    if (!window.ApiClient?.updatePluginConfiguration) {
+      setStatus(view, 'Kein ApiClient verfügbar');
+      return;
+    }
     ApiClient.updatePluginConfiguration(pluginId, cfg)
-      .then(() => setStatus('Gespeichert ✔'))
-      .catch(err => setStatus('Fehler: ' + (err?.message || err)));
+      .then(() => setStatus(view, 'Gespeichert ✔'))
+      .catch(err => setStatus(view, 'Fehler: ' + (err?.message || err)));
   }
 
-  function onScan(e) {
-    e.preventDefault();
-    setStatus('Scan gestartet…');
-    setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
+  function onScan(view, e) {
+    e?.preventDefault();
+    setStatus(view, 'Scan gestartet…');
+    // TODO: Hier später echten Server-Call einbauen (Controller/Task)
+    setTimeout(() => setStatus(view, 'Scan abgeschlossen ✔ (Demo)'), 800);
   }
 
+  // Jellyfin ruft das zurückgegebene Init mit der View auf
   return function (view) {
-    view.addEventListener('viewshow', function () {
-      document.getElementById('saveButton')?.addEventListener('click', onSave);
-      document.getElementById('scanNowButton')?.addEventListener('click', onScan);
-      loadConfig();
-      setStatus('Bereit');
+    // nur einmal pro Anzeige initialisieren
+    view.addEventListener('viewshow', function handleShow() {
+      view.removeEventListener('viewshow', handleShow);
+
+      byId(view, 'saveButton')?.addEventListener('click', (e) => onSave(view, e));
+      byId(view, 'scanNowButton')?.addEventListener('click', (e) => onScan(view, e));
+
+      loadConfig(view).finally(() => setStatus(view, 'Bereit'));
       console.log('[CBF] Listener gebunden');
     });
   };
