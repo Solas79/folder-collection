@@ -2,40 +2,31 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
-
-    <!-- Versionen nach Wunsch anpassen -->
-    <Version>0.1.5</Version>
-    <FileVersion>0.1.5.0</FileVersion>
-    <AssemblyVersion>0.1.5.0</AssemblyVersion>
-
-    <!-- AssemblyInfo automatisch erzeugen -->
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.6</Version>
+    <FileVersion>0.1.6.0</FileVersion>
+    <AssemblyVersion>0.1.6.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Exakte 10.10.7 Referenzen für Stabilität -->
-    <PackageReference Include="Jellyfin.Common"     Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
     <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
-    <PackageReference Include="Jellyfin.Model"      Version="10.10.7" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.6" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
   </ItemGroup>
 
-  <!-- HTML als EmbeddedResource (ohne JS!) -->
+  <!-- Einbinden der Web-Dateien -->
   <ItemGroup>
-    <None Remove="configPage.html" />
-    <None Remove="configPage.js" />
+    <None Remove="Web/config.html" />
+    <None Remove="Web/config.js" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="configPage.html">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
+    <EmbeddedResource Include="Web/config.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.config.html</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="configPage.js">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
+    <EmbeddedResource Include="Web/config.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.config.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 </Project>
