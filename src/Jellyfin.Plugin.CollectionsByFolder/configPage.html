@@ -45,10 +45,10 @@
        var s = document.createElement('script');
        // Base-URL aware: funktioniert mit /, /jellyfin, etc.
        if (window.ApiClient && typeof ApiClient.getUrl === 'function') {
-         s.src = ApiClient.getUrl('web/collectionsbyfolderjs');
+         s.src = ApiClient.getUrl('web/cbf_js');
        } else {
          // Fallback: klassischer Pfad
-         s.src = '/web/collectionsbyfolderjs';
+         s.src = '/web/cbf_js';
        }
        document.currentScript.parentNode.appendChild(s);
      })();
