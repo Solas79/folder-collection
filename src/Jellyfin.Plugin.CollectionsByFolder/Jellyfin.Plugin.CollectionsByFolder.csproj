@@ -27,11 +27,15 @@
   <!-- HTML als EmbeddedResource (ohne JS!) -->
   <ItemGroup>
     <None Remove="configPage.html" />
+    <None Remove="configPage.js" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="configPage.html">
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="configPage.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 </Project>
