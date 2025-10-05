@@ -3,6 +3,9 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
+    /// <summary>
+    /// Persistente Plugin-Einstellungen. Wird von Jellyfin (de)serialisiert.
+    /// </summary>
     public class PluginConfiguration : BasePluginConfiguration
     {
         public List<string> Whitelist { get; set; } = new();
@@ -13,7 +16,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public int MinFiles { get; set; } = 0;
 
-        // 👇 Für bestehenden Code (CollectionBuilder) hinzufügen:
+        // Für bestehenden Code (z. B. CollectionBuilder) häufig verwendet:
         public List<string> FolderPaths { get; set; } = new();
     }
 }
