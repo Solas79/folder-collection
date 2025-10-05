@@ -1,44 +1,61 @@
-<!-- configPage.html -->
-<div data-role="page"
-     class="page type-interior pluginConfigurationPage"
-     data-title="Collections by Folder"
-     data-pluginid="cda3a99a-7db0-4a69-a9c4-2238e1d5b9b4">
+// configPage.js
+(function () {
+  function setStatus(msg) {
+    const el = document.getElementById('cbf-status');
+    if (el) el.textContent = msg;
+    console.log('[CBF]', msg);
+  }
 
-  <div class="content-primary">
-    <h1>Collections by Folder</h1>
+  function onSaveClick(e) {
+    e.preventDefault();
+    setStatus('Speichern…');
 
-    <div class="inputContainer">
-      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-      <textarea id="whitelist" rows="4"></textarea>
-    </div>
+    const config = {
+      Whitelist: (document.getElementById('whitelist')?.value || '').split('\n'),
+      Blacklist: (document.getElementById('blacklist')?.value || '').split('\n'),
+      Prefix: document.getElementById('prefix')?.value || '',
+      Suffix: document.getElementById('suffix')?.value || '',
+      MinFiles: parseInt(document.getElementById('minfiles')?.value || '0', 10) || 0
+    };
 
-    <div class="inputContainer">
-      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-      <textarea id="blacklist" rows="4"></textarea>
-    </div>
+    // Optional: gegen Jellyfin speichern, wenn ApiClient da ist
+    const pluginId = 'cda3a99a-7db0-4a69-a9c4-2238e1d5b9b4';
+    if (typeof window.ApiClient?.updatePluginConfiguration === 'function') {
+      window.ApiClient.updatePluginConfiguration(pluginId, config)
+        .then(() => setStatus('Gespeichert ✔'))
+        .catch(err => setStatus('Fehler: ' + (err?.message || err)));
+    } else {
+      setStatus('Klick erkannt ✔ (Demo: kein ApiClient gefunden)');
+    }
+  }
 
-    <div class="inputContainer">
-      <label for="prefix">Präfix</label>
-      <input id="prefix" type="text">
-    </div>
+  function onScanClick(e) {
+    e.preventDefault();
+    setStatus('Scan gestartet…');
+    // Hier später deinen echten Scan-Endpoint / API-Aufruf einbauen
+    setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
+  }
 
-    <div class="inputContainer">
-      <label for="suffix">Suffix</label>
-      <input id="suffix" type="text">
-    </div>
+  function init() {
+    const saveBtn = document.getElementById('saveButton');
+    const scanBtn = document.getElementById('scanNowButton');
 
-    <div class="inputContainer">
-      <label for="minfiles">Mindestanzahl Dateien</label>
-      <input id="minfiles" type="number" min="1">
-    </div>
+    if (!saveBtn || !scanBtn) {
+      console.warn('[CBF] Buttons nicht gefunden – ist die richtige HTML-Seite geladen?');
+      return;
+    }
 
-    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
-      <span id="cbf-status" style="margin-left:1rem;"></span>
-    </div>
-  </div>
+    saveBtn.addEventListener('click', onSaveClick);
+    scanBtn.addEventListener('click', onScanClick);
 
-  <!-- WICHTIG: dein eingebettetes JS laden -->
-  <script src="collectionsbyfolderjs"></script>
-</div>
+    setStatus('Seite bereit – Listener aktiv');
+    console.log('[CBF] Listener gebunden');
+  }
+
+  // Warten, bis DOM da ist (Jellyfin lädt als Single-Page-App)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
