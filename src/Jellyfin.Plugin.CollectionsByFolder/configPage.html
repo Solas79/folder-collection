@@ -1,4 +1,4 @@
-<!-- CBF DEBUG MARKER: 2025-10-05 21:xx -->
+<!-- CBF inline-only config page (keine externe JS-Datei, kein Controller nötig) -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -6,42 +6,135 @@
      id="cbfPage">
 
   <div data-role="content" class="content-primary">
-    <h1>Collections by Folder (DEBUG)</h1>
+    <h1>Collections by Folder</h1>
 
-    <!-- WICHTIG: Hier steht das action! -->
-    <form method="post" action="../Plugins/CollectionsByFolder/Save">
-      <div class="inputContainer">
-        <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-        <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
-      </div>
+    <div class="inputContainer">
+      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+      <textarea id="whitelist" rows="6" spellcheck="false"></textarea>
+    </div>
 
-      <div class="inputContainer">
-        <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-        <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
-      </div>
+    <div class="inputContainer">
+      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+      <textarea id="blacklist" rows="6" spellcheck="false"></textarea>
+    </div>
 
-      <div class="inputContainer">
-        <label for="prefix">Präfix</label>
-        <input id="prefix" name="prefix" type="text" />
-      </div>
+    <div class="inputContainer">
+      <label for="prefix">Präfix</label>
+      <input id="prefix" type="text" />
+    </div>
 
-      <div class="inputContainer">
-        <label for="suffix">Suffix</label>
-        <input id="suffix" name="suffix" type="text" />
-      </div>
+    <div class="inputContainer">
+      <label for="suffix">Suffix</label>
+      <input id="suffix" type="text" />
+    </div>
 
-      <div class="inputContainer">
-        <label for="minfiles">Mindestanzahl Dateien</label>
-        <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
-      </div>
+    <div class="inputContainer">
+      <label for="minfiles">Mindestanzahl Dateien</label>
+      <input id="minfiles" type="number" min="0" value="0" />
+    </div>
 
-      <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-        <button is="emby-button" type="submit" class="raised button submit block">Speichern</button>
-      </div>
-    </form>
-
-    <p class="fieldDescription" style="margin-top:1rem;">
-      DEBUG: Diese Seite lädt keine bisherigen Werte vor (kein JS).
-    </p>
+    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
+      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <span id="cbf-status" style="margin-left:1rem;"></span>
+    </div>
   </div>
+
+  <!-- Inline-Script: bindet Buttons, lädt/speichert Konfig – keine externe Route nötig -->
+  <script>
+  (function () {
+    'use strict';
+
+    // Muss exakt deine Plugin-GUID sein:
+    const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+
+    // In dieser Seite arbeiten, nicht global im Dokument
+    const page = document.getElementById('cbfPage');
+    if (!page) return;
+
+    const $ = (sel) => page.querySelector(sel);
+    const statusEl = $('#cbf-status');
+
+    function setStatus(msg) {
+      if (statusEl) statusEl.textContent = msg;
+      console.log('[CBF]', msg);
+    }
+
+    function linesToList(text) {
+      return (text || '')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    async function loadConfig() {
+      try {
+        if (!window.ApiClient || typeof ApiClient.getPluginConfiguration !== 'function') {
+          setStatus('ApiClient nicht verfügbar');
+          return;
+        }
+        const cfg = await ApiClient.getPluginConfiguration(pluginId);
+        $('#whitelist').value = (cfg.Whitelist || []).join('\n');
+        $('#blacklist').value = (cfg.Blacklist || []).join('\n');
+        $('#prefix').value    = cfg.Prefix || '';
+        $('#suffix').value    = cfg.Suffix || '';
+        $('#minfiles').value  = String(cfg.MinFiles ?? 0);
+        setStatus('Konfiguration geladen');
+      } catch (e) {
+        setStatus('Fehler beim Laden: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    async function saveConfig() {
+      try {
+        setStatus('Speichern…');
+
+        const cfg = {
+          Whitelist: linesToList($('#whitelist').value),
+          Blacklist: linesToList($('#blacklist').value),
+          Prefix:    $('#prefix').value || '',
+          Suffix:    $('#suffix').value || '',
+          MinFiles:  parseInt($('#minfiles').value || '0', 10) || 0,
+          // Optionaler Kompatibilitäts-Fallback:
+          FolderPaths: linesToList($('#whitelist').value)
+        };
+
+        if (!window.ApiClient || typeof ApiClient.updatePluginConfiguration !== 'function') {
+          setStatus('ApiClient nicht verfügbar (aber Klick erkannt)');
+          return;
+        }
+
+        await ApiClient.updatePluginConfiguration(pluginId, cfg);
+        setStatus('Gespeichert ✔');
+      } catch (e) {
+        setStatus('Fehler: ' + (e && e.message ? e.message : e));
+      }
+    }
+
+    function bind() {
+      const saveBtn = $('#saveButton');
+      const scanBtn = $('#scanNowButton');
+
+      if (saveBtn) saveBtn.addEventListener('click', saveConfig);
+      if (scanBtn) scanBtn.addEventListener('click', function () {
+        setStatus('Scan gestartet…');
+        // TODO: Hier später echten Server-Call einbauen
+        setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
+      });
+
+      setStatus('Bereit');
+    }
+
+    // Jellyfin lädt die Seite dynamisch. Sicherstellen, dass Elemente existieren:
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function onDom() {
+        document.removeEventListener('DOMContentLoaded', onDom);
+        bind(); loadConfig();
+      });
+    } else {
+      bind(); loadConfig();
+    }
+  })();
+  </script>
 </div>
