@@ -22,11 +22,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
   </ItemGroup>
 
-  <!-- Entferne evtl. Default-None-Einträge -->
-   <ItemGroup>
-     <None Remove="configPage.html" />
-     <None Remove="configPage.js" />
-   </ItemGroup>
+  <ItemGroup>
+    <None Remove="configPage.html" />
+    <None Remove="configPage.js" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="configPage.html">
@@ -37,9 +36,8 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Debug-Ausgabe im Build-Log -->
+  <!-- (Optional) Build-Check: zeigt eingebettete Ressourcen -->
   <Target Name="ListEmbedded" AfterTargets="CoreCompile">
     <Message Text="ER: %(EmbeddedResource.Identity) -> %(EmbeddedResource.LogicalName)" Importance="High" />
   </Target>
-
 </Project>
