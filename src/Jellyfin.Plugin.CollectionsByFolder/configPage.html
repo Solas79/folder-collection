@@ -1,56 +1,82 @@
-<!-- Eine Datei, KEIN JS nötig. POST geht direkt an den Controller. -->
-<div data-role="page"
-     class="page type-interior pluginConfigurationPage"
-     data-title="Collections by Folder"
-     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
-     id="cbfPage">
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
-  <div data-role="content" class="content-primary">
-    <h1>Collections by Folder</h1>
+namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
+{
+    // Feste Basisroute: /Plugins/CollectionsByFolder/...
+    [ApiController]
+    [Route("Plugins/CollectionsByFolder")]
+    public class CollectionsByFolderController : ControllerBase
+    {
+        private static List<string> SplitLines(string? text) =>
+            string.IsNullOrWhiteSpace(text)
+                ? new List<string>()
+                : text.Replace("\r\n","\n").Replace("\r","\n")
+                      .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                      .Select(s => s.Trim())
+                      .Where(s => s.Length > 0)
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .ToList();
 
-    <!-- Base-URL-sicher: von /web/configurationpage relativ zu /Plugins/... -->
-    <form method="post" action="../Plugins/CollectionsByFolder/Save">
-      <div class="inputContainer">
-        <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-        <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
-      </div>
+        // GET /Plugins/CollectionsByFolder/Ping
+        [HttpGet("Ping")]
+        [AllowAnonymous]                    // 👈 ohne Token erreichbar
+        public IActionResult Ping()
+        {
+            return Content("ok", "text/plain");
+        }
 
-      <div class="inputContainer">
-        <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-        <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
-      </div>
+        // POST /Plugins/CollectionsByFolder/Save
+        [HttpPost("Save")]
+        [Consumes("application/x-www-form-urlencoded")]
+        [AllowAnonymous]                    // 👈 ohne Token erreichbar
+        [IgnoreAntiforgeryToken]            // 👈 falls globales CSRF aktiv ist
+        public IActionResult Save(
+            [FromForm] string? whitelist,
+            [FromForm] string? blacklist,
+            [FromForm] string? prefix,
+            [FromForm] string? suffix,
+            [FromForm] int?    minfiles,
+            [FromForm] string? folderpaths
+        )
+        {
+            try
+            {
+                var plugin = Plugin.Instance;
+                if (plugin is null)
+                    return StatusCode(500, "CBF Save: Plugin.Instance == null");
 
-      <div class="inputContainer">
-        <label for="prefix">Präfix</label>
-        <input id="prefix" name="prefix" type="text" />
-      </div>
+                var cfg = plugin.Configuration ?? new PluginConfiguration();
 
-      <div class="inputContainer">
-        <label for="suffix">Suffix</label>
-        <input id="suffix" name="suffix" type="text" />
-      </div>
+                cfg.Whitelist   = SplitLines(whitelist);
+                cfg.Blacklist   = SplitLines(blacklist);
+                cfg.Prefix      = prefix ?? string.Empty;
+                cfg.Suffix      = suffix ?? string.Empty;
+                cfg.MinFiles    = Math.Max(0, minfiles ?? 0);
 
-      <div class="inputContainer">
-        <label for="minfiles">Mindestanzahl Dateien</label>
-        <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
-      </div>
+                var fp = SplitLines(folderpaths);
+                cfg.FolderPaths = fp.Count > 0 ? fp : new List<string>(cfg.Whitelist);
 
-      <!-- Optional: eigenes Feld für FolderPaths -->
-      <!--
-      <div class="inputContainer">
-        <label for="folderpaths">Ordnerpfade (ein Pfad pro Zeile)</label>
-        <textarea id="folderpaths" name="folderpaths" rows="6" spellcheck="false"></textarea>
-      </div>
-      -->
+                plugin.UpdateConfiguration(cfg);
 
-      <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-        <button is="emby-button" type="submit" class="raised button submit block">Speichern</button>
-      </div>
-    </form>
+                var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
+                var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
 
-    <p class="fieldDescription" style="margin-top:1rem;">
-      Hinweis: Diese Seite lädt keine bisherigen Werte vor (kein JS).
-      Nach dem Speichern erscheint eine Bestätigungsseite mit Link zurück.
-    </p>
-  </div>
-</div>
+                var okHtml = $@"<!doctype html><meta charset=""utf-8"">
+<title>CollectionsByFolder – gespeichert</title>
+<style>body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px}}</style>
+<h1>Gespeichert ✔</h1>
+<p>Die Einstellungen wurden übernommen.</p>
+<p><a href=""{backUrl}"">Zurück zur Konfigurationsseite</a></p>";
+                return Content(okHtml, "text/html; charset=utf-8");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"CBF Save Fehler: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+    }
+}
