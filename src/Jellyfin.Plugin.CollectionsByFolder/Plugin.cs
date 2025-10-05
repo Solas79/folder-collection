@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Generic;    
 using System.Linq;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using MediaBrowser.Common.Configuration;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
