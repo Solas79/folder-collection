@@ -9,7 +9,7 @@ define([], function () {
   'use strict';
 
   // ← deine Plugin-GUID (muss mit Plugin.Id übereinstimmen)
-  const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+  const pluginId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 
   // Helpers (auf die aktuelle View scopen)
   function q(view, sel)       { return view.querySelector(sel); }
