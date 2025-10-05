@@ -42,18 +42,27 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             return hit;
         }
 
-        public IEnumerable<PluginPageInfo> GetPages() => new[]
+        public IEnumerable<PluginPageInfo> GetPages()
         {
-            new PluginPageInfo
+            Console.WriteLine("[CBF] GetPages() aufgerufen");
+            var names = typeof(Plugin).Assembly.GetManifestResourceNames();
+            Console.WriteLine("[CBF] Res in DLL: " + string.Join(" | ", names));
+
+            // robust: suche die beiden Dateien automatisch
+            string find(string suffix)
             {
-                Name = "collectionsbyfolder",   // /web/collectionsbyfolder
-                EmbeddedResourcePath = FindRes(".configPage.html")
-            },
-            new PluginPageInfo
-            {
-                Name = "collectionsbyfolderjs", // /web/collectionsbyfolderjs
-                EmbeddedResourcePath = FindRes(".configPage.js")
+                var hit = names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
+                if (hit == null) throw new InvalidOperationException($"[CBF] '{suffix}' nicht gefunden.");
+                Console.WriteLine("[CBF] Treffer " + suffix + ": " + hit);
+                return hit;
             }
-        };
+
+            return new[]
+            {
+                new PluginPageInfo { Name = "collectionsbyfolder",  EmbeddedResourcePath = find(".configPage.html") },
+                new PluginPageInfo { Name = "collectionsbyfolderjs", EmbeddedResourcePath = find(".configPage.js") }
+            };
+        }
+
     }
 }
