@@ -1,4 +1,3 @@
-// Datei: Plugin.cs
 using System;
 using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
@@ -15,13 +14,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder
         public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
         public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
 
-        // 10.10/net8 → IXmlSerializer
+        // **Nur** dieser Konstruktor (keine zusätzlichen Parameter!):
         public Plugin(IApplicationPaths paths, IXmlSerializer xml) : base(paths, xml)
         {
             Instance = this;
         }
 
-        // Registriere BEIDE Seiten mit festen, geprüften Ressourcennamen:
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
             new PluginPageInfo
@@ -32,7 +30,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             },
             new PluginPageInfo
             {
-                // JS → /web/collectionsbyfolderjs
+                // JS   → /web/collectionsbyfolderjs
                 Name = "collectionsbyfolderjs",
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }
