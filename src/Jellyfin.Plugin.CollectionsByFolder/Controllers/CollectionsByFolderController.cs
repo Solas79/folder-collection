@@ -2,42 +2,40 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
-    // Endpunkte: /Plugins/CollectionsByFolder/<Action>
+    // Feste Basisroute: /Plugins/CollectionsByFolder/...
     [ApiController]
-    [Route("Plugins/[controller]/[action]")]
+    [Route("Plugins/CollectionsByFolder")]
     public class CollectionsByFolderController : ControllerBase
     {
-        private readonly ILogger<CollectionsByFolderController> _logger;
-
-        public CollectionsByFolderController(ILogger<CollectionsByFolderController> logger)
-        {
-            _logger = logger;
-        }
-
         private static List<string> SplitLines(string? text) =>
             string.IsNullOrWhiteSpace(text)
                 ? new List<string>()
-                : text
-                    .Replace("\r\n", "\n")
-                    .Replace("\r", "\n")
-                    .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim())
-                    .Where(s => !string.IsNullOrEmpty(s))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                : text.Replace("\r\n","\n").Replace("\r","\n")
+                      .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                      .Select(s => s.Trim())
+                      .Where(s => s.Length > 0)
+                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                      .ToList();
 
-        /// <summary>Reachability-Test ohne JS.</summary>
-        [HttpGet]
-        public IActionResult Ping() => Content("ok", "text/plain");
+        // GET /Plugins/CollectionsByFolder/Ping
+        [HttpGet("Ping")]
+        public IActionResult Ping()
+        {
+            try
+            {
+                return Content("ok", "text/plain");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "CBF Ping Fehler: " + ex.GetType().Name + ": " + ex.Message);
+            }
+        }
 
-        /// <summary>
-        /// Nimmt das HTML-Form entgegen und speichert die Plugin-Konfiguration.
-        /// </summary>
-        [HttpPost]
+        // POST /Plugins/CollectionsByFolder/Save
+        [HttpPost("Save")]
         [Consumes("application/x-www-form-urlencoded")]
         public IActionResult Save(
             [FromForm] string? whitelist,
@@ -45,47 +43,43 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             [FromForm] string? prefix,
             [FromForm] string? suffix,
             [FromForm] int?    minfiles,
-            // optional: separate Eingabe für Ordnerpfade
             [FromForm] string? folderpaths
         )
         {
-            var plugin = Plugin.Instance;
-            if (plugin is null)
+            try
             {
-                _logger.LogError("Plugin.Instance ist null");
-                return StatusCode(500, "Plugin nicht initialisiert");
-            }
+                var plugin = Plugin.Instance;
+                if (plugin is null)
+                    return StatusCode(500, "CBF Save: Plugin.Instance == null");
 
-            var cfg = plugin.Configuration;
+                var cfg = plugin.Configuration ?? new PluginConfiguration();
 
-            cfg.Whitelist  = SplitLines(whitelist);
-            cfg.Blacklist  = SplitLines(blacklist);
-            cfg.Prefix     = prefix ?? string.Empty;
-            cfg.Suffix     = suffix ?? string.Empty;
-            cfg.MinFiles   = Math.Max(0, minfiles ?? 0);
+                cfg.Whitelist   = SplitLines(whitelist);
+                cfg.Blacklist   = SplitLines(blacklist);
+                cfg.Prefix      = prefix ?? string.Empty;
+                cfg.Suffix      = suffix ?? string.Empty;
+                cfg.MinFiles    = Math.Max(0, minfiles ?? 0);
 
-            var fp = SplitLines(folderpaths);
-            cfg.FolderPaths = fp.Count > 0 ? fp : new List<string>(cfg.Whitelist);
+                var fp = SplitLines(folderpaths);
+                cfg.FolderPaths = fp.Count > 0 ? fp : new List<string>(cfg.Whitelist);
 
-            plugin.UpdateConfiguration(cfg);
+                plugin.UpdateConfiguration(cfg);
 
-            _logger.LogInformation(
-                "[CBF] Konfig gespeichert: {W}W/{B}B, Prefix='{P}', Suffix='{S}', Min={M}, FolderPaths={F}",
-                cfg.Whitelist.Count, cfg.Blacklist.Count, cfg.Prefix, cfg.Suffix, cfg.MinFiles, cfg.FolderPaths.Count
-            );
+                var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
+                var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
 
-            // BaseUrl-sicherer Rücklink zur Config-Seite
-            var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
-            var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
-
-            var html = $@"<!doctype html><meta charset=""utf-8"">
+                var okHtml = $@"<!doctype html><meta charset=""utf-8"">
 <title>CollectionsByFolder – gespeichert</title>
 <style>body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px}}</style>
 <h1>Gespeichert ✔</h1>
 <p>Die Einstellungen wurden übernommen.</p>
 <p><a href=""{backUrl}"">Zurück zur Konfigurationsseite</a></p>";
-
-            return Content(html, "text/html; charset=utf-8");
+                return Content(okHtml, "text/html; charset=utf-8");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "CBF Save Fehler: " + ex.GetType().Name + ": " + ex.Message);
+            }
         }
     }
 }
