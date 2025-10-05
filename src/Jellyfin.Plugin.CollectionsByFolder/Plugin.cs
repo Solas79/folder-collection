@@ -22,24 +22,30 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            var ns = GetType().Namespace!;
-            return new[]
+            var ns = typeof(Plugin).Namespace!;
+            var pages = new[]
             {
-                // HTML -> /web/configurationpage?name=collectionsbyfolder
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = string.Format(
-                        CultureInfo.InvariantCulture, "{0}.Web.collectionsbyfolder.html", ns)
+                new PluginPageInfo {
+                    Name = "collectionsbyfolder", // HTML
+                    EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.html"
                 },
-                // JS -> /web/collectionsbyfolderjs   (wichtig: kein configurationpage!)
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolderjs",
-                    EmbeddedResourcePath = string.Format(
-                        CultureInfo.InvariantCulture, "{0}.Web.collectionsbyfolder.js", ns)
+                new PluginPageInfo {
+                    Name = "collectionsbyfolderjs", // JS  -> /web/collectionsbyfolderjs
+                    EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.js"
                 }
             };
+
+            // << DEBUG: zur Laufzeit sehen, was wirklich registriert wird
+            try
+            {
+                Console.WriteLine("[CBF] GetPages() called");
+                foreach (var p in pages)
+                    Console.WriteLine($"[CBF] Page Name='{p.Name}'  Res='{p.EmbeddedResourcePath}'");
+            }
+            catch { /* ignore */ }
+
+            return pages;
         }
+
     }
 }
