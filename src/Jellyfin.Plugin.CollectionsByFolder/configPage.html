@@ -40,5 +40,18 @@
   </div>
 
   <!-- WICHTIG: dein eingebettetes JS laden -->
-  <script src="collectionsbyfolderjs"></script>
+  <script>
+  (function () {
+       var s = document.createElement('script');
+       // Base-URL aware: funktioniert mit /, /jellyfin, etc.
+       if (window.ApiClient && typeof ApiClient.getUrl === 'function') {
+         s.src = ApiClient.getUrl('web/collectionsbyfolderjs');
+       } else {
+         // Fallback: klassischer Pfad
+         s.src = '/web/collectionsbyfolderjs';
+       }
+       document.currentScript.parentNode.appendChild(s);
+     })();
+  </script>
+
 </div>
