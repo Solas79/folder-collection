@@ -22,7 +22,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
   </ItemGroup>
 
-  <!-- Eingebettete Plugin-Webseiten -->
   <ItemGroup>
     <EmbeddedResource Include="configPage.html">
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
@@ -31,5 +30,6 @@
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
+
 
 </Project>
