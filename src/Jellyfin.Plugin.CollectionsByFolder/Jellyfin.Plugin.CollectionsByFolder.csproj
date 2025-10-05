@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
 
      <!-- Versionen sauber setzen -->
-    <Version>0.2.0</Version>
-    <AssemblyVersion>0.2.0.0</AssemblyVersion>
-    <FileVersion>0.2.-.0</FileVersion>
-    <InformationalVersion>0.2.0</InformationalVersion>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.0.1.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <InformationalVersion>0.1.0</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,5 +26,5 @@
   <EmbeddedResource Include="configPage.js">
     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
   </EmbeddedResource>
-</ItemGroup>
-
+  </ItemGroup>
+</Project>
