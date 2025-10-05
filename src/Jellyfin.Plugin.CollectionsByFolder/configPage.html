@@ -1,8 +1,29 @@
+<!-- Eine Datei, keine externe JS-Route nötig -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
-     data-pluginid="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-     id="cbfPage">
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
+     id="cbfPage"
+
+     <!-- Einmalige Initialisierung, sobald die Seite „berührt“ wird -->
+     onmouseenter="(async(el)=>{ if(el.dataset.init) return; el.dataset.init=1;
+       const id='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+       const g=n=>document.getElementById(n);
+       const s=m=>{const e=g('cbf-status'); if(e) e.textContent=m;};
+       try{
+         if(window.ApiClient?.getPluginConfiguration){
+           const cfg=await ApiClient.getPluginConfiguration(id);
+           (g('whitelist')||{}).value=(cfg?.Whitelist||[]).join('\n');
+           (g('blacklist')||{}).value=(cfg?.Blacklist||[]).join('\n');
+           (g('prefix')||{}).value=cfg?.Prefix||'';
+           (g('suffix')||{}).value=cfg?.Suffix||'';
+           (g('minfiles')||{}).value=String(cfg?.MinFiles??0);
+           s('Konfiguration geladen');
+         } else { s('ApiClient nicht verfügbar'); }
+       }catch(e){ s('Fehler Laden: '+(e?.message||e)); }
+     })(this)"
+     onfocusin="this.onmouseenter(event)"
+     onpointerdown="this.onmouseenter(event)">
 
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
@@ -33,12 +54,36 @@
     </div>
 
     <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <!-- SPEICHERN – komplett inline -->
+      <button is="emby-button" type="button" class="raised button submit block" id="saveButton"
+        onclick="(async()=>{ try{
+          const id='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+          const g=n=>document.getElementById(n);
+          const s=m=>{const e=g('cbf-status'); if(e) e.textContent=m;};
+          const lines=t=>(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
+          const cfg={
+            Whitelist:lines(g('whitelist')?.value),
+            Blacklist:lines(g('blacklist')?.value),
+            Prefix:g('prefix')?.value||'',
+            Suffix:g('suffix')?.value||'',
+            MinFiles:parseInt(g('minfiles')?.value||'0',10)||0
+          };
+          s('Speichern…');
+          if(window.ApiClient?.updatePluginConfiguration){
+            await ApiClient.updatePluginConfiguration(id,cfg);
+            s('Gespeichert ✔');
+          } else { s('Kein ApiClient (Klick erkannt)'); }
+        }catch(e){ document.getElementById('cbf-status').textContent='Fehler: '+(e?.message||e); } })()">
+        Speichern
+      </button>
+
+      <!-- SCAN – Demo -->
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton"
+        onclick="(s=>{ s.textContent='Scan gestartet…'; setTimeout(()=>s.textContent='Scan abgeschlossen ✔ (Demo)',800); })(document.getElementById('cbf-status'))">
+        Jetzt scannen
+      </button>
+
       <span id="cbf-status" style="margin-left:1rem;"></span>
     </div>
   </div>
-
-  <!-- exakt derselbe Name wie in Plugin.cs -->
-  <script src="collectionsbyfolder.js"></script>
 </div>
