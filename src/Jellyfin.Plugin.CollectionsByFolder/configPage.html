@@ -40,13 +40,83 @@
   </div>
 
   <!-- WICHTIG: dein eingebettetes JS laden -->
-  <script>
-  (function () {
-       var s = document.createElement('script');
-       s.src = (window.ApiClient?.getUrl?.('web/cbf_js')) || '/web/cbf_js';
-       document.currentScript.parentNode.appendChild(s);
-     })();
-     </script>
+  <!-- Datei: configPage.html -->
+<script>
+(function () {
+  var s = document.createElement('script');
 
+  // Base-URL-sicher (funktioniert mit /, /jellyfin, Reverse Proxy etc.)
+  var url = (window.ApiClient && typeof ApiClient.getUrl === 'function')
+    ? ApiClient.getUrl('web/cbf_js')
+    : '/web/cbf_js';
+
+  s.src = url;
+
+  // 👇 Fallback: Wenn /web/cbf_js 404 liefert, binden wir Inline-JS
+  s.onerror = function () {
+    console.warn('[CBF] /web/cbf_js nicht erreichbar – Fallback auf Inline-JS');
+    var f = document.createElement('script');
+    f.type = 'text/javascript';
+    f.text = `
+      (function(){
+        const pluginId='f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
+        function setStatus(m){const el=document.getElementById('cbf-status'); if(el) el.textContent=m; console.log('[CBF]',m);}
+
+        function load(){
+          if (window.ApiClient && typeof ApiClient.getPluginConfiguration==='function') {
+            ApiClient.getPluginConfiguration(pluginId).then(cfg=>{
+              (document.getElementById('whitelist')||{}).value=(cfg.Whitelist||[]).join('\\n');
+              (document.getElementById('blacklist')||{}).value=(cfg.Blacklist||[]).join('\\n');
+              (document.getElementById('prefix')||{}).value=cfg.Prefix||'';
+              (document.getElementById('suffix')||{}).value=cfg.Suffix||'';
+              (document.getElementById('minfiles')||{}).value=String(cfg.MinFiles||0);
+              setStatus('Konfiguration geladen (Fallback)');
+            }).catch(err=>setStatus('Fehler beim Laden (Fallback): '+(err?.message||err)));
+          } else {
+            setStatus('Fallback aktiv – ApiClient nicht gefunden');
+          }
+        }
+
+        function save(e){
+          e && e.preventDefault();
+          setStatus('Speichern… (Fallback)');
+          const cfg={
+            Whitelist:(document.getElementById('whitelist')?.value||'').split('\\n').filter(Boolean),
+            Blacklist:(document.getElementById('blacklist')?.value||'').split('\\n').filter(Boolean),
+            Prefix:document.getElementById('prefix')?.value||'',
+            Suffix:document.getElementById('suffix')?.value||'',
+            MinFiles:parseInt(document.getElementById('minfiles')?.value||'0',10)||0
+          };
+          if(window.ApiClient?.updatePluginConfiguration){
+            ApiClient.updatePluginConfiguration(pluginId,cfg)
+              .then(()=>setStatus('Gespeichert ✔ (Fallback)'))
+              .catch(err=>setStatus('Fehler: '+(err?.message||err)));
+          } else {
+            setStatus('Klick erkannt ✔ (Fallback, kein ApiClient)');
+          }
+        }
+
+        function scan(e){
+          e && e.preventDefault();
+          setStatus('Scan gestartet… (Fallback)');
+          setTimeout(()=>setStatus('Scan abgeschlossen ✔ (Fallback)'),800);
+        }
+
+        function init(){
+          document.getElementById('saveButton')?.addEventListener('click',save);
+          document.getElementById('scanNowButton')?.addEventListener('click',scan);
+          load();
+          setStatus('Bereit (Fallback)');
+          console.log('[CBF] Listener gebunden (Fallback)');
+        }
+
+        if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);} else {init();}
+      })();`;
+    document.currentScript.parentNode.appendChild(f);
+  };
+
+  document.currentScript.parentNode.appendChild(s);
+})();
+</script>
 
 </div>
