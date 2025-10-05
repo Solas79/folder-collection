@@ -1,0 +1,44 @@
+<div data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-title="Collections by Folder"
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
+     id="cbfPage">
+
+  <div data-role="content" class="content-primary">
+    <h1>Collections by Folder</h1>
+
+    <div class="inputContainer">
+      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+      <textarea id="whitelist" rows="6" spellcheck="false"></textarea>
+    </div>
+
+    <div class="inputContainer">
+      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+      <textarea id="blacklist" rows="6" spellcheck="false"></textarea>
+    </div>
+
+    <div class="inputContainer">
+      <label for="prefix">Präfix</label>
+      <input id="prefix" type="text" />
+    </div>
+
+    <div class="inputContainer">
+      <label for="suffix">Suffix</label>
+      <input id="suffix" type="text" />
+    </div>
+
+    <div class="inputContainer">
+      <label for="minfiles">Mindestanzahl Dateien</label>
+      <input id="minfiles" type="number" min="0" value="0" />
+    </div>
+
+    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
+      <button is="emby-button" type="button" class="raised button block" id="saveButton">Speichern</button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <span id="cbf-status" style="margin-left:1rem;"></span>
+    </div>
+  </div>
+
+  <!-- exakt wie im referenz-projekt: JS über /web/<Name> -->
+  <script src="collectionsbyfolderjs"></script>
+</div>
