@@ -1,9 +1,11 @@
+<!-- Config-Seite: /web/collectionsbyfolder -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
-     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41">
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
+     id="cbfPage">
 
-  <div class="content-primary">
+  <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
     <div class="inputContainer">
@@ -38,6 +40,6 @@
     </div>
   </div>
 
-  <!-- Externes JS laden (Standard-Route) -->
-  <script src="collectionsbyfolderjs"></script>
+  <!-- WICHTIG: exakt so referenzieren (Route: /web/configPage.js) -->
+  <script src="configPage.js"></script>
 </div>
