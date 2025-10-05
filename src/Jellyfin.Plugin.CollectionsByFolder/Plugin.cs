@@ -22,26 +22,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            // exakt wie im referenz-projekt: Pfade mit GetType().Namespace + string.Format
-            var ns = GetType().Namespace;
-
+            var ns = GetType().Namespace!;
             return new[]
             {
-                // HTML → /web/configurationpage?name=collectionsbyfolder
+                // HTML -> /web/configurationpage?name=collectionsbyfolder
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolder",
                     EmbeddedResourcePath = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0}.Web.collectionsbyfolder.html", ns)
+                        CultureInfo.InvariantCulture, "{0}.Web.collectionsbyfolder.html", ns)
                 },
-                // JS  → /web/collectionsbyfolderjs  (kein configurationpage!)
+                // JS -> /web/collectionsbyfolderjs   (wichtig: kein configurationpage!)
                 new PluginPageInfo
                 {
                     Name = "collectionsbyfolderjs",
                     EmbeddedResourcePath = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0}.Web.collectionsbyfolder.js", ns)
+                        CultureInfo.InvariantCulture, "{0}.Web.collectionsbyfolder.js", ns)
                 }
             };
         }
