@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
-    // Endpunkte:  /Plugins/CollectionsByFolder/<Action>
+    // Endpunkte: /Plugins/CollectionsByFolder/<Action>
     [ApiController]
     [Route("Plugins/[controller]/[action]")]
     public class CollectionsByFolderController : ControllerBase
@@ -30,12 +30,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-        /// <summary>Einfacher Reachability-Test.</summary>
+        /// <summary>Reachability-Test ohne JS.</summary>
         [HttpGet]
         public IActionResult Ping() => Content("ok", "text/plain");
 
         /// <summary>
-        /// Nimmt das HTML-Form (application/x-www-form-urlencoded) entgegen und speichert die Plugin-Konfiguration.
+        /// Nimmt das HTML-Form entgegen und speichert die Plugin-Konfiguration.
         /// </summary>
         [HttpPost]
         [Consumes("application/x-www-form-urlencoded")]
@@ -45,7 +45,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             [FromForm] string? prefix,
             [FromForm] string? suffix,
             [FromForm] int?    minfiles,
-            // optional – falls du separate Eingabe für Ordnerpfade vorsehen willst
+            // optional: separate Eingabe für Ordnerpfade
             [FromForm] string? folderpaths
         )
         {
@@ -64,8 +64,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             cfg.Suffix     = suffix ?? string.Empty;
             cfg.MinFiles   = Math.Max(0, minfiles ?? 0);
 
-            // Kompatibilität für bestehenden Code (z.B. CollectionBuilder)
-            // Wenn 'folderpaths' mitkommt, nutze es – sonst nimm Whitelist.
             var fp = SplitLines(folderpaths);
             cfg.FolderPaths = fp.Count > 0 ? fp : new List<string>(cfg.Whitelist);
 
@@ -76,8 +74,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 cfg.Whitelist.Count, cfg.Blacklist.Count, cfg.Prefix, cfg.Suffix, cfg.MinFiles, cfg.FolderPaths.Count
             );
 
-            // BaseUrl-sicher zurück zur Config-Seite
-            // Beispiel:  "" oder "/jellyfin"
+            // BaseUrl-sicherer Rücklink zur Config-Seite
             var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
             var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
 
