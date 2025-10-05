@@ -2,16 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
-
-    <!-- 👇 Plugin-/Assembly-Version -->
-    <Version>0.1.2</Version>
-    <FileVersion>0.1.2.0</FileVersion>
-    <AssemblyVersion>0.1.2.0</AssemblyVersion>
-    <!-- (Optional) falls du eigene Assembly-Infos per Attributes setzt -->
+    <Version>0.1.9</Version>
+    <FileVersion>0.1.9.0</FileVersion>
+    <AssemblyVersion>0.1.9.0</AssemblyVersion>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
 
@@ -22,6 +17,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
   </ItemGroup>
 
+  <!-- Sicherstellen, dass NUR als EmbeddedResource drin sind -->
   <ItemGroup>
     <None Remove="configPage.html" />
     <None Remove="configPage.js" />
@@ -35,9 +31,4 @@
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-
-  <!-- (Optional) Build-Check: zeigt eingebettete Ressourcen -->
-  <Target Name="ListEmbedded" AfterTargets="CoreCompile">
-    <Message Text="ER: %(EmbeddedResource.Identity) -> %(EmbeddedResource.LogicalName)" Importance="High" />
-  </Target>
 </Project>
