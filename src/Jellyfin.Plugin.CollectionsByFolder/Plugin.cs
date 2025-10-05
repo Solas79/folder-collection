@@ -37,5 +37,19 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             }    
         };
 
+    public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
+        : base(appPaths, xmlSerializer)
+    {
+        Instance = this;
+
+        // 🔍 DEBUG: eingebettete Ressourcen auflisten
+        var all = typeof(Plugin).Assembly.GetManifestResourceNames();
+        foreach (var name in all)
+        {
+            Console.WriteLine("[CBF] Resource: " + name);
+        }
+    }
+
+
     }
 }
