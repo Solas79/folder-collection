@@ -1,4 +1,4 @@
-<!-- CBF inline-only config page (keine externe JS-Datei, kein Controller nötig) -->
+<!-- CBF inline-only config page (kein Controller, keine externe JS-Datei) -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -34,21 +34,22 @@
     </div>
 
     <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <!-- WICHTIG: keine 'submit' / 'button-submit' Klasse -->
+      <button is="emby-button" type="button" class="raised button block" id="saveButton" role="button">
+        Speichern
+      </button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton" role="button">
+        Jetzt scannen
+      </button>
       <span id="cbf-status" style="margin-left:1rem;"></span>
     </div>
   </div>
 
-  <!-- Inline-Script: bindet Buttons, lädt/speichert Konfig – keine externe Route nötig -->
   <script>
   (function () {
     'use strict';
 
-    // Muss exakt deine Plugin-GUID sein:
     const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-
-    // In dieser Seite arbeiten, nicht global im Dokument
     const page = document.getElementById('cbfPage');
     if (!page) return;
 
@@ -86,47 +87,60 @@
       }
     }
 
-    async function saveConfig() {
+    async function onSave(ev) {
       try {
+        // JEGLICHE Default-/Global-Handler unterbinden:
+        ev?.preventDefault?.();
+        ev?.stopPropagation?.();
+        ev?.stopImmediatePropagation?.();
+
         setStatus('Speichern…');
 
         const cfg = {
-          Whitelist: linesToList($('#whitelist').value),
-          Blacklist: linesToList($('#blacklist').value),
-          Prefix:    $('#prefix').value || '',
-          Suffix:    $('#suffix').value || '',
-          MinFiles:  parseInt($('#minfiles').value || '0', 10) || 0,
-          // Optionaler Kompatibilitäts-Fallback:
+          Whitelist:  linesToList($('#whitelist').value),
+          Blacklist:  linesToList($('#blacklist').value),
+          Prefix:     $('#prefix').value || '',
+          Suffix:     $('#suffix').value || '',
+          MinFiles:   parseInt($('#minfiles').value || '0', 10) || 0,
+          // Kompatibilität für bestehenden Code:
           FolderPaths: linesToList($('#whitelist').value)
         };
 
         if (!window.ApiClient || typeof ApiClient.updatePluginConfiguration !== 'function') {
           setStatus('ApiClient nicht verfügbar (aber Klick erkannt)');
-          return;
+          return false;
         }
 
         await ApiClient.updatePluginConfiguration(pluginId, cfg);
         setStatus('Gespeichert ✔');
+        return false;
       } catch (e) {
         setStatus('Fehler: ' + (e && e.message ? e.message : e));
+        return false;
       }
+    }
+
+    function onScan(ev) {
+      ev?.preventDefault?.();
+      ev?.stopPropagation?.();
+      ev?.stopImmediatePropagation?.();
+      setStatus('Scan gestartet…');
+      setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
+      return false;
     }
 
     function bind() {
       const saveBtn = $('#saveButton');
       const scanBtn = $('#scanNowButton');
 
-      if (saveBtn) saveBtn.addEventListener('click', saveConfig);
-      if (scanBtn) scanBtn.addEventListener('click', function () {
-        setStatus('Scan gestartet…');
-        // TODO: Hier später echten Server-Call einbauen
-        setTimeout(() => setStatus('Scan abgeschlossen ✔ (Demo)'), 800);
-      });
+      // Capture-Phase, um Jellyfin-Handler zuvorzukommen
+      saveBtn?.addEventListener('click', onSave, { capture: true });
+      scanBtn?.addEventListener('click', onScan, { capture: true });
 
       setStatus('Bereit');
     }
 
-    // Jellyfin lädt die Seite dynamisch. Sicherstellen, dass Elemente existieren:
+    // In der Jellyfin-Shell kann DOMContentLoaded schon durch sein
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function onDom() {
         document.removeEventListener('DOMContentLoaded', onDom);
