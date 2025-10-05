@@ -2,29 +2,36 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
-    <Version>0.1.4</Version>
-    <FileVersion>0.1.4.0</FileVersion>
-    <AssemblyVersion>0.1.4.0</AssemblyVersion>
+
+    <!-- Versionen nach Wunsch anpassen -->
+    <Version>0.1.5</Version>
+    <FileVersion>0.1.5.0</FileVersion>
+    <AssemblyVersion>0.1.5.0</AssemblyVersion>
+
+    <!-- AssemblyInfo automatisch erzeugen -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Common" Version="10.10.*" />
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.*" />
-    <PackageReference Include="Jellyfin.Model" Version="10.10.*" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.*" />
+    <!-- Exakte 10.10.7 Referenzen für Stabilität -->
+    <PackageReference Include="Jellyfin.Common"     Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Model"      Version="10.10.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- HTML als EmbeddedResource (ohne JS!) -->
+  <ItemGroup>
+    <None Remove="configPage.html" />
   </ItemGroup>
 
   <ItemGroup>
-   <None Remove="configPage.html" />   
- </ItemGroup>
-
- <ItemGroup>
-   <EmbeddedResource Include="configPage.html">
-     <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
-   </EmbeddedResource>
- </ItemGroup>
-
+    <EmbeddedResource Include="configPage.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.configPage.html</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>
