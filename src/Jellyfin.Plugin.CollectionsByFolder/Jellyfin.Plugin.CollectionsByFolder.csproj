@@ -17,16 +17,15 @@
 
   <!-- Einbinden der Web-Dateien -->
   <ItemGroup>
-    <None Remove="Web/config.html" />
-    <None Remove="Web/config.js" />
+    <None Remove="Web/collectionsbyfolder.html" />
+    <None Remove="Web/collectionsbyfolder.js" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Web/config.html">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.config.html</LogicalName>
+    <EmbeddedResource Include="Web/collectionsbyfolder.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Web/config.js">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.config.js</LogicalName>
+    <EmbeddedResource Include="Web/collectionsbyfolder.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
-</Project>
