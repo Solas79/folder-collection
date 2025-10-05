@@ -1,55 +1,44 @@
-define([], function () {
-  "use strict";
+<!-- configPage.html -->
+<div data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-title="Collections by Folder"
+     data-pluginid="cda3a99a-7db0-4a69-a9c4-2238e1d5b9b4">
 
-  const pluginId = "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41";
+  <div class="content-primary">
+    <h1>Collections by Folder</h1>
 
-  return function (view) {
-    const $ = (sel) => view.querySelector(sel);
-    const status = $("#cbf-status");
+    <div class="inputContainer">
+      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+      <textarea id="whitelist" rows="4"></textarea>
+    </div>
 
-    function show(msg) { if (status) { status.textContent = msg; setTimeout(() => status.textContent = "", 3000); } }
+    <div class="inputContainer">
+      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+      <textarea id="blacklist" rows="4"></textarea>
+    </div>
 
-    async function load() {
-      try {
-        const cfg = await ApiClient.getPluginConfiguration(pluginId);
-        $("#whitelist").value = (cfg.Whitelist || cfg.FolderPaths || []).join("\n");
-        $("#blacklist").value = (cfg.Blacklist || []).join("\n");
-        $("#prefix").value = cfg.Prefix || "";
-        $("#suffix").value = cfg.Suffix || "";
-        $("#minfiles").value = cfg.MinFiles || 2;
-      } catch (e) {
-        console.error("[CBF] load error", e);
-      }
-    }
+    <div class="inputContainer">
+      <label for="prefix">Präfix</label>
+      <input id="prefix" type="text">
+    </div>
 
-    async function save() {
-      const cfg = await ApiClient.getPluginConfiguration(pluginId);
-      cfg.Whitelist = ($("#whitelist").value || "").split("\n").map(s => s.trim()).filter(Boolean);
-      cfg.Blacklist = ($("#blacklist").value || "").split("\n").map(s => s.trim()).filter(Boolean);
-      cfg.Prefix = ($("#prefix").value || "").trim();
-      cfg.Suffix = ($("#suffix").value || "").trim();
-      cfg.MinFiles = parseInt($("#minfiles").value || "2", 10);
-      await ApiClient.updatePluginConfiguration(pluginId, cfg);
-      Dashboard.processPluginConfigurationUpdateResult();
-      show("Gespeichert.");
-    }
+    <div class="inputContainer">
+      <label for="suffix">Suffix</label>
+      <input id="suffix" type="text">
+    </div>
 
-    async function scan() {
-      try {
-        const resp = await ApiClient.fetch({ url: ApiClient.getUrl("CollectionsByFolder/ScanNow"), method: "POST" });
-        const info = await resp.json().catch(() => ({}));
-        show(`Scan gestartet${info?.candidates != null ? " (Kandidaten: "+info.candidates+")" : ""}.`);
-      } catch (e) {
-        console.error("[CBF] scan error", e);
-        show("Scan-Start fehlgeschlagen.");
-      }
-    }
+    <div class="inputContainer">
+      <label for="minfiles">Mindestanzahl Dateien</label>
+      <input id="minfiles" type="number" min="1">
+    </div>
 
-    const saveBtn = $("#saveButton");
-    const scanBtn = $("#scanNowButton");
-    if (saveBtn && !saveBtn._cbf) { saveBtn.addEventListener("click", save); saveBtn._cbf = 1; }
-    if (scanBtn && !scanBtn._cbf) { scanBtn.addEventListener("click", scan); scanBtn._cbf = 1; }
+    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
+      <button is="emby-button" type="button" class="raised button submit block" id="saveButton">Speichern</button>
+      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
+      <span id="cbf-status" style="margin-left:1rem;"></span>
+    </div>
+  </div>
 
-    view.addEventListener("viewshow", load);
-  };
-});
+  <!-- WICHTIG: dein eingebettetes JS laden -->
+  <script src="collectionsbyfolderjs"></script>
+</div>
