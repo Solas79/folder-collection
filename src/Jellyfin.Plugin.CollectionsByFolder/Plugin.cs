@@ -19,6 +19,13 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
+        
+            // 🔍 DEBUG: Eingebettete Ressourcen auflisten
+            var all = typeof(Plugin).Assembly.GetManifestResourceNames();
+            foreach (var name in all)
+            {
+                Console.WriteLine("[CBF] Resource: " + name);
+            }
         }
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
@@ -36,20 +43,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder
                 EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
             }    
         };
-
-    public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
-        : base(appPaths, xmlSerializer)
-    {
-        Instance = this;
-
-        // 🔍 DEBUG: eingebettete Ressourcen auflisten
-        var all = typeof(Plugin).Assembly.GetManifestResourceNames();
-        foreach (var name in all)
-        {
-            Console.WriteLine("[CBF] Resource: " + name);
-        }
-    }
-
+  
 
     }
 }
