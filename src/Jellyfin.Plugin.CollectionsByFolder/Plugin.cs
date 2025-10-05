@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
-using MediaBrowser.Common.Configuration;
+using System.Linq;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using MediaBrowser.Common.Configuration;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
@@ -19,31 +18,33 @@ namespace Jellyfin.Plugin.CollectionsByFolder
             : base(appPaths, xmlSerializer)
         {
             Instance = this;
-        
-            // 🔍 DEBUG: Eingebettete Ressourcen auflisten
-            var all = typeof(Plugin).Assembly.GetManifestResourceNames();
-            foreach (var name in all)
+        }
+
+        private static string FindRes(string suffix)
+        {
+            var asm = typeof(Plugin).Assembly;
+            var names = asm.GetManifestResourceNames();
+            var hit = names.FirstOrDefault(n => n.EndsWith(suffix, StringComparison.Ordinal));
+            if (hit == null)
             {
-                Console.WriteLine("[CBF] Resource: " + name);
+                throw new InvalidOperationException(
+                    $"CBF: EmbeddedResource '{suffix}' nicht gefunden. Vorhanden: {string.Join(", ", names)}");
             }
+            return hit;
         }
 
         public IEnumerable<PluginPageInfo> GetPages() => new[]
         {
             new PluginPageInfo
             {
-                // /web/collectionsbyfolder  → HTML
-                Name = "collectionsbyfolder",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.html"
+                Name = "collectionsbyfolder",          // /web/collectionsbyfolder
+                EmbeddedResourcePath = FindRes(".configPage.html")
             },
             new PluginPageInfo
             {
-                // /web/collectionsbyfolderjs → JS
-                Name = "collectionsbyfolderjs",
-                EmbeddedResourcePath = "Jellyfin.Plugin.CollectionsByFolder.configPage.js"
-            }    
+                Name = "collectionsbyfolderjs",       // /web/collectionsbyfolderjs
+                EmbeddedResourcePath = FindRes(".configPage.js")
+            }
         };
-  
-
     }
 }
