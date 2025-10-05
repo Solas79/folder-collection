@@ -8,9 +8,9 @@
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
 
     <!-- 👇 Plugin-/Assembly-Version -->
-    <Version>0.1.4</Version>
-    <FileVersion>0.1.4.0</FileVersion>
-    <AssemblyVersion>0.1.4.0</AssemblyVersion>
+    <Version>0.1.5</Version>
+    <FileVersion>0.1.5.0</FileVersion>
+    <AssemblyVersion>0.1.5.0</AssemblyVersion>
     <!-- (Optional) falls du eigene Assembly-Infos per Attributes setzt -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   </PropertyGroup>
