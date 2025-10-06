@@ -5,7 +5,7 @@
      id="cbfPage">
 
   <div data-role="content" class="content-primary">
-    <h1 style="margin-top:2.25rem">Collections by Folder</h1>
+    <h1 style="margin-top:1.25rem">Collections by Folder</h1>
 
     <p id="cbf-status" style="margin:.25rem 0 .75rem 0;font-weight:600;"></p>
 
@@ -40,9 +40,14 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <button is="emby-button" type="submit" class="raised button block" id="saveButton">
-        Speichern
-      </button>
+      <div style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
+        <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+          Speichern
+        </button>
+        <button is="emby-button" type="button" class="raised button block" id="scanButton">
+          Jetzt scannen
+        </button>
+      </div>
     </form>
 
     <p class="fieldDescription" style="margin-top:1rem;">
@@ -80,7 +85,7 @@
           setVal('blacklist', c.blacklist || []);
           setVal('prefix',    c.prefix    || '');
           setVal('suffix',    c.suffix    || '');
-          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
+          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles != null ? c.minfiles : 0);
           status('Bereit', true);
         })
         .catch(function(e){ status('Fehler beim Laden', false); });
@@ -93,6 +98,7 @@
       return usp.toString();
     }
 
+    // Speichern
     var form = byId('cbfForm');
     if (form) {
       form.addEventListener('submit', function (e) {
@@ -109,9 +115,31 @@
         })
         .then(function(){
           status('Gespeichert ✔', true);
-          load(); // nach dem Speichern Werte neu laden
+          setTimeout(function(){ load(); }, 3000); // erst nach 3s neu laden
         })
         .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
+      }, { capture: true });
+    }
+
+    // Jetzt scannen
+    var scanBtn = byId('scanButton');
+    if (scanBtn) {
+      scanBtn.addEventListener('click', function(){
+        status('Scan gestartet…');
+        fetch(urlApi('/Plugins/CollectionsByFolder/Scan'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        })
+        .then(function(r){
+          if (!r.ok) throw new Error('HTTP '+r.status);
+          return r.text();
+        })
+        .then(function(){
+          status('Scan abgeschlossen ✔', true);
+          // Optional: danach neu laden, wenn du sofortige Änderungen siehst
+          // setTimeout(function(){ load(); }, 1500);
+        })
+        .catch(function(err){ status('Scan fehlgeschlagen: '+(err && err.message || err), false); });
       }, { capture: true });
     }
 
