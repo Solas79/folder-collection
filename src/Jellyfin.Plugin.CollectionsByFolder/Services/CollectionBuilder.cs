@@ -9,7 +9,7 @@ using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
-using MediaBrowser.Controller.Library;a
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
 
