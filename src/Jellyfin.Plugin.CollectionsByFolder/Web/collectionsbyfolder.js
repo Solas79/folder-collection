@@ -2,9 +2,9 @@ define([], function () {
   'use strict';
 
   const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
-  function $(v, s) { return v.querySelector(s); }
-  function setStatus(v, msg) { const el = $(v, '#cbf-status'); if (el) el.textContent = msg; console.log('[CBF]', msg); }
-  function linesToList(t){ return (t||'').replace(/\r\n?/g,'\n').split('\n').map(s=>s.trim()).filter(Boolean); }
+  function $(v,s){return v.querySelector(s);}
+  function setStatus(v,m){const el=$(v,'#cbf-status'); if(el) el.textContent=m; console.log('[CBF]',m);}
+  function linesToList(t){return (t||'').replace(/\r\n?/g,'\n').split('\n').map(s=>s.trim()).filter(Boolean);}
 
   function loadConfig(v){
     if(!window.ApiClient?.getPluginConfiguration){ setStatus(v,'ApiClient nicht verfügbar'); return Promise.resolve(); }
@@ -22,11 +22,11 @@ define([], function () {
     e?.preventDefault?.(); e?.stopPropagation?.(); e?.stopImmediatePropagation?.();
     setStatus(v,'Speichern…');
     const cfg={
-      Whitelist:   linesToList($(v,'#whitelist').value),
-      Blacklist:   linesToList($(v,'#blacklist').value),
-      Prefix:      $(v,'#prefix').value||'',
-      Suffix:      $(v,'#suffix').value||'',
-      MinFiles:    parseInt($(v,'#minfiles').value||'0',10)||0,
+      Whitelist: linesToList($(v,'#whitelist').value),
+      Blacklist: linesToList($(v,'#blacklist').value),
+      Prefix:    $(v,'#prefix').value||'',
+      Suffix:    $(v,'#suffix').value||'',
+      MinFiles:  parseInt($(v,'#minfiles').value||'0',10)||0,
       FolderPaths: linesToList($(v,'#whitelist').value)
     };
     ApiClient.updatePluginConfiguration(pluginId,cfg)
