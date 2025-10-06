@@ -75,7 +75,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 <h1 class=""ok"">Gespeichert ✔</h1>
 <p>Weiterleitung… Falls nichts passiert, <a href=""{backRel}"">hier klicken</a>.</p>
 <script>try{{ window.top.location.replace('{backRel}'); }}catch(_){{ location.href='{backRel}'; }}</script>";
-                return Content(html, "text/html; charset=utf-8");
+                return Content(html, "Gespeichert", "text/plain"; charset=utf-8");
             }
             catch (Exception ex)
             {
