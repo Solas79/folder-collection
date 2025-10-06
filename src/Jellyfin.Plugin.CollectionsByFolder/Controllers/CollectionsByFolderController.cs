@@ -20,6 +20,26 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
+        // GET /Plugins/CollectionsByFolder/Config  -> aktuelle Werte als JSON
+        [HttpGet("Config")]
+        [AllowAnonymous]
+        public IActionResult GetConfig()
+        {
+            var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+
+            return Ok(new
+            {
+                whitelist = cfg.Whitelist ?? new List<string>(),
+                blacklist = cfg.Blacklist ?? new List<string>(),
+                prefix    = cfg.Prefix   ?? string.Empty,
+                suffix    = cfg.Suffix   ?? string.Empty,
+                minfiles  = cfg.MinFiles
+            });
+        }
+
+
+
+
         // POST /Plugins/CollectionsByFolder/Save
         [HttpPost("Save")]
         [AllowAnonymous]
