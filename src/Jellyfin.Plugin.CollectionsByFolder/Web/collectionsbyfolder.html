@@ -1,4 +1,3 @@
-<!-- Web/collectionsbyfolder.html -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
@@ -8,7 +7,10 @@
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <form method="post"
+    <p id="cbf-status" style="margin:.25rem 0 .75rem 0;font-weight:600;"></p>
+
+    <form id="cbfForm"
+          method="post"
           action="../Plugins/CollectionsByFolder/Save"
           enctype="application/x-www-form-urlencoded"
           data-ajax="false">
@@ -38,54 +40,74 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <input type="submit"
-             value="Speichern"
-             class="raised button submit block"
-             data-role="none" />
+      <!-- hübscher Button, aber echte Form-Submission wird per JS abgefangen -->
+      <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+        Speichern
+      </button>
     </form>
 
     <p class="fieldDescription" style="margin-top:1rem;">
-      Nach dem Speichern kehrst du zur Konfigurationsseite zurück; die aktuellen Werte werden automatisch geladen.
+      Die aktuellen Werte werden automatisch geladen. Beim Speichern bleibt die Seite offen.
     </p>
   </div>
 
-  <!-- Inline-Script: lädt aktuelle Einstellungen -->
+  <!-- Inline-Script: lädt Werte & speichert per fetch, ohne Seitenwechsel -->
   <script>
-    (function () {
-      function byId(id){ return document.getElementById(id); }
-      function setVal(id, v){
-        var el = byId(id);
-        if (!el) return;
-        if (Array.isArray(v)) el.value = v.join('\n');
-        else el.value = (v == null ? '' : String(v));
-      }
-      function load() {
-        // Optionaler Hinweis nach Redirect ?saved=1
-        try {
-          var sp = new URL(window.location.href).searchParams;
-          if (sp.get('saved') === '1') {
-            var note = document.createElement('p');
-            note.textContent = 'Gespeichert ✔';
-            note.style.cssText = 'margin:.5rem 0;color:#0a7a0a;font-weight:600';
-            var cont = document.querySelector('#cbfPage .content-primary') || document.body;
-            cont.insertBefore(note, cont.firstChild);
-          }
-        } catch (_) {}
+  (function () {
+    function byId(id){ return document.getElementById(id); }
+    function setVal(id, v){
+      var el = byId(id); if (!el) return;
+      if (Array.isArray(v)) el.value = v.join('\n');
+      else el.value = (v == null ? '' : String(v));
+    }
+    function status(msg, ok){
+      var el = byId('cbf-status'); if (!el) return;
+      el.textContent = msg || '';
+      el.style.color = ok === true ? '#0a7a0a' : ok === false ? '#b00020' : '';
+    }
+    function load(){
+      status('Lade…');
+      fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : {}; })
+        .then(function(c){
+          setVal('whitelist', c.whitelist || []);
+          setVal('blacklist', c.blacklist || []);
+          setVal('prefix',    c.prefix    || '');
+          setVal('suffix',    c.suffix    || '');
+          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
+          status('Bereit', true);
+        })
+        .catch(function(e){ status('Fehler beim Laden', false); });
+    }
+    function toUrlEncoded(form){
+      var fd = new FormData(form);
+      var usp = new URLSearchParams();
+      fd.forEach(function(v,k){ usp.append(k, v); });
+      return usp.toString();
+    }
 
-        // relativ zu /web/configurationpage -> funktioniert mit/ohne BasePath
-        fetch('../Plugins/CollectionsByFolder/Config', { cache: 'no-store' })
-          .then(function (r) { return r.ok ? r.json() : {}; })
-          .then(function (c) {
-            setVal('whitelist', c.whitelist || []);
-            setVal('blacklist', c.blacklist || []);
-            setVal('prefix',    c.prefix    || '');
-            setVal('suffix',    c.suffix    || '');
-            var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
-          })
-          .catch(function (e) { try { console.warn('[CBF] load config failed', e); } catch(_){} });
-      }
-      if (document.readyState !== 'loading') load();
-      else document.addEventListener('DOMContentLoaded', load, { once: true });
-    })();
+    var form = byId('cbfForm');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        status('Speichern…');
+        var body = toUrlEncoded(form);
+        fetch('../Plugins/CollectionsByFolder/Save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        })
+        .then(function(r){
+          if (!r.ok) throw new Error('HTTP '+r.status);
+          return r.text(); // Body ignorieren
+        })
+        .then(function(){ status('Gespeichert ✔', true); load(); })
+        .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
+      }, { capture: true });
+    }
+
+    if (document.readyState !== 'loading') load();
+    else document.addEventListener('DOMContentLoaded', load, { once:true });
+  })();
   </script>
 </div>
