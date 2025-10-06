@@ -17,26 +17,24 @@ namespace Jellyfin.Plugin.CollectionsByFolder
 
         public Plugin(IApplicationPaths paths, IXmlSerializer xml) : base(paths, xml) => Instance = this;
 
-        public IEnumerable<PluginPageInfo> GetPages()
-        {
-            var ns = GetType().Namespace!;
-            return new[]
-            {
-                // HTML → /web/configurationpage?name=collectionsbyfolder
-                new PluginPageInfo
-                {
-                    Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture,
-                        "{0}.Web.configPage.html", ns)
-                },
-                // JS → /web/configPage.js   (wie im Beispiel: Name enthält ".js")
-                new PluginPageInfo
-                {
-                    Name = "configPage.js",
-                    EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture,
-                        "{0}.Web.configPage.js", ns)
-                }
-            };
-        }
+       public IEnumerable<PluginPageInfo> GetPages()
+       {
+           var ns = typeof(Plugin).Namespace!;
+           return new[]
+           {
+               // HTML → /web/configurationpage?name=collectionsbyfolder
+               new PluginPageInfo
+               {
+                   Name = "collectionsbyfolder",
+                   EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.html"
+               },
+               // JS → /web/collectionsbyfolderjs   (Achtung: Name OHNE .js)
+               new PluginPageInfo
+               {
+                   Name = "collectionsbyfolderjs",
+                   EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.js"
+               }
+           };
+       }
     }
 }
