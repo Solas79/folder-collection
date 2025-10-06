@@ -11,8 +11,8 @@
         "version": "0.1.9.0",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.1.9/Jellyfin.Plugin.CollectionsByFolder.zip",
-        "checksum": "464aa9c9b9c759fc5e0fa242003102ee",
-        "timestamp": "2025-10-06T12:33:41Z",
+        "checksum": "74169c446950fef2b32f9c01c2196c2d",
+        "timestamp": "2025-10-06T15:22:04Z",
         "changelog": "Automatischer Build für v0.1.9"
       }
     ]
