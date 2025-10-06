@@ -6,20 +6,16 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
     [ApiController]
     [Route("Plugins/CollectionsByFolder")]
-    public sealed class StaticController : ControllerBase
-    {
-        private static readonly Assembly Asm = typeof(Plugin).Assembly;
-        private static readonly string Ns = typeof(Plugin).Namespace!;
-
-        // GET /Plugins/CollectionsByFolder/js  → liefert eingebettete JS-Datei
-        [HttpGet("js")]
-        [AllowAnonymous]
-        public IActionResult GetJs()
-        {
-            var res = $"{Ns}.Web.collectionsbyfolder.js";
-            var stream = Asm.GetManifestResourceStream(res);
-            if (stream == null) return NotFound($"resource {res} not found");
-            return File(stream, "application/javascript; charset=utf-8");
+    public sealed class StaticController : ControllerBase {
+          [HttpGet("js")]
+          [AllowAnonymous]
+          public IActionResult GetJs() {
+            var res = $"{typeof(Plugin).Namespace}.Web.collectionsbyfolder.js";
+            var s = typeof(Plugin).Assembly.GetManifestResourceStream(res);
+            if (s == null) return NotFound(res);
+            return File(s, "application/javascript; charset=utf-8");
+          }
         }
+
     }
 }
