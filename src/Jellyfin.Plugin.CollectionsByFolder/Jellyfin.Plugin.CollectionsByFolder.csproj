@@ -16,16 +16,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Web/configPage.html" />
-    <None Remove="Web/configPage.js" />
+    <None Remove="Web/collectionsbyfolder.html" />  
+    <None Remove="Web/collectionsbyfolder.js" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Web/configPage.html">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.configPage.html</LogicalName>
+    <EmbeddedResource Include="Web/collectionsbyfolder.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Web/configPage.js">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.configPage.js</LogicalName>
+    <EmbeddedResource Include="Web/collectionsbyfolder.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
+
 </Project>
