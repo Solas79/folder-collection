@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
@@ -37,6 +38,26 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
+       
+
+        // POST /Plugins/CollectionsByFolder/Scan
+        [HttpPost("Scan")]
+        [AllowAnonymous]
+        [IgnoreAntiforgeryToken]
+        public IActionResult Scan()
+        {
+            try
+            {
+                // TODO: Hier ggf. echten Scan anstoßen (Background-Task)
+                // Task.Run(() => new CollectionBuilder(...).RunOnce());
+
+                return Content("OK", "text/plain; charset=utf-8");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"CBF Scan Fehler: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
 
 
 
