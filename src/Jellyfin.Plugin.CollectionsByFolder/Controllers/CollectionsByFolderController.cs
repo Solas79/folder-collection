@@ -1,15 +1,14 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
-    // Feste Basisroute: /Plugins/CollectionsByFolder/...
+    [ApiController]
     [Route("Plugins/CollectionsByFolder")]
-    [AllowAnonymous] // erlaubt Aufrufe ohne Token (wichtig bei reinem HTML-Form)
-    public class CollectionsByFolderController : Controller
+    public sealed class CollectionsByFolderController : ControllerBase
     {
         private static List<string> SplitLines(string? text) =>
             string.IsNullOrWhiteSpace(text)
@@ -21,60 +20,49 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
-        // GET /Plugins/CollectionsByFolder/Ping
-        [HttpGet("Ping")]
-        public IActionResult Ping()
-        {
-            // bewusst ohne jegliche Abhängigkeiten
-            return Content("ok", "text/plain");
-        }
-
         // POST /Plugins/CollectionsByFolder/Save
         [HttpPost("Save")]
-        [Consumes("application/x-www-form-urlencoded")]
-        [IgnoreAntiforgeryToken] // falls globales CSRF aktiv
+        [AllowAnonymous]
+        [IgnoreAntiforgeryToken]
         public IActionResult Save(
             [FromForm] string? whitelist,
             [FromForm] string? blacklist,
             [FromForm] string? prefix,
             [FromForm] string? suffix,
-            [FromForm] int?    minfiles,
-            [FromForm] string? folderpaths
-        )
+            [FromForm] int?    minfiles)
         {
             try
             {
-                var plugin = Plugin.Instance;
-                if (plugin is null)
-                    return StatusCode(500, "CBF Save: Plugin.Instance == null");
-
+                var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin.Instance == null");
                 var cfg = plugin.Configuration ?? new PluginConfiguration();
 
-                cfg.Whitelist   = SplitLines(whitelist);
-                cfg.Blacklist   = SplitLines(blacklist);
-                cfg.Prefix      = prefix ?? string.Empty;
-                cfg.Suffix      = suffix ?? string.Empty;
-                cfg.MinFiles    = Math.Max(0, minfiles ?? 0);
+                // Diese Properties müssen in deiner PluginConfiguration existieren:
+                cfg.Whitelist = SplitLines(whitelist);
+                cfg.Blacklist = SplitLines(blacklist);
+                cfg.Prefix    = prefix ?? string.Empty;
+                cfg.Suffix    = suffix ?? string.Empty;
+                cfg.MinFiles  = Math.Max(0, minfiles ?? 0);
 
-                var fp = SplitLines(folderpaths);
-                cfg.FolderPaths = fp.Count > 0 ? fp : new List<string>(cfg.Whitelist);
+                // optional/kompatibel:
+                cfg.FolderPaths = new List<string>(cfg.Whitelist);
 
                 plugin.UpdateConfiguration(cfg);
 
+                // Zurücklink zur Konfigseite (funktioniert auch mit /jellyfin BasePath)
                 var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
                 var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
 
-                var okHtml = $@"<!doctype html><meta charset=""utf-8"">
+                var html = $@"<!doctype html><meta charset=""utf-8"">
 <title>CollectionsByFolder – gespeichert</title>
-<style>body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px}}</style>
-<h1>Gespeichert ✔</h1>
+<style>body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;line-height:1.4}} .ok{{color:#0a7a0a}}</style>
+<h1 class=""ok"">Gespeichert ✔</h1>
 <p>Die Einstellungen wurden übernommen.</p>
 <p><a href=""{backUrl}"">Zurück zur Konfigurationsseite</a></p>";
-                return Content(okHtml, "text/html; charset=utf-8");
+                return Content(html, "text/html; charset=utf-8");
             }
             catch (Exception ex)
             {
-                return StatusCode(500, "CBF Save Fehler: " + ex.GetType().Name + ": " + ex.Message);
+                return StatusCode(500, $"CBF Save Fehler: {ex.GetType().Name}: {ex.Message}");
             }
         }
     }
