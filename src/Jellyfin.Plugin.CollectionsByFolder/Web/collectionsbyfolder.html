@@ -9,7 +9,7 @@
     /* Überschrift tiefer, kollidiert nicht mit Zurück-Pfeil */
     #cbfPage h1 { margin-top: 1.25rem; }
 
-    /* Statusfeld optisch wie Button */
+    /* Statusfeld optisch wie Button/Chip */
     #cbf-status {
       display: none;
       margin: .75rem 0 1rem 0;
@@ -26,6 +26,7 @@
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
+    <!-- Statusanzeige -->
     <div id="cbf-status" aria-live="polite"></div>
 
     <form id="cbfForm"
@@ -59,13 +60,10 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <div class="flex" style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
-        <button is="emby-button" type="submit" class="raised button block" id="saveButton">
-          Speichern
-        </button>
-        <button is="emby-button" type="button" class="raised button block" id="scanButton">
-          Jetzt scannen
-        </button>
+      <div style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
+        <!-- Plain submit: robust -->
+        <input type="submit" value="Speichern" class="raised button block" data-role="none" id="saveButton" />
+        <button type="button" class="raised button block" data-role="none" id="scanButton">Jetzt scannen</button>
       </div>
     </form>
 
@@ -74,38 +72,22 @@
     </p>
   </div>
 
-  <!-- Inline-Script: BasePath erkennen, Werte laden, Speichern mit Fallback, Scan -->
+  <!-- Inline-Script: ES5, BasePath-sicher, fetch/XHR-Fallback, Status 3s -->
   <script>
   (function () {
     var statusTimer = null;
 
     function byId(id){ return document.getElementById(id); }
-    function pathBase(){
-      // Beispiel-Pfade:
-      //  /web/configurationpage?name=...         -> base = ''
-      //  /jellyfin/web/configurationpage?name=...-> base = '/jellyfin'
-      var p = window.location.pathname;
-      var i = p.indexOf('/web/');
-      return (i >= 0) ? p.slice(0, i) : '';
-    }
-    function urls(){
-      var base = pathBase();
-      return {
-        cfg  : base + '/Plugins/CollectionsByFolder/Config',
-        save : base + '/Plugins/CollectionsByFolder/Save',
-        scan : base + '/Plugins/CollectionsByFolder/Scan'
-      };
-    }
     function setVal(id, v){
       var el = byId(id); if (!el) return;
-      if (Array.isArray(v)) el.value = v.join('\n');
+      if (Object.prototype.toString.call(v) === '[object Array]') el.value = v.join('\\n');
       else el.value = (v == null ? '' : String(v));
     }
     function showStatus(msg, kind, holdMs){
       var el = byId('cbf-status'); if (!el) return;
-      el.classList.remove('ok','error');
-      if (kind === 'ok') el.classList.add('ok');
-      else if (kind === 'error') el.classList.add('error');
+      el.className = ''; // reset
+      if (kind === 'ok') el.className = 'ok';
+      else if (kind === 'error') el.className = 'error';
       el.textContent = msg || '';
       el.style.display = msg ? 'block' : 'none';
       if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
@@ -113,66 +95,98 @@
         statusTimer = setTimeout(function(){ el.style.display='none'; }, holdMs);
       }
     }
+
+    function basePath(){
+      // /web/configurationpage?...           -> ''
+      // /jellyfin/web/configurationpage?...  -> '/jellyfin'
+      var p = window.location.pathname;
+      var i = p.indexOf('/web/');
+      return (i >= 0) ? p.substring(0, i) : '';
+    }
+    function urls(){
+      var b = basePath();
+      return {
+        cfg  : b + '/Plugins/CollectionsByFolder/Config',
+        save : b + '/Plugins/CollectionsByFolder/Save',
+        scan : b + '/Plugins/CollectionsByFolder/Scan'
+      };
+    }
+
+    function request(method, url, body, contentType, ok, err){
+      if (window.fetch) {
+        var opt = { method: method, cache: 'no-store' };
+        if (contentType) opt.headers = { 'Content-Type': contentType };
+        if (body != null) opt.body = body;
+        window.fetch(url, opt).then(function(r){
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.text();
+        }).then(function(t){ ok && ok(t); }).catch(function(e){ err && err(e); });
+        return;
+      }
+      // XHR Fallback (alte Browser)
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open(method, url, true);
+        if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState === 4) {
+            if (xhr.status >= 200 && xhr.status < 300) ok && ok(xhr.responseText);
+            else err && err(new Error('HTTP ' + xhr.status));
+          }
+        };
+        xhr.send(body || null);
+      } catch (e) { err && err(e); }
+    }
+
+    function toURLEncoded(form){
+      var fd = new FormData(form);
+      var pairs = [];
+      fd.forEach(function(v,k){ pairs.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); });
+      return pairs.join('&');
+    }
+
     function load(){
       var u = urls();
       showStatus('Lade…');
-      fetch(u.cfg, { cache:'no-store' })
-        .then(function(r){ return r.ok ? r.json() : {}; })
-        .then(function(c){
-          setVal('whitelist', c.whitelist || []);
-          setVal('blacklist', c.blacklist || []);
-          setVal('prefix',    c.prefix    || '');
-          setVal('suffix',    c.suffix    || '');
-          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
-          showStatus('Bereit', 'ok', 1200);
-        })
-        .catch(function(){ showStatus('Fehler beim Laden', 'error', 3000); });
-    }
-    function toUrlEncoded(form){
-      var fd = new FormData(form);
-      var usp = new URLSearchParams();
-      fd.forEach(function(v,k){ usp.append(k, v); });
-      return usp.toString();
+      request('GET', u.cfg, null, null, function(text){
+        var c = {};
+        try { c = JSON.parse(text || '{}'); } catch (e) {}
+        setVal('whitelist', c.whitelist || []);
+        setVal('blacklist', c.blacklist || []);
+        setVal('prefix',    c.prefix    || '');
+        setVal('suffix',    c.suffix    || '');
+        var mf = byId('minfiles'); if (mf) mf.value = String((c.minfiles != null ? c.minfiles : 0));
+        showStatus('Bereit', 'ok', 1200);
+      }, function(){
+        showStatus('Fehler beim Laden', 'error', 3000);
+      });
     }
 
-    // Speichern mit Fallback: erst fetch, bei Fehler -> normale Submission
+    // Speichern (fetch/XHR). Bei Fehler: sauberer Fallback auf echtes Submit.
     var form = byId('cbfForm');
-    var saveBtn = byId('saveButton');
     if (form) {
-      // action-URL zur Laufzeit korrekt setzen (BasePath-sicher)
-      form.action = urls().save;
-
       form.addEventListener('submit', function (e) {
-        e.preventDefault(); e.stopPropagation();
-        var u = urls();
-        if (saveBtn) saveBtn.disabled = true;
-        showStatus('Speichern…');
+        e.preventDefault ? e.preventDefault() : (e.returnValue = false);
+        e.stopPropagation && e.stopPropagation();
 
-        fetch(u.save, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: toUrlEncoded(form)
-        })
-        .then(function(r){
-          if (!r.ok) throw new Error('HTTP '+r.status);
-          return r.text();
-        })
-        .then(function(){
-          showStatus('Gespeichert ✔', 'ok', 3000);
-          load();
-        })
-        .catch(function(err){
-          // Fallback: normale Form-Submission (bleibt BasePath-korrekt)
-          try {
+        var u = urls();
+        form.action = u.save; // Fallback-URL setzen
+        var saveBtn = byId('saveButton'); if (saveBtn) saveBtn.disabled = true;
+
+        showStatus('Speichern…');
+        request('POST', u.save, toURLEncoded(form), 'application/x-www-form-urlencoded',
+          function(){ // OK
+            showStatus('Gespeichert ✔', 'ok', 3000);
+            if (saveBtn) saveBtn.disabled = false;
+            load();
+          },
+          function(){ // Fehler -> klassisch submitten
             showStatus('Netzwerkfehler – klassischer Submit…', 'error', 3000);
-            // kurz Verzögerung, dann echtes submit
-            setTimeout(function(){ form.submit(); }, 150);
-          } catch (e2) {
-            showStatus('Fehler: ' + (err && err.message || err), 'error', 5000);
+            try { setTimeout(function(){ form.submit(); }, 150); } catch(_) {}
+            if (saveBtn) saveBtn.disabled = false;
           }
-        })
-        .finally(function(){ if (saveBtn) saveBtn.disabled = false; });
-      }, { capture: true });
+        );
+      }, true);
     }
 
     // „Jetzt scannen“
@@ -182,23 +196,21 @@
         var u = urls();
         scanBtn.disabled = true;
         showStatus('Scan gestartet…');
-        fetch(u.scan, { method: 'POST' })
-          .then(function(r){
-            if (!r.ok) throw new Error('HTTP '+r.status);
-            return r.text();
-          })
-          .then(function(){
+        request('POST', u.scan, '', 'application/x-www-form-urlencoded',
+          function(){
             showStatus('Scan abgeschlossen ✔', 'ok', 3000);
-          })
-          .catch(function(err){
-            showStatus('Scan fehlgeschlagen: ' + (err && err.message || err), 'error', 5000);
-          })
-          .finally(function(){ scanBtn.disabled = false; });
-      }, { capture: true });
+            scanBtn.disabled = false;
+          },
+          function(){
+            showStatus('Scan fehlgeschlagen', 'error', 5000);
+            scanBtn.disabled = false;
+          }
+        );
+      }, true);
     }
 
     if (document.readyState !== 'loading') load();
-    else document.addEventListener('DOMContentLoaded', load, { once:true });
+    else document.addEventListener('DOMContentLoaded', load, true);
   })();
   </script>
 </div>
