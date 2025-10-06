@@ -1,36 +1,17 @@
-<!-- Web/collectionsbyfolder.html -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
      data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
      id="cbfPage">
 
-  <style>
-    /* Überschrift etwas tiefer, damit sie nicht mit dem Zurück-Pfeil kollidiert */
-    #cbfPage h1 { margin-top: 1.25rem; }
-
-    /* Statusfeld optisch wie Button/Chip – NICHT ausblenden */
-    #cbf-status {
-      margin: .75rem 0 1rem 0;
-      padding: .65rem .9rem;
-      border-radius: 14px;
-      box-shadow: 0 2px 6px rgba(0,0,0,.15);
-      background: rgba(255,255,255,.06);
-      font-weight: 600;
-    }
-    #cbf-status.ok    { color: #0a7a0a; }
-    #cbf-status.error { color: #b00020; }
-  </style>
-
   <div data-role="content" class="content-primary">
-    <h1>Collections by Folder</h1>
+    <h1 style="margin-top:1.25rem">Collections by Folder</h1>
 
-    <!-- Statusanzeige -->
-    <div id="cbf-status" aria-live="polite"></div>
+    <p id="cbf-status" style="margin:.25rem 0 .75rem 0;font-weight:600;"></p>
 
     <form id="cbfForm"
           method="post"
-          action="#"
+          action="../Plugins/CollectionsByFolder/Save"
           enctype="application/x-www-form-urlencoded"
           data-ajax="false">
 
@@ -59,14 +40,10 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <div style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
-        <button is="emby-button" type="submit" class="raised button block" id="saveButton">
-          Speichern
-        </button>
-        <button is="emby-button" type="button" class="raised button block" id="scanButton">
-          Jetzt scannen
-        </button>
-      </div>
+      <!-- hübscher Button, echte Submission wird per JS abgefangen -->
+      <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+        Speichern
+      </button>
     </form>
 
     <p class="fieldDescription" style="margin-top:1rem;">
@@ -74,130 +51,66 @@
     </p>
   </div>
 
-  <!-- Inline-Script: BasePath-sicher, Status ohne Display-Toggle, 3s Halt, Scan -->
   <script>
   (function () {
-    var statusTimer = null;
-
     function byId(id){ return document.getElementById(id); }
     function setVal(id, v){
       var el = byId(id); if (!el) return;
-      if (Object.prototype.toString.call(v) === '[object Array]') el.value = v.join('\n');
+      if (Array.isArray(v)) el.value = v.join('\n');
       else el.value = (v == null ? '' : String(v));
     }
-    function showStatus(msg, kind, holdMs){
+    function status(msg, ok){
       var el = byId('cbf-status'); if (!el) return;
-      // Nur Text + optionale Farbe setzen. KEIN display-Umschalten.
-      el.className = ''; // reset
-      if (kind === 'ok') el.className = 'ok';
-      else if (kind === 'error') el.className = 'error';
       el.textContent = msg || '';
-      if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
-      if (holdMs && holdMs > 0) {
-        statusTimer = setTimeout(function(){
-          el.textContent = '';
-          el.className = '';
-        }, holdMs);
-      }
+      el.style.color = ok === true ? '#0a7a0a' : ok === false ? '#b00020' : '';
     }
-
-    function basePath(){
-      // /web/configurationpage?...           -> ''
-      // /jellyfin/web/configurationpage?...  -> '/jellyfin'
-      var p = window.location.pathname;
-      var i = p.indexOf('/web/');
-      return (i >= 0) ? p.substring(0, i) : '';
-    }
-    function urls(){
-      var b = basePath();
-      return {
-        cfg  : b + '/Plugins/CollectionsByFolder/Config',
-        save : b + '/Plugins/CollectionsByFolder/Save',
-        scan : b + '/Plugins/CollectionsByFolder/Scan'
-      };
-    }
-
-    function request(method, url, body, contentType, ok, err){
-      if (window.fetch) {
-        var opt = { method: method, cache: 'no-store' };
-        if (contentType) opt.headers = { 'Content-Type': contentType };
-        if (body != null) opt.body = body;
-        window.fetch(url, opt).then(function(r){
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.text();
-        }).then(function(t){ ok && ok(t); }).catch(function(e){ err && err(e); });
-        return;
-      }
-      // XHR-Fallback
-      try {
-        var xhr = new XMLHttpRequest();
-        xhr.open(method, url, true);
-        if (contentType) xhr.setRequestHeader('Content-Type', contentType);
-        xhr.onreadystatechange = function(){
-          if (xhr.readyState === 4) {
-            if (xhr.status >= 200 && xhr.status < 300) ok && ok(xhr.responseText);
-            else err && err(new Error('HTTP ' + xhr.status));
-          }
-        };
-        xhr.send(body || null);
-      } catch (e) { err && err(e); }
-    }
-
-    function toURLEncoded(form){
-      var fd = new FormData(form);
-      var pairs = [];
-      fd.forEach(function(v,k){ pairs.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); });
-      return pairs.join('&');
-    }
-
     function load(){
-      var u = urls();
-      showStatus('Lade…');
-      request('GET', u.cfg, null, null, function(text){
-        var c = {};
-        try { c = JSON.parse(text || '{}'); } catch (e) {}
-        setVal('whitelist', c.whitelist || []);
-        setVal('blacklist', c.blacklist || []);
-        setVal('prefix',    c.prefix    || '');
-        setVal('suffix',    c.suffix    || '');
-        var mf = byId('minfiles'); if (mf) mf.value = String((c.minfiles != null ? c.minfiles : 0));
-        showStatus('Bereit', 'ok', 1200);
-      }, function(){
-        showStatus('Fehler beim Laden', 'error', 3000);
-      });
+      status('Lade…');
+      fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : {}; })
+        .then(function(c){
+          setVal('whitelist', c.whitelist || []);
+          setVal('blacklist', c.blacklist || []);
+          setVal('prefix',    c.prefix    || '');
+          setVal('suffix',    c.suffix    || '');
+          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
+          status('Bereit', true);
+        })
+        .catch(function(e){ status('Fehler beim Laden', false); });
+    }
+    function toUrlEncoded(form){
+      var fd = new FormData(form);
+      var usp = new URLSearchParams();
+      fd.forEach(function(v,k){ usp.append(k, v); });
+      return usp.toString();
     }
 
-    // Speichern (bleibt auf der Seite, zeigt Status, lädt Werte neu)
     var form = byId('cbfForm');
     if (form) {
       form.addEventListener('submit', function (e) {
-        e.preventDefault ? e.preventDefault() : (e.returnValue = false);
-        e.stopPropagation && e.stopPropagation();
-
-        var u = urls();
-        showStatus('Speichern…');
-        request('POST', u.save, toURLEncoded(form), 'application/x-www-form-urlencoded',
-          function(){ showStatus('Gespeichert ✔', 'ok', 3000); load(); },
-          function(err){ showStatus('Fehler: ' + (err && err.message || err), 'error', 5000); }
-        );
-      }, true);
-    }
-
-    // „Jetzt scannen“
-    var scanBtn = byId('scanButton');
-    if (scanBtn) {
-      scanBtn.addEventListener('click', function(){
-        var u = urls();
-        showStatus('Scan gestartet…');
-        request('POST', u.scan, '', 'application/x-www-form-urlencoded',
-          function(){ showStatus('Scan abgeschlossen ✔', 'ok', 3000); },
-          function(err){ showStatus('Scan fehlgeschlagen: ' + (err && err.message || err), 'error', 5000); }
-        );
-      }, true);
+        e.preventDefault(); e.stopPropagation();
+        status('Speichern…');
+        var body = toUrlEncoded(form);
+        fetch('../Plugins/CollectionsByFolder/Save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        })
+        .then(function(r){
+          if (!r.ok) throw new Error('HTTP '+r.status);
+          return r.text();
+        })
+        .then(function(){
+          status('Gespeichert ✔', true);
+          setTimeout(function(){ status('', null); }, 3000); // <- 3s stehen lassen
+          load();
+        })
+        .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
+      }, { capture: true });
     }
 
     if (document.readyState !== 'loading') load();
-    else document.addEventListener('DOMContentLoaded', load, true);
+    else document.addEventListener('DOMContentLoaded', load, { once:true });
   })();
   </script>
 </div>
