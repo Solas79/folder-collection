@@ -4,9 +4,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
-    <Version>0.1.8</Version>
-    <FileVersion>0.1.8.0</FileVersion>
-    <AssemblyVersion>0.1.8.0</AssemblyVersion>
+    <Version>0.1.9</Version>
+    <FileVersion>0.1.9.0</FileVersion>
+    <AssemblyVersion>0.1.9.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,16 +16,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Web/collectionsbyfolder.html" />
-    <None Remove="Web/collectionsbyfolder.js" />
+    <None Remove="Web/configPage.html" />
+    <None Remove="Web/configPage.js" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Web/collectionsbyfolder.html">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html</LogicalName>
+    <EmbeddedResource Include="Web/configPage.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.configPage.html</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="Web/collectionsbyfolder.js">
-      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
+    <EmbeddedResource Include="Web/configPage.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.configPage.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 </Project>
