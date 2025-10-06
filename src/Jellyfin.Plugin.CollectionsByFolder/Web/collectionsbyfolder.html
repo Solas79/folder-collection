@@ -1,13 +1,33 @@
+<!-- Web/collectionsbyfolder.html -->
 <div data-role="page"
      class="page type-interior pluginConfigurationPage"
      data-title="Collections by Folder"
      data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
      id="cbfPage">
 
+  <style>
+    /* Überschrift etwas tiefer, damit sie nicht mit dem Zurück-Pfeil kollidiert */
+    #cbfPage h1 { margin-top: 1.25rem; }
+
+    /* Statusfeld optisch wie ein Button */
+    #cbf-status {
+      display: none;
+      margin: .75rem 0 1rem 0;
+      padding: .65rem .9rem;
+      border-radius: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+      background: rgba(255,255,255,.06);
+      font-weight: 600;
+    }
+    #cbf-status.ok    { color: #0a7a0a; }
+    #cbf-status.error { color: #b00020; }
+  </style>
+
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <p id="cbf-status" style="margin:.25rem 0 .75rem 0;font-weight:600;"></p>
+    <!-- Statusanzeige -->
+    <div id="cbf-status" aria-live="polite"></div>
 
     <form id="cbfForm"
           method="post"
@@ -40,10 +60,14 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <!-- hübscher Button, aber echte Form-Submission wird per JS abgefangen -->
-      <button is="emby-button" type="submit" class="raised button block" id="saveButton">
-        Speichern
-      </button>
+      <div class="flex" style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
+        <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+          Speichern
+        </button>
+        <button is="emby-button" type="button" class="raised button block" id="scanButton">
+          Jetzt scannen
+        </button>
+      </div>
     </form>
 
     <p class="fieldDescription" style="margin-top:1rem;">
@@ -51,22 +75,32 @@
     </p>
   </div>
 
-  <!-- Inline-Script: lädt Werte & speichert per fetch, ohne Seitenwechsel -->
+  <!-- Inline-Script: lädt Werte & speichert/scannt per fetch, ohne Seitenwechsel -->
   <script>
   (function () {
+    var statusTimer = null;
+
     function byId(id){ return document.getElementById(id); }
     function setVal(id, v){
       var el = byId(id); if (!el) return;
       if (Array.isArray(v)) el.value = v.join('\n');
       else el.value = (v == null ? '' : String(v));
     }
-    function status(msg, ok){
+    function showStatus(msg, kind, holdMs){
       var el = byId('cbf-status'); if (!el) return;
+      el.classList.remove('ok','error');
+      if (kind === 'ok') el.classList.add('ok');
+      else if (kind === 'error') el.classList.add('error');
       el.textContent = msg || '';
-      el.style.color = ok === true ? '#0a7a0a' : ok === false ? '#b00020' : '';
+      el.style.display = msg ? 'block' : 'none';
+
+      if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+      if (holdMs && holdMs > 0) {
+        statusTimer = setTimeout(function(){ el.style.display='none'; }, holdMs);
+      }
     }
     function load(){
-      status('Lade…');
+      showStatus('Lade…');
       fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
         .then(function(r){ return r.ok ? r.json() : {}; })
         .then(function(c){
@@ -75,9 +109,9 @@
           setVal('prefix',    c.prefix    || '');
           setVal('suffix',    c.suffix    || '');
           var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
-          status('Bereit', true);
+          showStatus('Bereit', 'ok', 1200);
         })
-        .catch(function(e){ status('Fehler beim Laden', false); });
+        .catch(function(){ showStatus('Fehler beim Laden', 'error', 3000); });
     }
     function toUrlEncoded(form){
       var fd = new FormData(form);
@@ -86,23 +120,52 @@
       return usp.toString();
     }
 
+    // Speichern per fetch (ohne Redirect)
     var form = byId('cbfForm');
+    var saveBtn = byId('saveButton');
     if (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault(); e.stopPropagation();
-        status('Speichern…');
-        var body = toUrlEncoded(form);
+        if (saveBtn) saveBtn.disabled = true;
+        showStatus('Speichern…');
         fetch('../Plugins/CollectionsByFolder/Save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body
+          body: toUrlEncoded(form)
         })
         .then(function(r){
           if (!r.ok) throw new Error('HTTP '+r.status);
-          return r.text(); // Body ignorieren
+          return r.text();
         })
-        .then(function(){ status('Gespeichert ✔', true); load(); })
-        .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
+        .then(function(){
+          showStatus('Gespeichert ✔', 'ok', 3000); // 3s stehen lassen
+          load(); // Werte neu laden
+        })
+        .catch(function(err){
+          showStatus('Fehler: ' + (err && err.message || err), 'error', 5000);
+        })
+        .finally(function(){ if (saveBtn) saveBtn.disabled = false; });
+      }, { capture: true });
+    }
+
+    // „Jetzt scannen“-Button
+    var scanBtn = byId('scanButton');
+    if (scanBtn) {
+      scanBtn.addEventListener('click', function(){
+        scanBtn.disabled = true;
+        showStatus('Scan gestartet…');
+        fetch('../Plugins/CollectionsByFolder/Scan', { method: 'POST' })
+          .then(function(r){
+            if (!r.ok) throw new Error('HTTP '+r.status);
+            return r.text();
+          })
+          .then(function(){
+            showStatus('Scan abgeschlossen ✔', 'ok', 3000);
+          })
+          .catch(function(err){
+            showStatus('Scan fehlgeschlagen: ' + (err && err.message || err), 'error', 5000);
+          })
+          .finally(function(){ scanBtn.disabled = false; });
       }, { capture: true });
     }
 
