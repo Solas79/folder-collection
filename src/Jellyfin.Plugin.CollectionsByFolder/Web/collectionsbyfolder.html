@@ -1,29 +1,91 @@
-<form id="cbfForm"
-      method="post"
-      action="/Plugins/CollectionsByFolder/Save"
-      enctype="application/x-www-form-urlencoded"
-      data-ajax="false">
-  <div class="inputContainer">
-    <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-    <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
-  </div>
-  <div class="inputContainer">
-    <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-    <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
-  </div>
-  <div class="inputContainer">
-    <label for="prefix">Präfix</label>
-    <input id="prefix" name="prefix" type="text" />
-  </div>
-  <div class="inputContainer">
-    <label for="suffix">Suffix</label>
-    <input id="suffix" name="suffix" type="text" />
-  </div>
-  <div class="inputContainer">
-    <label for="minfiles">Mindestanzahl Dateien</label>
-    <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
+<!-- Web/collectionsbyfolder.html -->
+<div data-role="page"
+     class="page type-interior pluginConfigurationPage"
+     data-title="Collections by Folder"
+     data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"
+     id="cbfPage">
+
+  <div data-role="content" class="content-primary">
+    <h1>Collections by Folder</h1>
+
+    <form method="post"
+          action="../Plugins/CollectionsByFolder/Save"
+          enctype="application/x-www-form-urlencoded"
+          data-ajax="false">
+
+      <div class="inputContainer">
+        <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+        <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div class="inputContainer">
+        <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+        <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div class="inputContainer">
+        <label for="prefix">Präfix</label>
+        <input id="prefix" name="prefix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="suffix">Suffix</label>
+        <input id="suffix" name="suffix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="minfiles">Mindestanzahl Dateien</label>
+        <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
+      </div>
+
+      <input type="submit"
+             value="Speichern"
+             class="raised button submit block"
+             data-role="none" />
+    </form>
+
+    <p class="fieldDescription" style="margin-top:1rem;">
+      Nach dem Speichern kehrst du zur Konfigurationsseite zurück; die aktuellen Werte werden automatisch geladen.
+    </p>
   </div>
 
-  <!-- Klassischer Submit, kein emby-button -->
-  <input type="submit" value="Speichern" class="raised button submit block" data-role="none" />
-</form>
+  <!-- Inline-Script: lädt aktuelle Einstellungen -->
+  <script>
+    (function () {
+      function byId(id){ return document.getElementById(id); }
+      function setVal(id, v){
+        var el = byId(id);
+        if (!el) return;
+        if (Array.isArray(v)) el.value = v.join('\n');
+        else el.value = (v == null ? '' : String(v));
+      }
+      function load() {
+        // Optionaler Hinweis nach Redirect ?saved=1
+        try {
+          var sp = new URL(window.location.href).searchParams;
+          if (sp.get('saved') === '1') {
+            var note = document.createElement('p');
+            note.textContent = 'Gespeichert ✔';
+            note.style.cssText = 'margin:.5rem 0;color:#0a7a0a;font-weight:600';
+            var cont = document.querySelector('#cbfPage .content-primary') || document.body;
+            cont.insertBefore(note, cont.firstChild);
+          }
+        } catch (_) {}
+
+        // relativ zu /web/configurationpage -> funktioniert mit/ohne BasePath
+        fetch('../Plugins/CollectionsByFolder/Config', { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : {}; })
+          .then(function (c) {
+            setVal('whitelist', c.whitelist || []);
+            setVal('blacklist', c.blacklist || []);
+            setVal('prefix',    c.prefix    || '');
+            setVal('suffix',    c.suffix    || '');
+            var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
+          })
+          .catch(function (e) { try { console.warn('[CBF] load config failed', e); } catch(_){} });
+      }
+      if (document.readyState !== 'loading') load();
+      else document.addEventListener('DOMContentLoaded', load, { once: true });
+    })();
+  </script>
+</div>
