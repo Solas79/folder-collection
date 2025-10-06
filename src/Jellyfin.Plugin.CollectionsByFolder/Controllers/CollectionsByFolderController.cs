@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -21,7 +20,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
-        // GET /Plugins/CollectionsByFolder/Config  → aktuelle Werte als JSON
+        // GET /Plugins/CollectionsByFolder/Config
         [HttpGet("Config")]
         [AllowAnonymous]
         public IActionResult GetConfig()
@@ -38,7 +37,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
-        // POST /Plugins/CollectionsByFolder/Save  → speichert Konfiguration
+        // POST /Plugins/CollectionsByFolder/Save
         [HttpPost("Save")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -54,7 +53,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin.Instance == null");
                 var cfg = plugin.Configuration ?? new PluginConfiguration();
 
-                // Diese Properties müssen in deiner PluginConfiguration existieren:
                 cfg.Whitelist = SplitLines(whitelist);
                 cfg.Blacklist = SplitLines(blacklist);
                 cfg.Prefix    = prefix ?? string.Empty;
@@ -66,7 +64,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 
                 plugin.UpdateConfiguration(cfg);
 
-                // Für Fetch reicht ein klares OK
+                // simple OK für fetch
                 return Content("OK", "text/plain; charset=utf-8");
             }
             catch (Exception ex)
@@ -75,7 +73,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             }
         }
 
-        // POST /Plugins/CollectionsByFolder/Scan  → startet (optionalen) Scan
+        // POST /Plugins/CollectionsByFolder/Scan
         [HttpPost("Scan")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -83,8 +81,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
         {
             try
             {
-                // TODO: Hier ggf. echten Scan anstoßen, z.B.:
-                // Task.Run(() => new CollectionBuilder(...).RunOnce());
+                // TODO: Echte Scan-Logik hier anstoßen
+                // z.B. Task.Run(() => new CollectionBuilder(...).RunOnce());
 
                 return Content("OK", "text/plain; charset=utf-8");
             }
