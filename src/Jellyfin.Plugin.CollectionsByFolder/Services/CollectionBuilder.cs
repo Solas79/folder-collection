@@ -2,21 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
-using Jellyfin.Data.Enums;
-
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
     /// <summary>
     /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
+    /// Kompatibel zu Jellyfin 10.10.x (keine DtoOptions, IncludeItemTypes als BaseItemKind[]).
     /// </summary>
     public sealed class CollectionBuilder
     {
@@ -38,7 +39,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             PluginConfiguration cfg,
             CancellationToken ct = default)
         {
-            // defensiv
             var wl = (cfg.Whitelist ?? new List<string>())
                 .Select(NormalizePathEndSlash)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -56,20 +56,16 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             _log.LogInformation("[CBF] Scan start: WL={W} BL={B} Min={Min} Prefix='{P}' Suffix='{S}'",
                 wl.Count, bl.Count, min, prefix, suffix);
 
-            // 1) Alle Movies holen (mit Pfaden)
+            // 1) Alle Movies holen (Entities reichen, wir brauchen Id/Path/Name)
             var movies = _library.GetItemList(new InternalItemsQuery
             {
-                IncludeItemTypes = new[] { nameof(Movie) },
-                Recursive = true,
-                DtoOptions = new DtoOptions(true)
-                {
-                    Fields = new[] { ItemFields.Path }
-                }
+                IncludeItemTypes = new[] { BaseItemKind.Movie },
+                Recursive = true
             }).OfType<Movie>().ToList();
 
             _log.LogInformation("[CBF] Movies gesamt: {N}", movies.Count);
 
-            // 2) Whitelist/Blacklist-Filter
+            // 2) WL/BL-Filter
             bool IsInWhitelist(string path) =>
                 wl.Count == 0 || wl.Any(w => path.StartsWith(w, StringComparison.OrdinalIgnoreCase));
             bool IsInBlacklist(string path) =>
@@ -87,24 +83,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             var groups = filtered
                 .GroupBy(m =>
                 {
-                    var dir = Path.GetDirectoryName(m.Path) ?? string.Empty;
+                    var dir = Path.GetDirectoryName(m.Path ?? string.Empty) ?? string.Empty;
                     return dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 })
-                .Where(g => g.Any())
+                .Where(g => g.Key.Length > 0)
                 .ToList();
 
             _log.LogInformation("[CBF] Ordner-Gruppen gesamt: {N}", groups.Count);
 
             int created = 0, updated = 0;
 
-            // 4) Pro Ordner ggf. Collection anlegen/auffüllen
             foreach (var g in groups)
             {
                 ct.ThrowIfCancellationRequested();
 
                 var dirPath = g.Key;
                 var itemCount = g.Count();
-
                 if (itemCount < min)
                 {
                     _log.LogDebug("[CBF] Skip '{Dir}' (Count={C} < Min={Min})", dirPath, itemCount, min);
@@ -120,32 +114,42 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
                 var name = $"{prefix}{folderName}{suffix}";
                 var items = g.Cast<BaseItem>().ToList();
+                var itemIds = items.Select(i => i.Id).ToList();
 
-                // Gibt es bereits ein BoxSet mit dem Namen?
+                // 4) BoxSet mit Name finden
                 var existing = _library.GetItemList(new InternalItemsQuery
                 {
-                    IncludeItemTypes = new[] { nameof(BoxSet) },
+                    IncludeItemTypes = new[] { BaseItemKind.BoxSet },
                     Name = name
                 }).OfType<BoxSet>().FirstOrDefault();
 
                 if (existing == null)
                 {
-                    // Neu anlegen
                     _log.LogInformation("[CBF] Create Collection '{Name}' (Items={C})", name, items.Count);
-                    var box = await _collections.CreateCollection(name, items, null).ConfigureAwait(false);
+                    var createdOk = await TryCreateCollectionAsync(name, items, itemIds, ct).ConfigureAwait(false);
+                    if (!createdOk)
+                    {
+                        _log.LogWarning("[CBF] CreateCollection API nicht gefunden/fehlgeschlagen für '{Name}'", name);
+                        continue;
+                    }
                     created++;
                 }
                 else
                 {
-                    // Auffüllen (nur fehlende hinzufügen)
-                    var existingIds = new HashSet<Guid>(
-                        existing.GetLinkedChildren().Select(x => x.Id));
-                    var toAdd = items.Where(x => !existingIds.Contains(x.Id)).ToList();
+                    // Fehlen Items?
+                    var exIds = new HashSet<Guid>(existing.GetLinkedChildren().Select(x => x.Id));
+                    var toAdd = items.Where(x => !exIds.Contains(x.Id)).ToList();
+                    var toAddIds = toAdd.Select(x => x.Id).ToList();
 
                     if (toAdd.Count > 0)
                     {
                         _log.LogInformation("[CBF] Update Collection '{Name}' (+{C} Items)", name, toAdd.Count);
-                        await _collections.AddToCollection(existing, toAdd).ConfigureAwait(false);
+                        var ok = await TryAddToCollectionAsync(existing, toAdd, toAddIds, ct).ConfigureAwait(false);
+                        if (!ok)
+                        {
+                            _log.LogWarning("[CBF] AddToCollection API nicht gefunden/fehlgeschlagen für '{Name}'", name);
+                            continue;
+                        }
                         updated++;
                     }
                     else
@@ -157,6 +161,147 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
             _log.LogInformation("[CBF] Scan fertig: created={Cr} updated={Up}", created, updated);
             return (created, updated);
+        }
+
+        private async Task<bool> TryCreateCollectionAsync(
+            string name,
+            List<BaseItem> items,
+            List<Guid> itemIds,
+            CancellationToken ct)
+        {
+            var t = _collections.GetType();
+            var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(m => m.Name.IndexOf("CreateCollection", StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToArray();
+
+            foreach (var mi in methods)
+            {
+                try
+                {
+                    var pars = mi.GetParameters();
+
+                    // Kandidat A: CreateCollection(string, IEnumerable<BaseItem>, …)
+                    if (pars.Length >= 2 &&
+                        pars[0].ParameterType == typeof(string) &&
+                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+                    {
+                        var args = BuildArgs(mi, name, items, ct);
+                        var result = await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        // Erfolg, wenn kein Exception
+                        return true;
+                    }
+
+                    // Kandidat B: CreateCollection(string, IEnumerable<Guid>, …)
+                    if (pars.Length >= 2 &&
+                        pars[0].ParameterType == typeof(string) &&
+                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+                    {
+                        var args = BuildArgs(mi, name, itemIds, ct);
+                        var result = await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _log.LogDebug(ex, "[CBF] CreateCollection via {M} fehlgeschlagen", mi);
+                    // weiter probieren
+                }
+            }
+
+            return false;
+        }
+
+        private async Task<bool> TryAddToCollectionAsync(
+            BoxSet box,
+            List<BaseItem> items,
+            List<Guid> itemIds,
+            CancellationToken ct)
+        {
+            var t = _collections.GetType();
+            var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .Where(m => m.Name.IndexOf("AddToCollection", StringComparison.OrdinalIgnoreCase) >= 0
+                         || m.Name.IndexOf("AddItemsToCollection", StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToArray();
+
+            foreach (var mi in methods)
+            {
+                try
+                {
+                    var pars = mi.GetParameters();
+
+                    // Kandidat A: AddToCollection(BoxSet, IEnumerable<BaseItem>, …)
+                    if (pars.Length >= 2 &&
+                        pars[0].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
+                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+                    {
+                        var args = BuildArgs(mi, box, items, ct);
+                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        return true;
+                    }
+
+                    // Kandidat B: AddToCollection(Guid, IEnumerable<Guid>, …)
+                    if (pars.Length >= 2 &&
+                        pars[0].ParameterType == typeof(Guid) &&
+                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+                    {
+                        var args = BuildArgs(mi, box.Id, itemIds, ct);
+                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _log.LogDebug(ex, "[CBF] AddToCollection via {M} fehlgeschlagen", mi);
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ImplementsEnumerableOf(Type candidate, Type elem)
+        {
+            if (!candidate.IsGenericType) return false;
+            var def = candidate.GetGenericTypeDefinition();
+            if (def != typeof(IEnumerable<>)) return false;
+            return candidate.GetGenericArguments()[0].IsAssignableFrom(elem);
+        }
+
+        private static object?[] BuildArgs(MethodInfo mi, object arg0, object arg1, CancellationToken ct)
+        {
+            var pars = mi.GetParameters();
+            var args = new List<object?> { arg0, arg1 };
+            for (int i = 2; i < pars.Length; i++)
+            {
+                var p = pars[i];
+                if (p.ParameterType == typeof(CancellationToken))
+                {
+                    args.Add(ct);
+                }
+                else
+                {
+                    args.Add(GetDefault(p.ParameterType));
+                }
+            }
+            return args.ToArray();
+        }
+
+        private static object? GetDefault(Type t) => t.IsValueType ? Activator.CreateInstance(t) : null;
+
+        private static async Task<object?> InvokeAsync(object target, MethodInfo mi, object?[] args)
+        {
+            var ret = mi.Invoke(target, args);
+            if (ret is Task task)
+            {
+                await task.ConfigureAwait(false);
+                var type = ret.GetType();
+                if (type.IsGenericType)
+                {
+                    var prop = type.GetProperty("Result");
+                    return prop?.GetValue(ret);
+                }
+                return null;
+            }
+            return ret;
         }
 
         private static string NormalizePathEndSlash(string s)
