@@ -68,17 +68,22 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 
                 plugin.UpdateConfiguration(cfg);
 
-                // Zurücklink zur Konfigseite (funktioniert auch mit /jellyfin BasePath)
-                var baseUrl = (Request?.PathBase.HasValue == true) ? Request.PathBase.Value : string.Empty;
-                var backUrl = $"{baseUrl}/web/configurationpage?name=collectionsbyfolder";
+               // Zurück zur eingebetteten Seite (relativ, damit BasePath erhalten bleibt)
+               const string backRel = "../web/configurationpage?name=collectionsbyfolder&saved=1";
 
-                var html = $@"<!doctype html><meta charset=""utf-8"">
-<title>CollectionsByFolder – gespeichert</title>
-<style>body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;line-height:1.4}} .ok{{color:#0a7a0a}}</style>
-<h1 class=""ok"">Gespeichert ✔</h1>
-<p>Die Einstellungen wurden übernommen.</p>
-<p><a href=""{backUrl}"">Zurück zur Konfigurationsseite</a></p>";
-                return Content(html, "text/html; charset=utf-8");
+               var html = $@"<!doctype html><meta charset=""utf-8"">
+               <title>Gespeichert</title>
+               <meta http-equiv=""refresh"" content=""0;url={backRel}"">
+               <style>
+                  body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;line-height:1.4}}
+                  .ok{{color:#0a7a0a}}
+                  a{{color:#0a7a0a}}
+               </style>
+               <h1 class=""ok"">Gespeichert ✔</h1>
+               <p>Weiterleitung… Falls nichts passiert, <a href=""{backRel}"">hier klicken</a>.</p>
+               <script>try{{ window.top.location.replace('{backRel}'); }}catch(_){{ location.href='{backRel}'; }}</script>";    
+               return Content(html, "text/html; charset=utf-8");
+
             }
             catch (Exception ex)
             {
