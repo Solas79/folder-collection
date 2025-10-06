@@ -1,8 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Jellyfin.Plugin.CollectionsByFolder.Services;
+using MediaBrowser.Controller.Collections;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 {
@@ -10,6 +16,20 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
     [Route("Plugins/CollectionsByFolder")]
     public sealed class CollectionsByFolderController : ControllerBase
     {
+        private readonly ILibraryManager _library;
+        private readonly ICollectionManager _collections;
+        private readonly ILogger<CollectionsByFolderController> _log;
+
+        public CollectionsByFolderController(
+            ILibraryManager library,
+            ICollectionManager collections,
+            ILogger<CollectionsByFolderController> log)
+        {
+            _library = library;
+            _collections = collections;
+            _log = log;
+        }
+
         private static List<string> SplitLines(string? text) =>
             string.IsNullOrWhiteSpace(text)
                 ? new List<string>()
@@ -20,7 +40,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
-        // GET /Plugins/CollectionsByFolder/Config  → aktuelle Werte als JSON
         [HttpGet("Config")]
         [AllowAnonymous]
         public IActionResult GetConfig()
@@ -37,7 +56,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
-        // POST /Plugins/CollectionsByFolder/Save  → speichert Konfiguration (ohne Redirect)
         [HttpPost("Save")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -58,42 +76,43 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 cfg.Prefix    = prefix ?? string.Empty;
                 cfg.Suffix    = suffix ?? string.Empty;
                 cfg.MinFiles  = Math.Max(0, minfiles ?? 0);
-
-                // optional/kompatibel:
                 cfg.FolderPaths = new List<string>(cfg.Whitelist);
 
                 plugin.UpdateConfiguration(cfg);
 
-                // Kein Redirect/keine HTML-Seite zurückgeben:
+                _log.LogInformation("[CBF] Save: WL={W} BL={B} Min={Min} Prefix='{P}' Suffix='{S}'",
+                    cfg.Whitelist.Count, cfg.Blacklist.Count, cfg.MinFiles, cfg.Prefix, cfg.Suffix);
+
                 return Content("OK", "text/plain; charset=utf-8");
             }
             catch (Exception ex)
             {
+                _log.LogError(ex, "[CBF] Save Fehler");
                 return StatusCode(500, $"CBF Save Fehler: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
-        // POST /Plugins/CollectionsByFolder/Scan  → nutzt gespeicherte Einstellungen
+        // **ECHTER SCAN**
         [HttpPost("Scan")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
-        public IActionResult Scan()
+        public async Task<IActionResult> Scan(CancellationToken ct)
         {
             try
             {
-                var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin.Instance == null");
-                var cfg = plugin.Configuration ?? new PluginConfiguration();
+                var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
-                // HIER spätere echte Logik einhängen (Collections erzeugen/aktualisieren)
-                // Aktuell: Nur „Stub“, damit der Button sauber funktioniert.
-                // Beispiel (Pseudo):
-                // new Services.CollectionBuilder(_libraryManager, _collectionManager, _logger)
-                //     .RunOnce(cfg.Whitelist, cfg.Prefix, cfg.Suffix, cfg.MinFiles);
+                _log.LogInformation("[CBF] Scan-Request empfangen.");
+                var builder = new CollectionBuilder(_library, _collections,
+                                  HttpContext.RequestServices.GetRequiredService<ILogger<CollectionBuilder>>());
 
-                return Content("OK", "text/plain; charset=utf-8");
+                var (created, updated) = await builder.RunOnceAsync(cfg, ct).ConfigureAwait(false);
+
+                return Content($"OK created={created} updated={updated}", "text/plain; charset=utf-8");
             }
             catch (Exception ex)
             {
+                _log.LogError(ex, "[CBF] Scan Fehler");
                 return StatusCode(500, $"CBF Scan Fehler: {ex.GetType().Name}: {ex.Message}");
             }
         }
