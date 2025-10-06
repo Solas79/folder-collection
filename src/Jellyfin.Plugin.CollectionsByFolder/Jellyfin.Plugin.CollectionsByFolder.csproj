@@ -16,10 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Web/collectionsbyfolder.html" />  
+    <None Remove="Web/collectionsbyfolder.html" />
     <None Remove="Web/collectionsbyfolder.js" />
   </ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Web/collectionsbyfolder.html">
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html</LogicalName>
@@ -28,5 +27,6 @@
       <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
+
 
 </Project>
