@@ -6,10 +6,10 @@
      id="cbfPage">
 
   <style>
-    /* Überschrift etwas tiefer, damit sie nicht mit dem Zurück-Pfeil kollidiert */
+    /* Überschrift tiefer, kollidiert nicht mit Zurück-Pfeil */
     #cbfPage h1 { margin-top: 1.25rem; }
 
-    /* Statusfeld optisch wie ein Button */
+    /* Statusfeld optisch wie Button */
     #cbf-status {
       display: none;
       margin: .75rem 0 1rem 0;
@@ -26,12 +26,11 @@
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <!-- Statusanzeige -->
     <div id="cbf-status" aria-live="polite"></div>
 
     <form id="cbfForm"
           method="post"
-          action="../Plugins/CollectionsByFolder/Save"
+          action="#"
           enctype="application/x-www-form-urlencoded"
           data-ajax="false">
 
@@ -75,12 +74,28 @@
     </p>
   </div>
 
-  <!-- Inline-Script: lädt Werte & speichert/scannt per fetch, ohne Seitenwechsel -->
+  <!-- Inline-Script: BasePath erkennen, Werte laden, Speichern mit Fallback, Scan -->
   <script>
   (function () {
     var statusTimer = null;
 
     function byId(id){ return document.getElementById(id); }
+    function pathBase(){
+      // Beispiel-Pfade:
+      //  /web/configurationpage?name=...         -> base = ''
+      //  /jellyfin/web/configurationpage?name=...-> base = '/jellyfin'
+      var p = window.location.pathname;
+      var i = p.indexOf('/web/');
+      return (i >= 0) ? p.slice(0, i) : '';
+    }
+    function urls(){
+      var base = pathBase();
+      return {
+        cfg  : base + '/Plugins/CollectionsByFolder/Config',
+        save : base + '/Plugins/CollectionsByFolder/Save',
+        scan : base + '/Plugins/CollectionsByFolder/Scan'
+      };
+    }
     function setVal(id, v){
       var el = byId(id); if (!el) return;
       if (Array.isArray(v)) el.value = v.join('\n');
@@ -93,15 +108,15 @@
       else if (kind === 'error') el.classList.add('error');
       el.textContent = msg || '';
       el.style.display = msg ? 'block' : 'none';
-
       if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
       if (holdMs && holdMs > 0) {
         statusTimer = setTimeout(function(){ el.style.display='none'; }, holdMs);
       }
     }
     function load(){
+      var u = urls();
       showStatus('Lade…');
-      fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
+      fetch(u.cfg, { cache:'no-store' })
         .then(function(r){ return r.ok ? r.json() : {}; })
         .then(function(c){
           setVal('whitelist', c.whitelist || []);
@@ -120,15 +135,20 @@
       return usp.toString();
     }
 
-    // Speichern per fetch (ohne Redirect)
+    // Speichern mit Fallback: erst fetch, bei Fehler -> normale Submission
     var form = byId('cbfForm');
     var saveBtn = byId('saveButton');
     if (form) {
+      // action-URL zur Laufzeit korrekt setzen (BasePath-sicher)
+      form.action = urls().save;
+
       form.addEventListener('submit', function (e) {
         e.preventDefault(); e.stopPropagation();
+        var u = urls();
         if (saveBtn) saveBtn.disabled = true;
         showStatus('Speichern…');
-        fetch('../Plugins/CollectionsByFolder/Save', {
+
+        fetch(u.save, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: toUrlEncoded(form)
@@ -138,23 +158,31 @@
           return r.text();
         })
         .then(function(){
-          showStatus('Gespeichert ✔', 'ok', 3000); // 3s stehen lassen
-          load(); // Werte neu laden
+          showStatus('Gespeichert ✔', 'ok', 3000);
+          load();
         })
         .catch(function(err){
-          showStatus('Fehler: ' + (err && err.message || err), 'error', 5000);
+          // Fallback: normale Form-Submission (bleibt BasePath-korrekt)
+          try {
+            showStatus('Netzwerkfehler – klassischer Submit…', 'error', 3000);
+            // kurz Verzögerung, dann echtes submit
+            setTimeout(function(){ form.submit(); }, 150);
+          } catch (e2) {
+            showStatus('Fehler: ' + (err && err.message || err), 'error', 5000);
+          }
         })
         .finally(function(){ if (saveBtn) saveBtn.disabled = false; });
       }, { capture: true });
     }
 
-    // „Jetzt scannen“-Button
+    // „Jetzt scannen“
     var scanBtn = byId('scanButton');
     if (scanBtn) {
       scanBtn.addEventListener('click', function(){
+        var u = urls();
         scanBtn.disabled = true;
         showStatus('Scan gestartet…');
-        fetch('../Plugins/CollectionsByFolder/Scan', { method: 'POST' })
+        fetch(u.scan, { method: 'POST' })
           .then(function(r){
             if (!r.ok) throw new Error('HTTP '+r.status);
             return r.text();
