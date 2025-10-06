@@ -11,7 +11,7 @@
 
     <form id="cbfForm"
           method="post"
-          action="../Plugins/CollectionsByFolder/Save"
+          action="#"
           enctype="application/x-www-form-urlencoded"
           data-ajax="false">
 
@@ -40,7 +40,6 @@
         <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
       </div>
 
-      <!-- hübscher Button, echte Submission wird per JS abgefangen -->
       <button is="emby-button" type="submit" class="raised button block" id="saveButton">
         Speichern
       </button>
@@ -63,10 +62,18 @@
       var el = byId('cbf-status'); if (!el) return;
       el.textContent = msg || '';
       el.style.color = ok === true ? '#0a7a0a' : ok === false ? '#b00020' : '';
+      if (msg) { setTimeout(function(){ status('', null); }, 3000); } // ~3s anzeigen
     }
+    function basePath(){
+      var p = window.location.pathname;
+      var i = p.indexOf('/web/');
+      return (i >= 0) ? p.slice(0, i) : '';
+    }
+    function urlApi(rel){ return basePath() + rel; }
+
     function load(){
       status('Lade…');
-      fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
+      fetch(urlApi('/Plugins/CollectionsByFolder/Config'), { cache:'no-store' })
         .then(function(r){ return r.ok ? r.json() : {}; })
         .then(function(c){
           setVal('whitelist', c.whitelist || []);
@@ -78,6 +85,7 @@
         })
         .catch(function(e){ status('Fehler beim Laden', false); });
     }
+
     function toUrlEncoded(form){
       var fd = new FormData(form);
       var usp = new URLSearchParams();
@@ -90,11 +98,10 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault(); e.stopPropagation();
         status('Speichern…');
-        var body = toUrlEncoded(form);
-        fetch('../Plugins/CollectionsByFolder/Save', {
+        fetch(urlApi('/Plugins/CollectionsByFolder/Save'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body
+          body: toUrlEncoded(form)
         })
         .then(function(r){
           if (!r.ok) throw new Error('HTTP '+r.status);
@@ -102,8 +109,7 @@
         })
         .then(function(){
           status('Gespeichert ✔', true);
-          setTimeout(function(){ status('', null); }, 3000); // <- 3s stehen lassen
-          load();
+          load(); // nach dem Speichern Werte neu laden
         })
         .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
       }, { capture: true });
