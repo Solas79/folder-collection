@@ -20,7 +20,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
-        // GET /Plugins/CollectionsByFolder/Config
+        // GET /Plugins/CollectionsByFolder/Config  → aktuelle Werte als JSON
         [HttpGet("Config")]
         [AllowAnonymous]
         public IActionResult GetConfig()
@@ -37,7 +37,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
-        // POST /Plugins/CollectionsByFolder/Save
+        // POST /Plugins/CollectionsByFolder/Save  → speichert Konfiguration
         [HttpPost("Save")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -64,7 +64,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 
                 plugin.UpdateConfiguration(cfg);
 
-                // simple OK für fetch
                 return Content("OK", "text/plain; charset=utf-8");
             }
             catch (Exception ex)
@@ -73,7 +72,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             }
         }
 
-        // POST /Plugins/CollectionsByFolder/Scan
+        // POST /Plugins/CollectionsByFolder/Scan  → startet (optionalen) Scan
         [HttpPost("Scan")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -81,8 +80,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
         {
             try
             {
-                // TODO: Echte Scan-Logik hier anstoßen
-                // z.B. Task.Run(() => new CollectionBuilder(...).RunOnce());
+                // TODO: Hier ggf. echten Scan anstoßen (Background-Task)
+                // Task.Run(() => new CollectionBuilder(...).RunOnce());
 
                 return Content("OK", "text/plain; charset=utf-8");
             }
