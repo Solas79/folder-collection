@@ -6,12 +6,11 @@
      id="cbfPage">
 
   <style>
-    /* Überschrift tiefer, kollidiert nicht mit Zurück-Pfeil */
+    /* Überschrift etwas tiefer, damit sie nicht mit dem Zurück-Pfeil kollidiert */
     #cbfPage h1 { margin-top: 1.25rem; }
 
-    /* Statusfeld optisch wie Button/Chip */
+    /* Statusfeld optisch wie Button/Chip – NICHT ausblenden */
     #cbf-status {
-      display: none;
       margin: .75rem 0 1rem 0;
       padding: .65rem .9rem;
       border-radius: 14px;
@@ -61,9 +60,12 @@
       </div>
 
       <div style="gap:.75rem; margin-top:1rem; display:flex; flex-wrap:wrap;">
-        <!-- Plain submit: robust -->
-        <input type="submit" value="Speichern" class="raised button block" data-role="none" id="saveButton" />
-        <button type="button" class="raised button block" data-role="none" id="scanButton">Jetzt scannen</button>
+        <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+          Speichern
+        </button>
+        <button is="emby-button" type="button" class="raised button block" id="scanButton">
+          Jetzt scannen
+        </button>
       </div>
     </form>
 
@@ -72,7 +74,7 @@
     </p>
   </div>
 
-  <!-- Inline-Script: ES5, BasePath-sicher, fetch/XHR-Fallback, Status 3s -->
+  <!-- Inline-Script: BasePath-sicher, Status ohne Display-Toggle, 3s Halt, Scan -->
   <script>
   (function () {
     var statusTimer = null;
@@ -80,19 +82,22 @@
     function byId(id){ return document.getElementById(id); }
     function setVal(id, v){
       var el = byId(id); if (!el) return;
-      if (Object.prototype.toString.call(v) === '[object Array]') el.value = v.join('\\n');
+      if (Object.prototype.toString.call(v) === '[object Array]') el.value = v.join('\n');
       else el.value = (v == null ? '' : String(v));
     }
     function showStatus(msg, kind, holdMs){
       var el = byId('cbf-status'); if (!el) return;
+      // Nur Text + optionale Farbe setzen. KEIN display-Umschalten.
       el.className = ''; // reset
       if (kind === 'ok') el.className = 'ok';
       else if (kind === 'error') el.className = 'error';
       el.textContent = msg || '';
-      el.style.display = msg ? 'block' : 'none';
       if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
       if (holdMs && holdMs > 0) {
-        statusTimer = setTimeout(function(){ el.style.display='none'; }, holdMs);
+        statusTimer = setTimeout(function(){
+          el.textContent = '';
+          el.className = '';
+        }, holdMs);
       }
     }
 
@@ -123,7 +128,7 @@
         }).then(function(t){ ok && ok(t); }).catch(function(e){ err && err(e); });
         return;
       }
-      // XHR Fallback (alte Browser)
+      // XHR-Fallback
       try {
         var xhr = new XMLHttpRequest();
         xhr.open(method, url, true);
@@ -162,7 +167,7 @@
       });
     }
 
-    // Speichern (fetch/XHR). Bei Fehler: sauberer Fallback auf echtes Submit.
+    // Speichern (bleibt auf der Seite, zeigt Status, lädt Werte neu)
     var form = byId('cbfForm');
     if (form) {
       form.addEventListener('submit', function (e) {
@@ -170,21 +175,10 @@
         e.stopPropagation && e.stopPropagation();
 
         var u = urls();
-        form.action = u.save; // Fallback-URL setzen
-        var saveBtn = byId('saveButton'); if (saveBtn) saveBtn.disabled = true;
-
         showStatus('Speichern…');
         request('POST', u.save, toURLEncoded(form), 'application/x-www-form-urlencoded',
-          function(){ // OK
-            showStatus('Gespeichert ✔', 'ok', 3000);
-            if (saveBtn) saveBtn.disabled = false;
-            load();
-          },
-          function(){ // Fehler -> klassisch submitten
-            showStatus('Netzwerkfehler – klassischer Submit…', 'error', 3000);
-            try { setTimeout(function(){ form.submit(); }, 150); } catch(_) {}
-            if (saveBtn) saveBtn.disabled = false;
-          }
+          function(){ showStatus('Gespeichert ✔', 'ok', 3000); load(); },
+          function(err){ showStatus('Fehler: ' + (err && err.message || err), 'error', 5000); }
         );
       }, true);
     }
@@ -194,17 +188,10 @@
     if (scanBtn) {
       scanBtn.addEventListener('click', function(){
         var u = urls();
-        scanBtn.disabled = true;
         showStatus('Scan gestartet…');
         request('POST', u.scan, '', 'application/x-www-form-urlencoded',
-          function(){
-            showStatus('Scan abgeschlossen ✔', 'ok', 3000);
-            scanBtn.disabled = false;
-          },
-          function(){
-            showStatus('Scan fehlgeschlagen', 'error', 5000);
-            scanBtn.disabled = false;
-          }
+          function(){ showStatus('Scan abgeschlossen ✔', 'ok', 3000); },
+          function(err){ showStatus('Scan fehlgeschlagen: ' + (err && err.message || err), 'error', 5000); }
         );
       }, true);
     }
