@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -163,6 +164,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             return (created, updated);
         }
 
+        // ---------- Reflection-Helfer (robust für 10.10.x) ----------
+
         private async Task<bool> TryCreateCollectionAsync(
             string name,
             List<BaseItem> items,
@@ -171,40 +174,39 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             var t = _collections.GetType();
             var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .Where(m => m.Name.IndexOf("CreateCollection", StringComparison.OrdinalIgnoreCase) >= 0)
-                .ToArray();
+                           .Where(m => m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                                       m.Name.IndexOf("Collection", StringComparison.OrdinalIgnoreCase) >= 0)
+                           .ToArray();
 
             foreach (var mi in methods)
             {
+                var pars = mi.GetParameters();
+                if (pars.Length < 2) continue;
+                if (pars[0].ParameterType != typeof(string)) continue;
+
                 try
                 {
-                    var pars = mi.GetParameters();
-
-                    // Kandidat A: CreateCollection(string, IEnumerable<BaseItem>, …)
-                    if (pars.Length >= 2 &&
-                        pars[0].ParameterType == typeof(string) &&
-                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+                    object?[] args;
+                    if (IsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
                     {
-                        var args = BuildArgs(mi, name, items, ct);
-                        var result = await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
-                        // Erfolg, wenn kein Exception
-                        return true;
+                        args = BuildArgs(mi, name, (IEnumerable<BaseItem>)items, ct);
+                    }
+                    else if (IsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+                    {
+                        args = BuildArgs(mi, name, (IEnumerable<Guid>)itemIds, ct);
+                    }
+                    else
+                    {
+                        continue;
                     }
 
-                    // Kandidat B: CreateCollection(string, IEnumerable<Guid>, …)
-                    if (pars.Length >= 2 &&
-                        pars[0].ParameterType == typeof(string) &&
-                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
-                    {
-                        var args = BuildArgs(mi, name, itemIds, ct);
-                        var result = await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
-                        return true;
-                    }
+                    _log.LogInformation("[CBF] Create via {Sig}", FormatSignature(mi));
+                    await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                    return true;
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] CreateCollection via {M} fehlgeschlagen", mi);
-                    // weiter probieren
+                    _log.LogDebug(ex, "[CBF] CreateCollection via {M} fehlgeschlagen", mi.Name);
                 }
             }
 
@@ -219,69 +221,118 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             var t = _collections.GetType();
             var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                .Where(m => m.Name.IndexOf("AddToCollection", StringComparison.OrdinalIgnoreCase) >= 0
-                         || m.Name.IndexOf("AddItemsToCollection", StringComparison.OrdinalIgnoreCase) >= 0)
-                .ToArray();
+                           .Where(m =>
+                               m.Name.IndexOf("AddToCollection", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               m.Name.IndexOf("AddItemsToCollection", StringComparison.OrdinalIgnoreCase) >= 0)
+                           .ToArray();
 
             foreach (var mi in methods)
             {
+                var pars = mi.GetParameters();
+                if (pars.Length < 2) continue;
+
                 try
                 {
-                    var pars = mi.GetParameters();
+                    object?[] args;
 
-                    // Kandidat A: AddToCollection(BoxSet, IEnumerable<BaseItem>, …)
-                    if (pars.Length >= 2 &&
-                        pars[0].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
-                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+                    // (BoxSet, IEnumerable<BaseItem> / IReadOnlyCollection<BaseItem> / …)
+                    if (pars[0].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
+                        IsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
                     {
-                        var args = BuildArgs(mi, box, items, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
-                        return true;
+                        args = BuildArgs(mi, (object)box, (IEnumerable<BaseItem>)items, ct);
+                    }
+                    // (Guid, IEnumerable<Guid> / IReadOnlyCollection<Guid> / …)
+                    else if (pars[0].ParameterType == typeof(Guid) &&
+                             IsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+                    {
+                        args = BuildArgs(mi, (object)box.Id, (IEnumerable<Guid>)itemIds, ct);
+                    }
+                    else
+                    {
+                        continue;
                     }
 
-                    // Kandidat B: AddToCollection(Guid, IEnumerable<Guid>, …)
-                    if (pars.Length >= 2 &&
-                        pars[0].ParameterType == typeof(Guid) &&
-                        ImplementsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
-                    {
-                        var args = BuildArgs(mi, box.Id, itemIds, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
-                        return true;
-                    }
+                    _log.LogInformation("[CBF] Add via {Sig}", FormatSignature(mi));
+                    await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                    return true;
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] AddToCollection via {M} fehlgeschlagen", mi);
+                    _log.LogDebug(ex, "[CBF] AddToCollection via {M} fehlgeschlagen", mi.Name);
                 }
             }
 
             return false;
         }
 
-        private static bool ImplementsEnumerableOf(Type candidate, Type elem)
+        // Prüft „ist Aufzählung von elem?“ – akzeptiert Arrays, IList<>, IReadOnlyCollection<>, IEnumerable<>, usw.
+        private static bool IsEnumerableOf(Type candidate, Type elem)
         {
-            if (!candidate.IsGenericType) return false;
-            var def = candidate.GetGenericTypeDefinition();
-            if (def != typeof(IEnumerable<>)) return false;
-            return candidate.GetGenericArguments()[0].IsAssignableFrom(elem);
+            if (candidate == typeof(string)) return false;
+
+            // Arrays
+            if (candidate.IsArray)
+            {
+                var et = candidate.GetElementType();
+                return et != null && (et == elem || elem.IsAssignableFrom(et) || et.IsAssignableFrom(elem));
+            }
+
+            // Alle Interfaces + der Typ selbst auf IEnumerable<T> prüfen
+            IEnumerable<Type> toCheck = candidate.IsInterface
+                ? candidate.GetInterfaces().Concat(new[] { candidate })
+                : candidate.GetInterfaces().Concat(new[] { candidate });
+
+            foreach (var it in toCheck)
+            {
+                if (!it.IsGenericType) continue;
+                var def = it.GetGenericTypeDefinition();
+                if (def == typeof(IEnumerable<>) ||
+                    def == typeof(IReadOnlyCollection<>) ||
+                    def == typeof(ICollection<>) ||
+                    def == typeof(IList<>))
+                {
+                    var t = it.GetGenericArguments()[0];
+                    if (t == elem || elem.IsAssignableFrom(t) || t.IsAssignableFrom(elem))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         private static object?[] BuildArgs(MethodInfo mi, object arg0, object arg1, CancellationToken ct)
         {
             var pars = mi.GetParameters();
             var args = new List<object?> { arg0, arg1 };
+
             for (int i = 2; i < pars.Length; i++)
             {
                 var p = pars[i];
+
                 if (p.ParameterType == typeof(CancellationToken))
                 {
                     args.Add(ct);
+                    continue;
                 }
-                else
+
+                // string? collectionFolderPath / parentId o.ä. → null ist okay
+                if (p.ParameterType == typeof(string))
                 {
-                    args.Add(GetDefault(p.ParameterType));
+                    args.Add(null);
+                    continue;
                 }
+
+                // Guid? ownerId / userId o.ä. → Default
+                if (p.ParameterType == typeof(Guid) || p.ParameterType == typeof(Guid?))
+                {
+                    args.Add(p.ParameterType == typeof(Guid) ? Guid.Empty : (Guid?)null);
+                    continue;
+                }
+
+                // Fallback: default(T)
+                args.Add(GetDefault(p.ParameterType));
             }
+
             return args.ToArray();
         }
 
@@ -311,6 +362,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             if (!s.EndsWith(Path.DirectorySeparatorChar) && !s.EndsWith(Path.AltDirectorySeparatorChar))
                 s += Path.DirectorySeparatorChar;
             return s;
+        }
+
+        private static string FormatSignature(MethodInfo mi)
+        {
+            var pars = string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name));
+            return $"{mi.Name}({pars})";
         }
     }
 }
