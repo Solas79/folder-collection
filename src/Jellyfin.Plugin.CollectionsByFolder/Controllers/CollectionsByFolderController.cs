@@ -20,7 +20,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
-        // GET /Plugins/CollectionsByFolder/Config
+        // GET /Plugins/CollectionsByFolder/Config  → aktuelle Werte als JSON
         [HttpGet("Config")]
         [AllowAnonymous]
         public IActionResult GetConfig()
@@ -37,7 +37,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
-        // POST /Plugins/CollectionsByFolder/Save
+        // POST /Plugins/CollectionsByFolder/Save  → speichert Konfiguration (ohne Redirect)
         [HttpPost("Save")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -58,24 +58,14 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 cfg.Prefix    = prefix ?? string.Empty;
                 cfg.Suffix    = suffix ?? string.Empty;
                 cfg.MinFiles  = Math.Max(0, minfiles ?? 0);
+
+                // optional/kompatibel:
                 cfg.FolderPaths = new List<string>(cfg.Whitelist);
 
                 plugin.UpdateConfiguration(cfg);
 
-                const string backRel = "../web/configurationpage?name=collectionsbyfolder&saved=1";
-
-                var html = $@"<!doctype html><meta charset=""utf-8"">
-<title>Gespeichert</title>
-<meta http-equiv=""refresh"" content=""0;url={backRel}"">
-<style>
-  body{{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:24px;line-height:1.4}}
-  .ok{{color:#0a7a0a}}
-  a{{color:#0a7a0a}}
-</style>
-<h1 class=""ok"">Gespeichert ✔</h1>
-<p>Weiterleitung… Falls nichts passiert, <a href=""{backRel}"">hier klicken</a>.</p>
-<script>try{{ window.top.location.replace('{backRel}'); }}catch(_){{ location.href='{backRel}'; }}</script>";
-                return Content(html, "Gespeichert", "text/plain"; charset=utf-8");
+                // Kein Redirect/keine HTML-Seite zurückgeben:
+                return Content("OK", "text/plain; charset=utf-8");
             }
             catch (Exception ex)
             {
