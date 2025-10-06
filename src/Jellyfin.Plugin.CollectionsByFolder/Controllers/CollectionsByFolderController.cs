@@ -18,15 +18,18 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
     {
         private readonly ILibraryManager _library;
         private readonly ICollectionManager _collections;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<CollectionsByFolderController> _log;
 
         public CollectionsByFolderController(
             ILibraryManager library,
             ICollectionManager collections,
+            ILoggerFactory loggerFactory,
             ILogger<CollectionsByFolderController> log)
         {
             _library = library;
             _collections = collections;
+            _loggerFactory = loggerFactory;
             _log = log;
         }
 
@@ -40,6 +43,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                       .Distinct(StringComparer.OrdinalIgnoreCase)
                       .ToList();
 
+        // GET /Plugins/CollectionsByFolder/Config
         [HttpGet("Config")]
         [AllowAnonymous]
         public IActionResult GetConfig()
@@ -56,6 +60,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             });
         }
 
+        // POST /Plugins/CollectionsByFolder/Save
         [HttpPost("Save")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -92,7 +97,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             }
         }
 
-        // **ECHTER SCAN**
+        // POST /Plugins/CollectionsByFolder/Scan
         [HttpPost("Scan")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
@@ -103,8 +108,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 var cfg = Plugin.Instance?.Configuration ?? new PluginConfiguration();
 
                 _log.LogInformation("[CBF] Scan-Request empfangen.");
-                var builder = new CollectionBuilder(_library, _collections,
-                                  HttpContext.RequestServices.GetRequiredService<ILogger<CollectionBuilder>>());
+                var builderLogger = _loggerFactory.CreateLogger<CollectionBuilder>();
+                var builder = new CollectionBuilder(_library, _collections, builderLogger);
 
                 var (created, updated) = await builder.RunOnceAsync(cfg, ct).ConfigureAwait(false);
 
