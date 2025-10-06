@@ -7,36 +7,107 @@
   <div data-role="content" class="content-primary">
     <h1>Collections by Folder</h1>
 
-    <div class="inputContainer">
-      <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
-      <textarea id="whitelist" rows="6" spellcheck="false"></textarea>
-    </div>
-    <div class="inputContainer">
-      <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
-      <textarea id="blacklist" rows="6" spellcheck="false"></textarea>
-    </div>
-    <div class="inputContainer">
-      <label for="prefix">Präfix</label>
-      <input id="prefix" type="text" />
-    </div>
-    <div class="inputContainer">
-      <label for="suffix">Suffix</label>
-      <input id="suffix" type="text" />
-    </div>
-    <div class="inputContainer">
-      <label for="minfiles">Mindestanzahl Dateien</label>
-      <input id="minfiles" type="number" min="0" value="0" />
-    </div>
+    <p id="cbf-status" style="margin:.25rem 0 .75rem 0;font-weight:600;"></p>
 
-    <div class="flex align-items-center" style="gap:.75rem; margin-top:1rem;">
-      <button is="emby-button" type="button" class="raised button block" id="saveButton">Speichern</button>
-      <button is="emby-button" type="button" class="raised button block" id="scanNowButton">Jetzt scannen</button>
-      <span id="cbf-status" style="margin-left:1rem;"></span>
-    </div>
+    <form id="cbfForm"
+          method="post"
+          action="../Plugins/CollectionsByFolder/Save"
+          enctype="application/x-www-form-urlencoded"
+          data-ajax="false">
+
+      <div class="inputContainer">
+        <label for="whitelist">Whitelist (ein Pfad pro Zeile)</label>
+        <textarea id="whitelist" name="whitelist" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div class="inputContainer">
+        <label for="blacklist">Blacklist (ein Pfad pro Zeile)</label>
+        <textarea id="blacklist" name="blacklist" rows="6" spellcheck="false"></textarea>
+      </div>
+
+      <div class="inputContainer">
+        <label for="prefix">Präfix</label>
+        <input id="prefix" name="prefix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="suffix">Suffix</label>
+        <input id="suffix" name="suffix" type="text" />
+      </div>
+
+      <div class="inputContainer">
+        <label for="minfiles">Mindestanzahl Dateien</label>
+        <input id="minfiles" name="minfiles" type="number" min="0" value="0" />
+      </div>
+
+      <!-- hübscher Button, aber echte Form-Submission wird per JS abgefangen -->
+      <button is="emby-button" type="submit" class="raised button block" id="saveButton">
+        Speichern
+      </button>
+    </form>
+
+    <p class="fieldDescription" style="margin-top:1rem;">
+      Die aktuellen Werte werden automatisch geladen. Beim Speichern bleibt die Seite offen.
+    </p>
   </div>
 
-  <!-- statt <script src="collectionsbyfolder.js"></script> -->
-  <script src="../Plugins/CollectionsByFolder/js"></script>
+  <!-- Inline-Script: lädt Werte & speichert per fetch, ohne Seitenwechsel -->
+  <script>
+  (function () {
+    function byId(id){ return document.getElementById(id); }
+    function setVal(id, v){
+      var el = byId(id); if (!el) return;
+      if (Array.isArray(v)) el.value = v.join('\n');
+      else el.value = (v == null ? '' : String(v));
+    }
+    function status(msg, ok){
+      var el = byId('cbf-status'); if (!el) return;
+      el.textContent = msg || '';
+      el.style.color = ok === true ? '#0a7a0a' : ok === false ? '#b00020' : '';
+    }
+    function load(){
+      status('Lade…');
+      fetch('../Plugins/CollectionsByFolder/Config', { cache:'no-store' })
+        .then(function(r){ return r.ok ? r.json() : {}; })
+        .then(function(c){
+          setVal('whitelist', c.whitelist || []);
+          setVal('blacklist', c.blacklist || []);
+          setVal('prefix',    c.prefix    || '');
+          setVal('suffix',    c.suffix    || '');
+          var mf = byId('minfiles'); if (mf) mf.value = String(c.minfiles ?? 0);
+          status('Bereit', true);
+        })
+        .catch(function(e){ status('Fehler beim Laden', false); });
+    }
+    function toUrlEncoded(form){
+      var fd = new FormData(form);
+      var usp = new URLSearchParams();
+      fd.forEach(function(v,k){ usp.append(k, v); });
+      return usp.toString();
+    }
 
-     
+    var form = byId('cbfForm');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        status('Speichern…');
+        var body = toUrlEncoded(form);
+        fetch('../Plugins/CollectionsByFolder/Save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        })
+        .then(function(r){
+          if (!r.ok) throw new Error('HTTP '+r.status);
+          return r.text(); // Body ignorieren
+        })
+        .then(function(){ status('Gespeichert ✔', true); load(); })
+        .catch(function(err){ status('Fehler: '+(err && err.message || err), false); });
+      }, { capture: true });
+    }
+
+    if (document.readyState !== 'loading') load();
+    else document.addEventListener('DOMContentLoaded', load, { once:true });
+  })();
+  </script>
 </div>
