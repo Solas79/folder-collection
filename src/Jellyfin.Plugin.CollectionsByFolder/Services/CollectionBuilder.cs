@@ -10,6 +10,8 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
+using Jellyfin.Data.Enums;
+
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
