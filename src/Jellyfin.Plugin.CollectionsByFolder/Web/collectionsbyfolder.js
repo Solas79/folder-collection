@@ -1,58 +1,76 @@
-define([], function () {
+// UMD + Auto-Init: läuft mit AMD (define) UND direkt per <script>
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD: Jellyfin kann das Modul weiterhin verwenden
+    define([], function () { return factory(root, /*autoInit*/ false); });
+  } else {
+    // Direkt per <script>: sofort ausführen
+    factory(root, /*autoInit*/ true);
+  }
+})(typeof window !== 'undefined' ? window : this, function (win, autoInit) {
   'use strict';
 
   const pluginId = 'f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41';
 
-  function $(v, s) { return v.querySelector(s); }
-  function setStatus(v, m) { const el = $(v, '#cbf-status'); if (el) el.textContent = m; try { console.log('[CBF]', m); } catch {} }
-  function linesToList(t) { return (t || '').replace(/\r\n?/g, '\n').split('\n').map(s => s.trim()).filter(Boolean); }
-
-  function loadConfig(v) {
-    if (!window.ApiClient?.getPluginConfiguration) { setStatus(v, 'ApiClient nicht verfügbar'); return Promise.resolve(); }
-    return ApiClient.getPluginConfiguration(pluginId).then(cfg => {
-      $(v, '#whitelist').value = (cfg.Whitelist || []).join('\n');
-      $(v, '#blacklist').value = (cfg.Blacklist || []).join('\n');
-      $(v, '#prefix').value    = cfg.Prefix || '';
-      $(v, '#suffix').value    = cfg.Suffix || '';
-      $(v, '#minfiles').value  = String(cfg.MinFiles ?? 0);
-      setStatus(v, 'Konfiguration geladen');
-    }).catch(e => setStatus(v, 'Fehler beim Laden: ' + (e?.message || e)));
+  function $(root, sel) { return root.querySelector(sel); }
+  function setStatus(view, msg) {
+    const el = $(view, '#cbf-status'); if (el) el.textContent = msg;
+    try { console.log('[CBF]', msg); } catch {}
+  }
+  function linesToList(t) {
+    return (t || '').replace(/\r\n?/g, '\n').split('\n').map(s => s.trim()).filter(Boolean);
   }
 
-  function onSave(v, e) {
+  function loadConfig(view) {
+    if (!win.ApiClient || typeof win.ApiClient.getPluginConfiguration !== 'function') {
+      setStatus(view, 'ApiClient nicht verfügbar');
+      return Promise.resolve();
+    }
+    return win.ApiClient.getPluginConfiguration(pluginId).then(cfg => {
+      $(view, '#whitelist').value = (cfg.Whitelist || []).join('\n');
+      $(view, '#blacklist').value = (cfg.Blacklist || []).join('\n');
+      $(view, '#prefix').value    = cfg.Prefix || '';
+      $(view, '#suffix').value    = cfg.Suffix || '';
+      $(view, '#minfiles').value  = String(cfg.MinFiles ?? 0);
+      setStatus(view, 'Konfiguration geladen');
+    }).catch(e => setStatus(view, 'Fehler beim Laden: ' + (e?.message || e)));
+  }
+
+  function onSave(view, e) {
     e?.preventDefault?.(); e?.stopPropagation?.(); e?.stopImmediatePropagation?.();
-    setStatus(v, 'Speichern…');
+    setStatus(view, 'Speichern…');
+
     const cfg = {
-      Whitelist:   linesToList($(v, '#whitelist').value),
-      Blacklist:   linesToList($(v, '#blacklist').value),
-      Prefix:      $(v, '#prefix').value || '',
-      Suffix:      $(v, '#suffix').value || '',
-      MinFiles:    parseInt($(v, '#minfiles').value || '0', 10) || 0,
-      FolderPaths: linesToList($(v, '#whitelist').value)
+      Whitelist:   linesToList($(view, '#whitelist').value),
+      Blacklist:   linesToList($(view, '#blacklist').value),
+      Prefix:      $(view, '#prefix').value || '',
+      Suffix:      $(view, '#suffix').value || '',
+      MinFiles:    parseInt($(view, '#minfiles').value || '0', 10) || 0,
+      // Fallback-Feld:
+      FolderPaths: linesToList($(view, '#whitelist').value)
     };
-    return ApiClient.updatePluginConfiguration(pluginId, cfg)
-      .then(() => setStatus(v, 'Gespeichert ✔'))
-      .catch(e => setStatus(v, 'Fehler: ' + (e?.message || e)));
+
+    return win.ApiClient.updatePluginConfiguration(pluginId, cfg)
+      .then(() => setStatus(view, 'Gespeichert ✔'))
+      .catch(e => setStatus(view, 'Fehler: ' + (e?.message || e)));
   }
 
-  function onScan(v, e) {
+  function onScan(view, e) {
     e?.preventDefault?.(); e?.stopPropagation?.(); e?.stopImmediatePropagation?.();
-    setStatus(v, 'Scan gestartet…');
-    setTimeout(() => setStatus(v, 'Scan abgeschlossen ✔ (Demo)'), 800);
+    setStatus(view, 'Scan gestartet…');
+    setTimeout(() => setStatus(view, 'Scan abgeschlossen ✔ (Demo)'), 800);
   }
 
-  // ---- Initializer (wird von Jellyfin aufgerufen – oder per Auto-Init unten) ----
-  function init(view) {
+  function wire(view) {
     if (!view || view.__cbf_wired) return;
     view.__cbf_wired = true;
 
-    // Sofort binden (wir verlassen uns nicht auf 'viewshow')
+    // Sofort binden (nicht nur auf 'viewshow' verlassen)
     $(view, '#saveButton')?.addEventListener('click', e => onSave(view, e), { capture: true });
     $(view, '#scanNowButton')?.addEventListener('click', e => onScan(view, e), { capture: true });
 
-    // Zusätzlich kompatibel mit Jellyfin-Ereignis
+    // Zusätzlich kompatibel mit Jellyfin-Event
     view.addEventListener('viewshow', function () {
-      // Sicherstellen, dass Listener sitzen
       $(view, '#saveButton')?.addEventListener('click', e => onSave(view, e), { capture: true });
       $(view, '#scanNowButton')?.addEventListener('click', e => onScan(view, e), { capture: true });
       setStatus(view, 'Bereit');
@@ -63,27 +81,23 @@ define([], function () {
     try { console.log('[CBF] Listener gebunden'); } catch {}
   }
 
-  // Für direkten Aufruf verfügbar machen
-  if (typeof window !== 'undefined') { window.__CBF_INIT__ = init; }
-
-  return init;
-});
-
-// -------- Auto-Init, wenn die Datei per <script src="../Plugins/.../js"> geladen wird --------
-(function () {
-  if (typeof window === 'undefined' || typeof window.__CBF_INIT__ !== 'function') return;
-
-  function run() {
-    var v = document.getElementById('cbfPage') ||
-            document.querySelector('.pluginConfigurationPage[data-pluginid="f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41"]') ||
-            document.querySelector('.pluginConfigurationPage');
-    if (v) window.__CBF_INIT__(v);
+  function findView() {
+    return document.getElementById('cbfPage')
+        || document.querySelector('.pluginConfigurationPage[data-pluginid="' + pluginId + '"]')
+        || document.querySelector('.pluginConfigurationPage');
   }
 
-  if (document.readyState !== 'loading') run();
-  else document.addEventListener('DOMContentLoaded', run, { once: true });
+  // Für AMD (Jellyfin) das Init exportieren:
+  win.__CBF_INIT__ = wire;
 
-  // Falls die Seite via Hash-Navigation angezeigt wird
-  document.addEventListener('viewshow', run, { capture: true });
-  window.addEventListener('hashchange', () => setTimeout(run, 0));
-})();
+  if (autoInit) {
+    // Direkt per <script>: automatisch initialisieren
+    const run = () => { const v = findView(); if (v) wire(v); };
+    if (document.readyState !== 'loading') run();
+    else document.addEventListener('DOMContentLoaded', run, { once: true });
+    document.addEventListener('viewshow', run, { capture: true });
+    win.addEventListener('hashchange', () => setTimeout(run, 0));
+  }
+
+  return wire;
+});
