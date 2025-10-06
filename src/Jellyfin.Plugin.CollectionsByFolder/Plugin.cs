@@ -22,19 +22,20 @@ namespace Jellyfin.Plugin.CollectionsByFolder
            var ns = typeof(Plugin).Namespace!;
            return new[]
            {
-               // HTML → /web/configurationpage?name=collectionsbyfolder
                new PluginPageInfo
                {
+                   // /web/configurationpage?name=collectionsbyfolder
                    Name = "collectionsbyfolder",
                    EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.html"
                },
-               // JS → /web/collectionsbyfolderjs   (Achtung: Name OHNE .js)
                new PluginPageInfo
                {
-                   Name = "collectionsbyfolderjs",
+                   // /web/collectionsbyfolder.js   ← mit Punkt + .js (wie viele 10.10.x-Plugins)
+                   Name = "collectionsbyfolder.js",
                    EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.js"
                }
            };
        }
+
     }
 }
