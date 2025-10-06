@@ -72,5 +72,30 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
                 return StatusCode(500, $"CBF Save Fehler: {ex.GetType().Name}: {ex.Message}");
             }
         }
+
+        // POST /Plugins/CollectionsByFolder/Scan  → nutzt gespeicherte Einstellungen
+        [HttpPost("Scan")]
+        [AllowAnonymous]
+        [IgnoreAntiforgeryToken]
+        public IActionResult Scan()
+        {
+            try
+            {
+                var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin.Instance == null");
+                var cfg = plugin.Configuration ?? new PluginConfiguration();
+
+                // HIER spätere echte Logik einhängen (Collections erzeugen/aktualisieren)
+                // Aktuell: Nur „Stub“, damit der Button sauber funktioniert.
+                // Beispiel (Pseudo):
+                // new Services.CollectionBuilder(_libraryManager, _collectionManager, _logger)
+                //     .RunOnce(cfg.Whitelist, cfg.Prefix, cfg.Suffix, cfg.MinFiles);
+
+                return Content("OK", "text/plain; charset=utf-8");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"CBF Scan Fehler: {ex.GetType().Name}: {ex.Message}");
+            }
+        }
     }
 }
