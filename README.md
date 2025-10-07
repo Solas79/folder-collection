@@ -1,3 +1,6 @@
+
+## https://raw.githubusercontent.com/Solas79/folder-collection/main/manifest.json
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **German version -> English version below**
