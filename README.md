@@ -1,8 +1,8 @@
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **German version -> English version below**
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # CollectionsByFolder (Jellyfin Plugin)
 
 Erstellt und pflegt Sammlungen (Collections) basierend auf dem **letzten Ordnernamen**.
@@ -38,11 +38,11 @@ Mindestanzahl an Dateien -> Ordner mit weniger Dateien werden ignoriert und nich
 Wurde mit **Jellyfin 10.10.7** (Linuxserver) getestet
 
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **English verision**
 
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # CollectionsByFolder (Jellyfin Plugin)
 
 Creates and maintains collections based on the **last folder name**.
