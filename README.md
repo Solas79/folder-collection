@@ -60,6 +60,7 @@ Folders in the blacklist are ignored
 All subfolders of the specified directory are scanned, and only the "end folders" are created as collections.
 
 The folder structures in the whitelist and blacklist should be entered as follows:
+
 Example:
 /mnt/nas1/Filme
 (Linux: mounted drive: nas1 / folder "Filme")
