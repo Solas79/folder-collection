@@ -17,6 +17,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
+    /// <summary>
+    /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
+    /// – 10.10-kompatibel (BaseItemKind)
+    /// – Findet & nutzt Instanz- und Extension-Methoden auf ICollectionManager **und** ILibraryManager
+    /// – Loggt alle gefundenen API-Signaturen, falls kein Treffer klappt.
+    /// </summary>
     public sealed class CollectionBuilder
     {
         private readonly ILibraryManager _library;
@@ -114,7 +120,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 var items = g.Cast<BaseItem>().ToList();
                 var itemIds = items.Select(i => i.Id).ToList();
 
-                // 4) BoxSet finden
+                // BoxSet existiert?
                 var existing = _library.GetItemList(new InternalItemsQuery
                 {
                     IncludeItemTypes = new[] { BaseItemKind.BoxSet },
@@ -124,13 +130,15 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 if (existing == null)
                 {
                     _log.LogInformation("[CBF] Create Collection '{Name}' (Items={C})", name, items.Count);
-                    var createdOk =
-                        await TryCreateCollection_InstanceAsync(name, items, itemIds, ct).ConfigureAwait(false)
-                        || await TryCreateCollection_ExtensionAsync(name, items, itemIds, ct).ConfigureAwait(false);
 
-                    if (!createdOk)
+                    var ok =
+                           await TryCreateCollection_OnCollectionManager(name, items, itemIds, ct).ConfigureAwait(false)
+                        || await TryCreateCollection_OnLibraryManager   (name, items, itemIds, ct).ConfigureAwait(false);
+
+                    if (!ok)
                     {
                         _log.LogWarning("[CBF] CreateCollection API nicht gefunden/fehlgeschlagen für '{Name}'", name);
+                        DumpAvailableApis(); // <- diagnostik
                         continue;
                     }
                     created++;
@@ -146,12 +154,13 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                         _log.LogInformation("[CBF] Update Collection '{Name}' (+{C} Items)", name, toAdd.Count);
 
                         var ok =
-                            await TryAddToCollection_InstanceAsync(existing, toAdd, toAddIds, ct).ConfigureAwait(false)
-                            || await TryAddToCollection_ExtensionAsync(existing, toAdd, toAddIds, ct).ConfigureAwait(false);
+                               await TryAddToCollection_OnCollectionManager(existing, toAdd, toAddIds, ct).ConfigureAwait(false)
+                            || await TryAddToCollection_OnLibraryManager   (existing, toAdd, toAddIds, ct).ConfigureAwait(false);
 
                         if (!ok)
                         {
                             _log.LogWarning("[CBF] AddToCollection API nicht gefunden/fehlgeschlagen für '{Name}'", name);
+                            DumpAvailableApis(); // <- diagnostik
                             continue;
                         }
                         updated++;
@@ -167,176 +176,244 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             return (created, updated);
         }
 
-        // ---------- Instanzmethoden ----------
+        // =========================
+        //  A) ICollectionManager
+        // =========================
 
-        private async Task<bool> TryCreateCollection_InstanceAsync(
+        private async Task<bool> TryCreateCollection_OnCollectionManager(
             string name, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
         {
-            var t = _collections.GetType();
-            var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                           .Where(m => m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                                       m.Name.IndexOf("Collection", StringComparison.OrdinalIgnoreCase) >= 0)
-                           .ToArray();
+            // 1) Instanzmethoden
+            if (await TryInvoke_Create_Instance(_collections, name, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            // 2) Extensionmethoden (static class, [Extension], 1. Param ICollectionManager)
+            if (await TryInvoke_Create_Extension(typeof(ICollectionManager), _collections, name, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            return false;
+        }
+
+        private async Task<bool> TryAddToCollection_OnCollectionManager(
+            BoxSet box, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        {
+            if (await TryInvoke_Add_Instance(_collections, box, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            if (await TryInvoke_Add_Extension(typeof(ICollectionManager), _collections, box, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            return false;
+        }
+
+        // ======================
+        //  B) ILibraryManager
+        // ======================
+
+        private async Task<bool> TryCreateCollection_OnLibraryManager(
+            string name, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        {
+            if (await TryInvoke_Create_Instance(_library, name, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            if (await TryInvoke_Create_Extension(typeof(ILibraryManager), _library, name, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            return false;
+        }
+
+        private async Task<bool> TryAddToCollection_OnLibraryManager(
+            BoxSet box, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        {
+            if (await TryInvoke_Add_Instance(_library, box, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            if (await TryInvoke_Add_Extension(typeof(ILibraryManager), _library, box, items, itemIds, ct).ConfigureAwait(false))
+                return true;
+
+            return false;
+        }
+
+        // =========================
+        //  Gemeinsame Invoker
+        // =========================
+
+        private async Task<bool> TryInvoke_Create_Instance(
+            object target, string name, List<BaseItem> items, List<Guid> ids, CancellationToken ct)
+        {
+            var methods = target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                          .Where(m => m.Name.Contains("Create", StringComparison.OrdinalIgnoreCase) &&
+                                      m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase))
+                          .ToArray();
 
             foreach (var mi in methods)
             {
-                var pars = mi.GetParameters();
-                if (pars.Length < 2) continue;
-                if (pars[0].ParameterType != typeof(string)) continue;
+                var p = mi.GetParameters();
+                if (p.Length < 2) continue;
 
                 try
                 {
                     object?[] args;
-                    if (IsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+
+                    // (string, IEnumerable<BaseItem>/IReadOnlyCollection<BaseItem>/…)
+                    if (p[0].ParameterType == typeof(string) && IsEnumerableOf(p[1].ParameterType, typeof(BaseItem)))
                     {
                         _log.LogInformation("[CBF] Create via {Sig}", FormatSignature(mi));
                         args = BuildArgsFrom2(mi, name, (IEnumerable<BaseItem>)items, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        await InvokeAsync(target, mi, args).ConfigureAwait(false);
                         return true;
                     }
-                    if (IsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+
+                    // (string, IEnumerable<Guid>/IReadOnlyCollection<Guid>/…)
+                    if (p[0].ParameterType == typeof(string) && IsEnumerableOf(p[1].ParameterType, typeof(Guid)))
                     {
                         _log.LogInformation("[CBF] Create via {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom2(mi, name, (IEnumerable<Guid>)itemIds, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        args = BuildArgsFrom2(mi, name, (IEnumerable<Guid>)ids, ct);
+                        await InvokeAsync(target, mi, args).ConfigureAwait(false);
                         return true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] CreateCollection (Instanz) via {M} fehlgeschlagen", mi.Name);
+                    _log.LogDebug(ex, "[CBF] Create (Instanz) via {M} fehlgeschlagen", mi.Name);
                 }
             }
             return false;
         }
 
-        private async Task<bool> TryAddToCollection_InstanceAsync(
-            BoxSet box, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        private async Task<bool> TryInvoke_Add_Instance(
+            object target, BoxSet box, List<BaseItem> items, List<Guid> ids, CancellationToken ct)
         {
-            var t = _collections.GetType();
-            var methods = t.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                           .Where(m => m.Name.IndexOf("AddToCollection", StringComparison.OrdinalIgnoreCase) >= 0
-                                    || m.Name.IndexOf("AddItemsToCollection", StringComparison.OrdinalIgnoreCase) >= 0)
-                           .ToArray();
+            var methods = target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                          .Where(m =>
+                              m.Name.Contains("AddToCollection", StringComparison.OrdinalIgnoreCase) ||
+                              m.Name.Contains("AddItemsToCollection", StringComparison.OrdinalIgnoreCase))
+                          .ToArray();
 
             foreach (var mi in methods)
             {
-                var pars = mi.GetParameters();
-                if (pars.Length < 2) continue;
+                var p = mi.GetParameters();
+                if (p.Length < 2) continue;
 
                 try
                 {
                     object?[] args;
-                    if (pars[0].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
-                        IsEnumerableOf(pars[1].ParameterType, typeof(BaseItem)))
+
+                    // (BoxSet, IEnumerable<BaseItem>/…)
+                    if (p[0].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
+                        IsEnumerableOf(p[1].ParameterType, typeof(BaseItem)))
                     {
                         _log.LogInformation("[CBF] Add via {Sig}", FormatSignature(mi));
                         args = BuildArgsFrom2(mi, (object)box, (IEnumerable<BaseItem>)items, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        await InvokeAsync(target, mi, args).ConfigureAwait(false);
                         return true;
                     }
-                    if (pars[0].ParameterType == typeof(Guid) &&
-                        IsEnumerableOf(pars[1].ParameterType, typeof(Guid)))
+
+                    // (Guid, IEnumerable<Guid>/…)
+                    if (p[0].ParameterType == typeof(Guid) &&
+                        IsEnumerableOf(p[1].ParameterType, typeof(Guid)))
                     {
                         _log.LogInformation("[CBF] Add via {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom2(mi, (object)box.Id, (IEnumerable<Guid>)itemIds, ct);
-                        await InvokeAsync(_collections, mi, args).ConfigureAwait(false);
+                        args = BuildArgsFrom2(mi, (object)box.Id, (IEnumerable<Guid>)ids, ct);
+                        await InvokeAsync(target, mi, args).ConfigureAwait(false);
                         return true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] AddToCollection (Instanz) via {M} fehlgeschlagen", mi.Name);
+                    _log.LogDebug(ex, "[CBF] Add (Instanz) via {M} fehlgeschlagen", mi.Name);
                 }
             }
             return false;
         }
 
-        // ---------- Extension-Methoden ----------
-
-        private async Task<bool> TryCreateCollection_ExtensionAsync(
-            string name, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        private async Task<bool> TryInvoke_Create_Extension(
+            Type firstParamType, object target, string name, List<BaseItem> items, List<Guid> ids, CancellationToken ct)
         {
-            var ext = FindExtensionMethods(m =>
-                m.Name.IndexOf("Create", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                m.Name.IndexOf("Collection", StringComparison.OrdinalIgnoreCase) >= 0 &&
-                FirstParamIsCollectionsManager(m));
-
-            foreach (var mi in ext)
+            foreach (var mi in FindExtensionMethods(m =>
+                       m.Name.Contains("Create", StringComparison.OrdinalIgnoreCase) &&
+                       m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase) &&
+                       FirstParamIs(m, firstParamType)))
             {
-                var pars = mi.GetParameters();
-                if (pars.Length < 3) continue; // (ICollectionManager, string, items, ...)
+                var p = mi.GetParameters();
+                if (p.Length < 3) continue;
 
                 try
                 {
                     object?[] args;
-                    if (pars[1].ParameterType == typeof(string) &&
-                        IsEnumerableOf(pars[2].ParameterType, typeof(BaseItem)))
+
+                    // (manager, string, IEnumerable<BaseItem>/…)
+                    if (p[1].ParameterType == typeof(string) && IsEnumerableOf(p[2].ParameterType, typeof(BaseItem)))
                     {
                         _log.LogInformation("[CBF] Create via ext {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom3Ext(mi, _collections, name, (IEnumerable<BaseItem>)items, ct);
+                        args = BuildArgsFrom3Ext(mi, target, name, (IEnumerable<BaseItem>)items, ct);
                         await InvokeStaticAsync(mi, args).ConfigureAwait(false);
                         return true;
                     }
-                    if (pars[1].ParameterType == typeof(string) &&
-                        IsEnumerableOf(pars[2].ParameterType, typeof(Guid)))
+
+                    // (manager, string, IEnumerable<Guid>/…)
+                    if (p[1].ParameterType == typeof(string) && IsEnumerableOf(p[2].ParameterType, typeof(Guid)))
                     {
                         _log.LogInformation("[CBF] Create via ext {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom3Ext(mi, _collections, name, (IEnumerable<Guid>)itemIds, ct);
+                        args = BuildArgsFrom3Ext(mi, target, name, (IEnumerable<Guid>)ids, ct);
                         await InvokeStaticAsync(mi, args).ConfigureAwait(false);
                         return true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] CreateCollection (ext) via {M} fehlgeschlagen", mi.Name);
+                    _log.LogDebug(ex, "[CBF] Create (ext) via {M} fehlgeschlagen", mi.Name);
                 }
             }
             return false;
         }
 
-        private async Task<bool> TryAddToCollection_ExtensionAsync(
-            BoxSet box, List<BaseItem> items, List<Guid> itemIds, CancellationToken ct)
+        private async Task<bool> TryInvoke_Add_Extension(
+            Type firstParamType, object target, BoxSet box, List<BaseItem> items, List<Guid> ids, CancellationToken ct)
         {
-            var ext = FindExtensionMethods(m =>
-                (m.Name.IndexOf("AddToCollection", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                 m.Name.IndexOf("AddItemsToCollection", StringComparison.OrdinalIgnoreCase) >= 0) &&
-                FirstParamIsCollectionsManager(m));
-
-            foreach (var mi in ext)
+            foreach (var mi in FindExtensionMethods(m =>
+                       (m.Name.Contains("AddToCollection", StringComparison.OrdinalIgnoreCase) ||
+                        m.Name.Contains("AddItemsToCollection", StringComparison.OrdinalIgnoreCase)) &&
+                       FirstParamIs(m, firstParamType)))
             {
-                var pars = mi.GetParameters();
-                if (pars.Length < 3) continue; // (ICollectionManager, BoxSet/Guid, items, ...)
+                var p = mi.GetParameters();
+                if (p.Length < 3) continue;
 
                 try
                 {
                     object?[] args;
-                    if (pars[1].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
-                        IsEnumerableOf(pars[2].ParameterType, typeof(BaseItem)))
+
+                    // (manager, BoxSet, IEnumerable<BaseItem>/…)
+                    if (p[1].ParameterType.IsAssignableFrom(typeof(BoxSet)) &&
+                        IsEnumerableOf(p[2].ParameterType, typeof(BaseItem)))
                     {
                         _log.LogInformation("[CBF] Add via ext {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom3Ext(mi, _collections, (object)box, (IEnumerable<BaseItem>)items, ct);
+                        args = BuildArgsFrom3Ext(mi, target, (object)box, (IEnumerable<BaseItem>)items, ct);
                         await InvokeStaticAsync(mi, args).ConfigureAwait(false);
                         return true;
                     }
-                    if (pars[1].ParameterType == typeof(Guid) &&
-                        IsEnumerableOf(pars[2].ParameterType, typeof(Guid)))
+
+                    // (manager, Guid, IEnumerable<Guid>/…)
+                    if (p[1].ParameterType == typeof(Guid) &&
+                        IsEnumerableOf(p[2].ParameterType, typeof(Guid)))
                     {
                         _log.LogInformation("[CBF] Add via ext {Sig}", FormatSignature(mi));
-                        args = BuildArgsFrom3Ext(mi, _collections, (object)box.Id, (IEnumerable<Guid>)itemIds, ct);
+                        args = BuildArgsFrom3Ext(mi, target, (object)box.Id, (IEnumerable<Guid>)ids, ct);
                         await InvokeStaticAsync(mi, args).ConfigureAwait(false);
                         return true;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogDebug(ex, "[CBF] AddToCollection (ext) via {M} fehlgeschlagen", mi.Name);
+                    _log.LogDebug(ex, "[CBF] Add (ext) via {M} fehlgeschlagen", mi.Name);
                 }
             }
             return false;
         }
 
-        // ---------- Reflection-Helfer ----------
+        // =========================
+        //  Reflection-Helfer
+        // =========================
 
         private static IEnumerable<MethodInfo> FindExtensionMethods(Func<MethodInfo, bool> filter)
         {
@@ -359,16 +436,17 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             }
         }
 
-        private static bool FirstParamIsCollectionsManager(MethodInfo mi)
+        private static bool FirstParamIs(MethodInfo mi, Type expected)
         {
             var p = mi.GetParameters();
-            return p.Length > 0 && typeof(ICollectionManager).IsAssignableFrom(p[0].ParameterType);
+            return p.Length > 0 && expected.IsAssignableFrom(p[0].ParameterType);
         }
 
         private static bool IsEnumerableOf(Type candidate, Type elem)
         {
             if (candidate == typeof(string)) return false;
 
+            // Arrays
             if (candidate.IsArray)
             {
                 var et = candidate.GetElementType();
@@ -474,6 +552,41 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             var pars = string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name));
             return $"{mi.Name}({pars})";
+        }
+
+        // ---- Diagnose: verfügbare API-Signaturen ausgeben ----
+        private void DumpAvailableApis()
+        {
+            try
+            {
+                DumpType("Instance", _collections.GetType());
+                DumpType("Instance", _library.GetType());
+                DumpExtensions(typeof(ICollectionManager));
+                DumpExtensions(typeof(ILibraryManager));
+            }
+            catch (Exception ex)
+            {
+                _log.LogDebug(ex, "[CBF-API] Dump error");
+            }
+
+            void DumpType(string kind, Type t)
+            {
+                foreach (var m in t.GetMethods(BindingFlags.Instance | BindingFlags.Public))
+                {
+                    if (!m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase)) continue;
+                    _log.LogWarning("[CBF-API] {Kind}: {Sig}", kind, FormatSignature(m));
+                }
+            }
+
+            void DumpExtensions(Type firstParam)
+            {
+                foreach (var mi in FindExtensionMethods(m =>
+                           m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase) &&
+                           FirstParamIs(m, firstParam)))
+                {
+                    _log.LogWarning("[CBF-API] Extension: {Sig}", FormatSignature(mi));
+                }
+            }
         }
     }
 }
