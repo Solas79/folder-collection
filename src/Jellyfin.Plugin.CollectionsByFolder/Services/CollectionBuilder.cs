@@ -110,11 +110,11 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 {
                     _log.LogInformation("[CBF] Create Collection '{Name}' (Items={C})", name, items.Count);
 
-                    var ok =
+                    var createdOk =
                            await TryCreateCollection_OptionsAsync(_collections, name, itemIds, ct).ConfigureAwait(false)
                         || await TryCreateCollection_OptionsAsync(_library,     name, itemIds, ct).ConfigureAwait(false);
 
-                    if (!ok)
+                    if (!createdOk)
                     {
                         _log.LogWarning("[CBF] CreateCollection API nicht gefunden/fehlgeschlagen für '{Name}'", name);
                         DumpAvailableApis();
@@ -122,6 +122,31 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                     }
 
                     created++;
+
+                    // 🔁 Nach dem Erstellen sicherheitshalber Items explizit hinzufügen
+                    //    (falls die Options keine Ids angenommen haben).
+                    //    Wir suchen die gerade erstellte Collection erneut per Name.
+                    var just = _library.GetItemList(new InternalItemsQuery
+                    {
+                        IncludeItemTypes = new[] { BaseItemKind.BoxSet },
+                        Name = name
+                    }).OfType<BoxSet>().FirstOrDefault();
+
+                    if (just != null && itemIds.Count > 0)
+                    {
+                        var addOk =
+                               await TryAddToCollection_AddAsync(_collections, just.Id, itemIds, ct).ConfigureAwait(false)
+                            || await TryAddToCollection_AddAsync(_library,     just.Id, itemIds, ct).ConfigureAwait(false);
+
+                        if (!addOk)
+                        {
+                            _log.LogWarning("[CBF] AddToCollection nach Create fehlgeschlagen für '{Name}'", name);
+                        }
+                    }
+                    else
+                    {
+                        _log.LogDebug("[CBF] Newly created collection nicht gefunden oder keine Items – skip add.");
+                    }
                 }
                 else
                 {
