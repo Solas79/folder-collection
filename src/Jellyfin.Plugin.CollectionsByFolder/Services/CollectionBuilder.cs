@@ -16,6 +16,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
+    /// <summary>
+    /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
+    /// - 10.10-kompatibel (BaseItemKind)
+    /// - Erstellen: CreateCollectionAsync(CollectionCreationOptions)
+    /// - Hinzufügen: AddToCollectionAsync(Guid, IEnumerable&lt;Guid&gt;)
+    /// - Schließt WL-Root-Verzeichnisse explizit aus (nur Unterordner werden zu Collections).
+    /// </summary>
     public sealed class CollectionBuilder
     {
         private readonly ILibraryManager _library;
@@ -48,6 +55,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             _log.LogInformation("[CBF] Scan start: WL={W} BL={B} Min={Min} Prefix='{P}' Suffix='{S}'",
                 wl.Count, bl.Count, min, prefix, suffix);
 
+            // Filme laden
             var movies = _library.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { BaseItemKind.Movie },
@@ -62,13 +70,19 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             var filtered = movies.Where(m => { var p = m.Path ?? ""; return WL(p) && !BL(p); }).ToList();
             _log.LogInformation("[CBF] Movies nach WL/BL: {N}", filtered.Count);
 
+            // WL-Roots für exakten Vergleich (ohne Slash am Ende)
+            var wlRootsNoSlash = new HashSet<string>(
+                wl.Select(s => s.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
+                StringComparer.OrdinalIgnoreCase);
+
+            // Gruppen bilden: Parent-Ordner; WL-Roots ausschließen (nur Unterordner erzeugen Collections)
             var groups = filtered
                 .GroupBy(m => (Path.GetDirectoryName(m.Path ?? "") ?? "")
                     .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
-                .Where(g => g.Key.Length > 0)
+                .Where(g => g.Key.Length > 0 && !wlRootsNoSlash.Contains(g.Key))
                 .ToList();
 
-            _log.LogInformation("[CBF] Ordner-Gruppen gesamt: {N}", groups.Count);
+            _log.LogInformation("[CBF] Ordner-Gruppen gesamt (ohne WL-Root): {N}", groups.Count);
 
             int created = 0, updated = 0;
 
@@ -141,7 +155,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         private async Task<bool> TryCreateCollection_OptionsAsync(
             object targetManager, string name, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
         {
-            // Passende Methode suchen
             var mi = targetManager.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public)
                 .FirstOrDefault(m =>
                     m.Name.IndexOf("CreateCollectionAsync", StringComparison.OrdinalIgnoreCase) >= 0 &&
@@ -165,7 +178,6 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             // Item-IDs in ein Property mit IEnumerable<Guid> kippen (Ids / ItemIds / Items / MediaIds …)
             if (!TrySetGuidEnumerable(options, new[] { "ItemIds", "Ids", "Items", "MediaIds" }, itemIds))
             {
-                // nicht schlimm: dann fügen wir unten separat per AddToCollection hinzu
                 _log.LogDebug("[CBF] Options: keine Guid-Enumerable-Property gefunden – erzeuge leere Collection, füge später Items hinzu.");
             }
 
@@ -234,7 +246,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         private static bool SetStringProperty(object obj, string name, string value)
         {
             var pi = obj.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-            if (pi != null && (pi.PropertyType == typeof(string) || pi.PropertyType == typeof(string)))
+            if (pi != null && pi.PropertyType == typeof(string))
             {
                 pi.SetValue(obj, value);
                 return true;
@@ -251,15 +263,17 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
                 if (IsEnumerableOfGuid(pi.PropertyType))
                 {
-                    // Falls Zieltyp kein IEnumerable<Guid> direkt ist (z. B. List<Guid>), konvertieren
                     object value = ids;
+
+                    // Wenn eine konkrete List<Guid> verlangt wird, konvertieren
                     if (pi.PropertyType.IsGenericType &&
                         pi.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
                     {
-                        var list = (IList<Guid>)Activator.CreateInstance(typeof(List<Guid>))!;
+                        var list = (System.Collections.IList)Activator.CreateInstance(typeof(List<Guid>))!;
                         foreach (var g in ids) list.Add(g);
                         value = list;
                     }
+
                     pi.SetValue(obj, value);
                     return true;
                 }
@@ -270,6 +284,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         private static bool IsEnumerableOfGuid(Type t)
         {
             if (t == typeof(IEnumerable<Guid>)) return true;
+
             if (t.IsGenericType)
             {
                 var def = t.GetGenericTypeDefinition();
@@ -363,12 +378,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             {
                 foreach (var mi in FindExtensionMethods(m =>
                            m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase) &&
-                           miHasFirstParam(m, firstParam)))
+                           FirstParamIs(mi, firstParam)))
                 {
                     _log.LogWarning("[CBF-API] Extension: {Sig}", FormatSignature(mi));
                 }
 
-                static bool miHasFirstParam(MethodInfo mi, Type expected)
+                static bool FirstParamIs(MethodInfo mi, Type expected)
                 {
                     var p = mi.GetParameters();
                     return p.Length > 0 && expected.IsAssignableFrom(p[0].ParameterType);
