@@ -20,7 +20,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
     /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
     /// - 10.10-kompatibel (BaseItemKind)
     /// - Erstellen: CreateCollectionAsync(CollectionCreationOptions)
-    /// - Hinzufügen: AddToCollectionAsync(Guid, IEnumerable&lt;Guid&gt;)
+    /// - Hinzufügen: AddToCollectionAsync(Guid, IEnumerable<Guid>)
     /// - Schließt WL-Root-Verzeichnisse explizit aus (nur Unterordner werden zu Collections).
     /// </summary>
     public sealed class CollectionBuilder
@@ -172,8 +172,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             if (options == null) return false;
 
             // Name setzen (Property "Name" oder "CollectionName")
-            SetStringProperty(options, "Name", name) ||
-            SetStringProperty(options, "CollectionName", name);
+            if (!SetStringProperty(options, "Name", name))
+            {
+                SetStringProperty(options, "CollectionName", name);
+            }
 
             // Item-IDs in ein Property mit IEnumerable<Guid> kippen (Ids / ItemIds / Items / MediaIds …)
             if (!TrySetGuidEnumerable(options, new[] { "ItemIds", "Ids", "Items", "MediaIds" }, itemIds))
@@ -378,7 +380,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             {
                 foreach (var mi in FindExtensionMethods(m =>
                            m.Name.Contains("Collection", StringComparison.OrdinalIgnoreCase) &&
-                           FirstParamIs(mi, firstParam)))
+                           FirstParamIs(m, firstParam)))
                 {
                     _log.LogWarning("[CBF-API] Extension: {Sig}", FormatSignature(mi));
                 }
