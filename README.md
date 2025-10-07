@@ -23,6 +23,7 @@ Ordner in der Blacklist werden ignoriert
 Es werden alle Unterordner des angegebenen Verzeichnisses gescannt und  nur die "Endordner" als Collection angelegt.
 
 In der Whitelist und Blacklist sind die Ordnerstrukturen so einzutragen
+
 Beispiel:
 /mnt/nas1/Filme
 (Linux: gemountetes Laufwerk:nas1 / Ordner Filme)
