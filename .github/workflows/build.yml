@@ -1,60 +1,28 @@
-name: Build and Release Jellyfin Plugin
-
-on:
-  push:
-    tags:
-      - 'v*'              # z. B. v0.1.3
-  workflow_dispatch:
-
-permissions:
-  contents: write         # nötig für Release + Push auf main
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout (vollständig, für Push auf main)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore
-        run: dotnet restore src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj
-
-      - name: Build (DLL only, no publish)
-        run: dotnet build src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --no-restore
-
-      # 👉 Nur die Plugin-DLL ins ZIP (keine Jellyfin-Core-DLLs!)
-      - name: Package (zip the plugin DLL only)
-        run: |
-          set -e
-          OUTDIR=out
-          DLL=src/Jellyfin.Plugin.CollectionsByFolder/bin/Release/net8.0/Jellyfin.Plugin.CollectionsByFolder.dll
-          mkdir -p "$OUTDIR"
-          cp "$DLL" "$OUTDIR"/
-          (cd "$OUTDIR" && zip -9r Jellyfin.Plugin.CollectionsByFolder.zip Jellyfin.Plugin.CollectionsByFolder.dll)
-          ls -l "$OUTDIR"
-
-      - name: Compute MD5 checksum (lowercase)
-        id: md5
-        run: |
-          echo "md5=$(md5sum out/Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
-
-      - name: Generate manifest.json (für den aktuellen Tag)
+      - name: Generate manifest.json (10.10.x + 10.11.x)
         id: manifest
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"          # z. B. v0.1.3
-          VERSION="${TAG#v}.0"              # → 0.1.3.0
-          CHECKSUM="${{ steps.md5.outputs.md5 }}"
-          TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          #
+          # Fester Block: alte funktionierende Version für Jellyfin 10.10.x
+          #
+          OLD_VERSION="0.3.4.0"
+          OLD_TAG="v0.3.4"
+          OLD_ABI="10.10.0.0"    # das ist die ABI, die du heute schon im funktionierenden manifest hast
+          OLD_URL="https://github.com/Solas79/folder-collection/releases/download/${OLD_TAG}/Jellyfin.Plugin.CollectionsByFolder.zip"
+          OLD_CHECKSUM="60f5a54117f8feb5f1f2b777bd128074"   # MD5 von der alten ZIP
+          OLD_TIMESTAMP="2025-10-07T08:52:20Z"
+          OLD_CHANGELOG="Automatischer Build für ${OLD_TAG} (Jellyfin 10.10.x)"
+
+          #
+          # Dynamischer Block: neue Version für Jellyfin 10.11.x
+          #
+          NEW_TAG="${GITHUB_REF_NAME}"          # z. B. v0.4.0 (kommt vom Release-Tag)
+          NEW_VERSION="${NEW_TAG#v}.0"          # v0.4.0 -> 0.4.0.0
+          NEW_ABI="10.11.0.0"                   # HIER ggf. anpassen, falls dein 10.11-Server eine andere ABI meldet
+          NEW_URL="https://github.com/${{ github.repository }}/releases/download/${NEW_TAG}/Jellyfin.Plugin.CollectionsByFolder.zip"
+          NEW_CHECKSUM="${{ steps.md5.outputs.md5 }}"  # MD5 der neu gebauten ZIP
+          NEW_TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          NEW_CHANGELOG="Automatischer Build für ${NEW_TAG} (Jellyfin 10.11.x)"
 
           cat > manifest.json <<JSON
           [
@@ -64,53 +32,27 @@ jobs:
               "name": "CollectionsByFolder",
               "owner": "Solas79",
               "overview": "Erstellt/aktualisiert Collections anhand des letzten Ordnernamens.",
-              "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und täglicher Scan inkl. 'Jetzt scannen'-Button.",
+              "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und manueller Scan.",
               "versions": [
                 {
-                  "version": "${VERSION}",
-                  "targetAbi": "10.10.0.0",
-                  "sourceUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/Jellyfin.Plugin.CollectionsByFolder.zip",
-                  "checksum": "${CHECKSUM}",
-                  "timestamp": "${TS}",
-                  "changelog": "Automatischer Build für ${TAG}"
+                  "version": "${OLD_VERSION}",
+                  "targetAbi": "${OLD_ABI}",
+                  "sourceUrl": "${OLD_URL}",
+                  "checksum": "${OLD_CHECKSUM}",
+                  "timestamp": "${OLD_TIMESTAMP}",
+                  "changelog": "${OLD_CHANGELOG}"
+                },
+                {
+                  "version": "${NEW_VERSION}",
+                  "targetAbi": "${NEW_ABI}",
+                  "sourceUrl": "${NEW_URL}",
+                  "checksum": "${NEW_CHECKSUM}",
+                  "timestamp": "${NEW_TIMESTAMP}",
+                  "changelog": "${NEW_CHANGELOG}"
                 }
               ]
             }
           ]
           JSON
+
           cat manifest.json
-
-      - name: Create / Update GitHub Release (attach ZIP + manifest.json)
-        uses: softprops/action-gh-release@v2
-        with:
-          name: CollectionsByFolder ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-          files: |
-            out/Jellyfin.Plugin.CollectionsByFolder.zip
-            manifest.json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Commit manifest.json to main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          set -e
-          TMP="$(mktemp)"
-          cp -f manifest.json "$TMP"
-
-          git fetch origin main
-          git checkout -B main origin/main
-
-          mv -f "$TMP" manifest.json
-          git add manifest.json
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Update manifest for ${GITHUB_REF_NAME}"
-            git push origin main
-          fi
