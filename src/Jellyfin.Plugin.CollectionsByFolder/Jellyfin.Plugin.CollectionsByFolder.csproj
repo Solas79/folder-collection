@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Jellyfin 10.11 NuGets sind net9.0 -->
     <TargetFramework>net9.0</TargetFramework>
 
     <OutputType>Library</OutputType>
@@ -18,19 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Jellyfin 10.11 API -->
+    <!-- Jellyfin 10.11 API-Pakete -->
     <PackageReference Include="Jellyfin.Controller" Version="10.11.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.11.0" />
     <PackageReference Include="Jellyfin.Data" Version="10.11.0" />
-
-    <!-- Logging abstractions in net9-Ära.
-         Wenn der Restore hier meckert (Version anders), nimm die Version, die Jellyfin.Controller transitiv nutzt
-         oder lass das Package raus, falls schon transitiv -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0-preview.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- falls du die HTML-Konfigurationsseite embedden willst -->
     <EmbeddedResource Include="Web/configPage.html" />
   </ItemGroup>
 
