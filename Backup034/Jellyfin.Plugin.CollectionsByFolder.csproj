@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <AssemblyName>Jellyfin.Plugin.CollectionsByFolder</AssemblyName>
+    <RootNamespace>Jellyfin.Plugin.CollectionsByFolder</RootNamespace>
+
+    <Version>0.3.4</Version>
+    <FileVersion>0.3.4.0</FileVersion>
+    <AssemblyVersion>0.3.4.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Common" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
+  </ItemGroup>
+
+  <!-- Eingebettete Web-Dateien -->
+  <ItemGroup>
+    <None Remove="Web/collectionsbyfolder.html" />
+    <None Remove="Web/collectionsbyfolder.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Web/collectionsbyfolder.html">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Web/collectionsbyfolder.js">
+      <LogicalName>Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.js</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
