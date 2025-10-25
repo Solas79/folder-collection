@@ -1,3 +1,4 @@
+// Datei: Services/CollectionBuilder.cs
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
+using Jellyfin.Server.Implementations.Item; // <-- NEU: für BaseItemRepository
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -18,24 +20,34 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
     /// <summary>
     /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
-    /// - 10.10-kompatibel (BaseItemKind)
-    /// - Erstellen: CreateCollectionAsync(CollectionCreationOptions)
-    /// - Hinzufügen: AddToCollectionAsync(Guid, IEnumerable<Guid>)
+    /// - 10.11-kompatibel:
+    ///   - Filme & BoxSets kommen jetzt über BaseItemRepository statt ILibraryManager.GetItemList
+    /// - Erstellen: CreateCollectionAsync(...) (per Reflection, tolerant gegenüber Signaturänderungen)
+    /// - Hinzufügen: AddToCollectionAsync(...)
     /// - Schließt WL-Root-Verzeichnisse explizit aus (nur Unterordner werden zu Collections).
     /// </summary>
     public sealed class CollectionBuilder
     {
+        // ILibraryManager behalten wir weiterhin, weil wir es noch für Collection-spezifische
+        // Dinge (GetLinkedChildren usw.) nutzen und weil wir es in der Reflection-APIs durchprobieren.
         private readonly ILibraryManager _library;
+
         private readonly ICollectionManager _collections;
+
+        // NEU in 10.11: statt _library.GetItemList(...) benutzen wir dieses Repository.
+        private readonly BaseItemRepository _repo;
+
         private readonly ILogger<CollectionBuilder> _log;
 
         public CollectionBuilder(
             ILibraryManager library,
             ICollectionManager collections,
+            BaseItemRepository repo,
             ILogger<CollectionBuilder> log)
         {
             _library = library;
             _collections = collections;
+            _repo = repo;
             _log = log;
         }
 
@@ -44,30 +56,55 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             CancellationToken ct = default)
         {
             var wl = (cfg.Whitelist ?? new List<string>())
-                .Select(NormEndSlash).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            var bl = (cfg.Blacklist ?? new List<string>())
-                .Select(NormEndSlash).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                .Select(NormEndSlash)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-            var min    = Math.Max(1, cfg.MinFiles);
+            var bl = (cfg.Blacklist ?? new List<string>())
+                .Select(NormEndSlash)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var min = Math.Max(1, cfg.MinFiles);
             var prefix = cfg.Prefix ?? string.Empty;
             var suffix = cfg.Suffix ?? string.Empty;
 
             _log.LogInformation("[CBF] Scan start: WL={W} BL={B} Min={Min} Prefix='{P}' Suffix='{S}'",
                 wl.Count, bl.Count, min, prefix, suffix);
 
-            // Filme laden
-            var movies = _library.GetItemList(new InternalItemsQuery
+            //
+            // FILME LADEN
+            // Vorher (10.10):
+            //   var movies = _library.GetItemList(new InternalItemsQuery { ... });
+            //
+            // Jetzt (10.11):
+            //   _repo.GetItemList(query)
+            //
+            var movies = _repo.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = new[] { BaseItemKind.Movie },
                 Recursive = true
-            }).OfType<Movie>().ToList();
+            })
+            .OfType<Movie>()
+            .ToList();
 
             _log.LogInformation("[CBF] Movies gesamt: {N}", movies.Count);
 
-            bool WL(string p) => wl.Count == 0 || wl.Any(w => p.StartsWith(w, StringComparison.OrdinalIgnoreCase));
-            bool BL(string p) => bl.Any(b => p.StartsWith(b, StringComparison.OrdinalIgnoreCase));
+            bool WL(string p) =>
+                wl.Count == 0 ||
+                wl.Any(w => p.StartsWith(w, StringComparison.OrdinalIgnoreCase));
 
-            var filtered = movies.Where(m => { var p = m.Path ?? ""; return WL(p) && !BL(p); }).ToList();
+            bool BL(string p) =>
+                bl.Any(b => p.StartsWith(b, StringComparison.OrdinalIgnoreCase));
+
+            var filtered = movies
+                .Where(m =>
+                {
+                    var p = m.Path ?? "";
+                    return WL(p) && !BL(p);
+                })
+                .ToList();
+
             _log.LogInformation("[CBF] Movies nach WL/BL: {N}", filtered.Count);
 
             // WL-Roots für exakten Vergleich (ohne Slash am Ende)
@@ -90,26 +127,39 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (g.Count() < min) continue;
+                if (g.Count() < min)
+                    continue;
 
                 var folderName = Path.GetFileName(g.Key);
-                if (string.IsNullOrWhiteSpace(folderName)) continue;
+                if (string.IsNullOrWhiteSpace(folderName))
+                    continue;
 
-                var name    = $"{prefix}{folderName}{suffix}";
-                var items   = g.Cast<BaseItem>().ToList();
+                var name = $"{prefix}{folderName}{suffix}";
+                var items = g.Cast<BaseItem>().ToList();
                 var itemIds = items.Select(i => i.Id).ToList();
 
-                // BoxSet existiert?
-                var existing = _library.GetItemList(new InternalItemsQuery
+                //
+                // Collection bereits vorhanden?
+                // Vorher (10.10):
+                //   var existing = _library.GetItemList(new InternalItemsQuery { ... BoxSet ... })
+                //
+                // Jetzt (10.11):
+                //   _repo.GetItemList(query)
+                //
+                var existing = _repo.GetItemList(new InternalItemsQuery
                 {
                     IncludeItemTypes = new[] { BaseItemKind.BoxSet },
                     Name = name
-                }).OfType<BoxSet>().FirstOrDefault();
+                })
+                .OfType<BoxSet>()
+                .FirstOrDefault();
 
                 if (existing == null)
                 {
                     _log.LogInformation("[CBF] Create Collection '{Name}' (Items={C})", name, items.Count);
 
+                    // Versuch 1: Create über ICollectionManager
+                    // Versuch 2: Create über ILibraryManager
                     var createdOk =
                            await TryCreateCollection_OptionsAsync(_collections, name, itemIds, ct).ConfigureAwait(false)
                         || await TryCreateCollection_OptionsAsync(_library,     name, itemIds, ct).ConfigureAwait(false);
@@ -123,14 +173,17 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
                     created++;
 
-                    // 🔁 Nach dem Erstellen sicherheitshalber Items explizit hinzufügen
-                    //    (falls die Options keine Ids angenommen haben).
-                    //    Wir suchen die gerade erstellte Collection erneut per Name.
-                    var just = _library.GetItemList(new InternalItemsQuery
+                    //
+                    // Nach dem Erstellen holen wir die Collection neu (wichtig, um die Guid zu haben)
+                    // Wieder über _repo, nicht _library.
+                    //
+                    var just = _repo.GetItemList(new InternalItemsQuery
                     {
                         IncludeItemTypes = new[] { BaseItemKind.BoxSet },
                         Name = name
-                    }).OfType<BoxSet>().FirstOrDefault();
+                    })
+                    .OfType<BoxSet>()
+                    .FirstOrDefault();
 
                     if (just != null && itemIds.Count > 0)
                     {
@@ -150,8 +203,9 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 }
                 else
                 {
+                    // Collection existiert -> fehlende Items hinzufügen
                     var ex = new HashSet<Guid>(existing.GetLinkedChildren().Select(x => x.Id));
-                    var toAdd   = items.Where(x => !ex.Contains(x.Id)).ToList();
+                    var toAdd = items.Where(x => !ex.Contains(x.Id)).ToList();
                     var toAddId = toAdd.Select(x => x.Id).ToList();
 
                     if (toAddId.Count > 0)
@@ -166,6 +220,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                             DumpAvailableApis();
                             continue;
                         }
+
                         updated++;
                     }
                 }
@@ -184,7 +239,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 .FirstOrDefault(m =>
                     m.Name.IndexOf("CreateCollectionAsync", StringComparison.OrdinalIgnoreCase) >= 0 &&
                     m.GetParameters().Length >= 1 &&
-                    m.GetParameters()[0].ParameterType.Name.IndexOf("CollectionCreationOptions",
+                    m.GetParameters()[0].ParameterType.Name.IndexOf(
+                        "CollectionCreationOptions",
                         StringComparison.OrdinalIgnoreCase) >= 0);
 
             if (mi == null) return false;
@@ -272,7 +328,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
         private static bool SetStringProperty(object obj, string name, string value)
         {
-            var pi = obj.GetType().GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            var pi = obj.GetType().GetProperty(
+                name,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
             if (pi != null && pi.PropertyType == typeof(string))
             {
                 pi.SetValue(obj, value);
@@ -285,7 +344,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             foreach (var n in candidates)
             {
-                var pi = obj.GetType().GetProperty(n, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                var pi = obj.GetType().GetProperty(
+                    n,
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
                 if (pi == null) continue;
 
                 if (IsEnumerableOfGuid(pi.PropertyType))
@@ -297,7 +359,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                         pi.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
                     {
                         var list = (System.Collections.IList)Activator.CreateInstance(typeof(List<Guid>))!;
-                        foreach (var g in ids) list.Add(g);
+                        foreach (var g in ids)
+                        {
+                            list.Add(g);
+                        }
                         value = list;
                     }
 
@@ -323,10 +388,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                     return t.GetGenericArguments()[0] == typeof(Guid);
                 }
             }
+
             return false;
         }
 
-        private static object? GetDefault(Type t) => t.IsValueType ? Activator.CreateInstance(t) : null;
+        private static object? GetDefault(Type t) =>
+            t.IsValueType ? Activator.CreateInstance(t) : null;
 
         private static async Task<object?> InvokeAsync(object target, MethodInfo mi, object?[] args)
         {
@@ -334,10 +401,18 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             if (ret is Task task)
             {
                 await task.ConfigureAwait(false);
+
                 if (ret.GetType().IsGenericType)
-                    return ret.GetType().GetProperty("Result")?.GetValue(ret);
+                {
+                    return ret
+                        .GetType()
+                        .GetProperty("Result")
+                        ?.GetValue(ret);
+                }
+
                 return null;
             }
+
             return ret;
         }
 
@@ -345,8 +420,11 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             if (string.IsNullOrWhiteSpace(s)) return string.Empty;
             s = s.Trim();
-            if (!s.EndsWith(Path.DirectorySeparatorChar) && !s.EndsWith(Path.AltDirectorySeparatorChar))
+            if (!s.EndsWith(Path.DirectorySeparatorChar) &&
+                !s.EndsWith(Path.AltDirectorySeparatorChar))
+            {
                 s += Path.DirectorySeparatorChar;
+            }
             return s;
         }
 
