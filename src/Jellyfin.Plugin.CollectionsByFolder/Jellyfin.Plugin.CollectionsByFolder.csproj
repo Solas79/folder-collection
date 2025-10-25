@@ -1,21 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Jellyfin 10.11 verwendet .NET 8 -->
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- Jellyfin 10.11 NuGets sind net9.0 -->
+    <TargetFramework>net9.0</TargetFramework>
 
-    <!-- Plugin ist eine Library -->
     <OutputType>Library</OutputType>
 
     <AssemblyVersion>0.3.5.0</AssemblyVersion>
     <FileVersion>0.3.5.0</FileVersion>
-    <Version>1.0.0</Version>
-    <Description>CollectionsByFolder Plugin für Jellyfin 10.11 (API-only, ohne interne Abhängigkeiten)</Description>
-    <Authors>Georg</Authors>
-    <Company>Georg</Company>
-    <Product>CollectionsByFolder</Product>
+    <Version>0.3.5</Version>
 
-    <!-- Build-Einstellungen -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Optimize>true</Optimize>
@@ -24,15 +18,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Offizielle Jellyfin-Paketabhängigkeiten, wie sie Plugins normalerweise verwenden -->
+    <!-- Jellyfin 10.11 API -->
     <PackageReference Include="Jellyfin.Controller" Version="10.11.0" />
     <PackageReference Include="Jellyfin.Model" Version="10.11.0" />
     <PackageReference Include="Jellyfin.Data" Version="10.11.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+
+    <!-- Logging abstractions in net9-Ära.
+         Wenn der Restore hier meckert (Version anders), nimm die Version, die Jellyfin.Controller transitiv nutzt
+         oder lass das Package raus, falls schon transitiv -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0-preview.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Optional: Falls du eine statische HTML-Konfigurationsseite einbindest -->
+    <!-- falls du die HTML-Konfigurationsseite embedden willst -->
     <EmbeddedResource Include="Web/configPage.html" />
   </ItemGroup>
 
