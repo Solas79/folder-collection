@@ -1,28 +1,59 @@
-[
-  {
-    "category": "Library",
-    "guid": "f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41",
-    "name": "CollectionsByFolder",
-    "owner": "Solas79",
-    "overview": "Erstellt/aktualisiert Collections anhand des letzten Ordnernamens.",
-    "description": "Mehrere Pfade, Präfix/Suffix, Blacklist, Mindestanzahl und manueller Scan.",
-    "versions": [
-      {
-        "version": "0.3.4.0",
-        "targetAbi": "10.10.0.0",
-        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.3.4/Jellyfin.Plugin.CollectionsByFolder.zip",
-        "checksum": "60f5a54117f8feb5f1f2b777bd128074",
-        "timestamp": "2025-10-07T08:52:20Z",
-        "changelog": "Automatischer Build für v0.3.4 (Jellyfin 10.10.x)"
-      },
-      {
-        "version": "0.3.5.0",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.3.5/Jellyfin.Plugin.CollectionsByFolder.zip",
-        "checksum": "1b8084f928772df9cd4162e74fd7855c",
-        "timestamp": "2025-10-25T08:51:24Z",
-        "changelog": "preVersion!!! Automatischer Build für v0.3.5 (Jellyfin 10.11.x)"
-      }
-    ]
-  }
-]
+using System;
+using System.Collections.Generic;
+using Jellyfin.Data.Serialization; // in manchen Builds heißt das anders; siehe Hinweis unten
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.Plugins;
+
+namespace Jellyfin.Plugin.CollectionsByFolder
+{
+    public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasPluginConfiguration
+    {
+        // static Instance für Controller etc.
+        public static Plugin Instance { get; private set; }
+
+        public override string Name => "CollectionsByFolder";
+
+        public override string Description =>
+            "Erstellt/aktualisiert Collections anhand des letzten Ordnernamens.";
+
+        // GUID muss dieselbe bleiben wie im manifest.json!
+        public override Guid Id => new Guid("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
+
+        // Neuer Konstruktorstil ab Jellyfin 10.11:
+        // BasePlugin<TConfig> erwartet jetzt auch einen XmlSerializer.
+        // Der konkrete Typ heißt typischerweise IXmlSerializer
+        // und lebt (Stand 10.11) im Namespace Jellyfin.Data.Serialization.
+        public Plugin(IApplicationPaths appPaths, IXmlSerializer xmlSerializer)
+            : base(appPaths, xmlSerializer)
+        {
+            Instance = this;
+        }
+
+        // Plugin-Konfigurationsobjekt zurückgeben
+        public PluginConfiguration GetConfiguration() => Configuration;
+
+        //
+        // Entscheidend für dein UI:
+        // IHasWebPages hier direkt in der Plugin-Klasse.
+        // Die erste (und einzige) Page, die wir zurückgeben,
+        // ist deine HTML-Seite. Jellyfin öffnet diese Seite,
+        // wenn du im Admin-UI auf das Puzzle-Symbol deines Plugins klickst.
+        //
+        public IEnumerable<PluginPageInfo> GetPages()
+        {
+            yield return new PluginPageInfo
+            {
+                // Das "Name" wird zur Route, z.B. .../CollectionsByFolder.html
+                // Wichtig: stabil lassen, keine Leerzeichen.
+                Name = "CollectionsByFolder",
+
+                // Genau dieser Pfad muss zu deiner EmbeddedResource passen.
+                // Bei dir: Web/collectionsbyfolder.html ist eingebettet als
+                // Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html
+                EmbeddedResourcePath = GetType().Namespace + ".Web.collectionsbyfolder.html"
+            };
+        }
+    }
+}
