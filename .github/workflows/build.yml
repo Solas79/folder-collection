@@ -20,10 +20,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Setup .NET 8
+      - name: Setup .NET 9 (für Jellyfin 10.11)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Restore
         run: dotnet restore src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj
@@ -31,46 +31,45 @@ jobs:
       - name: Build (DLL only, no publish)
         run: dotnet build src/Jellyfin.Plugin.CollectionsByFolder/Jellyfin.Plugin.CollectionsByFolder.csproj --configuration Release --no-restore
 
-      # 👉 Nur die Plugin-DLL ins ZIP (keine Jellyfin-Core-DLLs!)
-      - name: Package (zip the plugin DLL only)
+      - name: Package new plugin (10.11 build)
         run: |
           set -e
           OUTDIR=out
-          DLL=src/Jellyfin.Plugin.CollectionsByFolder/bin/Release/net8.0/Jellyfin.Plugin.CollectionsByFolder.dll
+          DLL=src/Jellyfin.Plugin.CollectionsByFolder/bin/Release/net9.0/Jellyfin.Plugin.CollectionsByFolder.dll
           mkdir -p "$OUTDIR"
           cp "$DLL" "$OUTDIR"/
           (cd "$OUTDIR" && zip -9r Jellyfin.Plugin.CollectionsByFolder.zip Jellyfin.Plugin.CollectionsByFolder.dll)
           ls -l "$OUTDIR"
 
-      - name: Compute MD5 checksum (lowercase)
+      - name: Compute MD5 checksum for new ZIP (lowercase)
         id: md5
         run: |
           echo "md5=$(md5sum out/Jellyfin.Plugin.CollectionsByFolder.zip | awk '{print tolower($1)}')" >> $GITHUB_OUTPUT
 
-      - name: Generate manifest.json (10.10.x + 10.11.x)
+      - name: Generate manifest.json (mit 10.10.x und 10.11.x)
         id: manifest
         shell: bash
         run: |
           #
-          # Fester Block: alte funktionierende Version für Jellyfin 10.10.x
-          # -> das ist dein bestehendes Release v0.3.4
+          # Statischer Block: alte funktionierende Version für Jellyfin 10.10.x
+          # Dieser Teil ändert sich nicht mehr, weil die alte DLL schon veröffentlicht ist.
           #
           OLD_VERSION="0.3.4.0"
           OLD_TAG="v0.3.4"
-          OLD_ABI="10.10.0.0"    # so hast du es schon im alten manifest.json veröffentlicht
+          OLD_ABI="10.10.0.0"
           OLD_URL="https://github.com/Solas79/folder-collection/releases/download/${OLD_TAG}/Jellyfin.Plugin.CollectionsByFolder.zip"
-          OLD_CHECKSUM="60f5a54117f8feb5f1f2b777bd128074"   # MD5 vom alten ZIP (dein Wert)
+          OLD_CHECKSUM="60f5a54117f8feb5f1f2b777bd128074"
           OLD_TIMESTAMP="2025-10-07T08:52:20Z"
           OLD_CHANGELOG="Automatischer Build für ${OLD_TAG} (Jellyfin 10.10.x)"
 
           #
           # Dynamischer Block: neue Version für Jellyfin 10.11.x
           #
-          NEW_TAG="${GITHUB_REF_NAME}"          # z. B. v0.4.0 vom Push-Tag
+          NEW_TAG="${GITHUB_REF_NAME}"          # z. B. v0.4.0
           NEW_VERSION="${NEW_TAG#v}.0"          # v0.4.0 -> 0.4.0.0
-          NEW_ABI="10.11.0.0"                   # <- ggf. anpassen auf deine echte 10.11 ABI
+          NEW_ABI="10.11.0.0"                   # ggf. anpassen auf ABI deines 10.11-Servers
           NEW_URL="https://github.com/${{ github.repository }}/releases/download/${NEW_TAG}/Jellyfin.Plugin.CollectionsByFolder.zip"
-          NEW_CHECKSUM="${{ steps.md5.outputs.md5 }}"  # MD5 des NEUEN ZIPs
+          NEW_CHECKSUM="${{ steps.md5.outputs.md5 }}"
           NEW_TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           NEW_CHANGELOG="Automatischer Build für ${NEW_TAG} (Jellyfin 10.11.x)"
 
@@ -107,7 +106,7 @@ jobs:
 
           cat manifest.json
 
-      - name: Create / Update GitHub Release (attach ZIP + manifest.json)
+      - name: Create / Update GitHub Release (attach new ZIP + manifest.json)
         uses: softprops/action-gh-release@v2
         with:
           name: CollectionsByFolder ${{ github.ref_name }}
