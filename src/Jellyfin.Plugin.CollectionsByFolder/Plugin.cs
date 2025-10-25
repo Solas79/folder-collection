@@ -2,41 +2,40 @@ using System;
 using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Model.Plugins;
-using MediaBrowser.Model.Serialization;
 
 namespace Jellyfin.Plugin.CollectionsByFolder
 {
     public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
-        public static Plugin Instance { get; private set; } = null!;
-
-        public override string Name => "CollectionsByFolder";
-        public override string Description => "Erstellt automatisch Sammlungen nach Ordnernamen.";
-        public override Guid Id => Guid.Parse("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
-
-        public Plugin(IApplicationPaths paths, IXmlSerializer xml)
-            : base(paths, xml)
+        public Plugin(IApplicationPaths applicationPaths)
+            : base(applicationPaths)
         {
-            Instance = this;
         }
 
+        public override string Name => "CollectionsByFolder";
+
+        public override string Description =>
+            "Erstellt/aktualisiert Collections anhand des letzten Ordnernamens.";
+
+        // MUSS dieselbe GUID bleiben wie in manifest.json!
+        public override Guid Id => new Guid("f58f3a40-6a8a-48e8-9b3a-9d7f0b6a3a41");
+
+        //
+        // Das ist der wichtige Teil:
+        // Diese Pages werden Jellyfin direkt am Plugin gemeldet.
+        // Die erste Page in der Liste ist die, die Jellyfin beim Klick auf das Plugin öffnet.
+        //
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            var ns = typeof(Plugin).Namespace!;
-
-            // Nur die HTML-Konfigseite über den offiziellen configurationpage-Endpunkt.
-            // Das JS wird NICHT über /web/<name> geladen, sondern über den Controller:
-            //   <script src="../Plugins/CollectionsByFolder/js"></script>
-            // (siehe Controllers/StaticController.cs)
-            return new[]
+            yield return new PluginPageInfo
             {
-                new PluginPageInfo
-                {
-                    // -> /web/configurationpage?name=collectionsbyfolder
-                    Name = "collectionsbyfolder",
-                    EmbeddedResourcePath = $"{ns}.Web.collectionsbyfolder.html"
-                }
+                // der Name wird zur Route, z.B. CollectionsByFolder.html
+                Name = "CollectionsByFolder",
+                // das muss exakt zur eingebetteten Ressource passen:
+                EmbeddedResourcePath = GetType().Namespace + ".Web.collectionsbyfolder.html"
+                // also "Jellyfin.Plugin.CollectionsByFolder.Web.collectionsbyfolder.html"
             };
         }
     }
