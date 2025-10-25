@@ -1,84 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Jellyfin 10.11 läuft auf .NET 8 -->
+    <!-- Jellyfin 10.11 verwendet .NET 8 -->
     <TargetFramework>net8.0</TargetFramework>
 
-    <!-- Wir bauen ein Plugin (DLL), kein Exe -->
+    <!-- Plugin ist eine Library -->
     <OutputType>Library</OutputType>
 
-    <!-- Version / Metadaten (optional anpassen) -->
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Version>1.0.0</Version>
-    <Description>CollectionsByFolder Plugin für Jellyfin 10.11 (erstellt/aktualisiert Sammlungen automatisch anhand der Ordnerstruktur)</Description>
+    <Description>CollectionsByFolder Plugin für Jellyfin 10.11 (API-only, ohne interne Abhängigkeiten)</Description>
     <Authors>Georg</Authors>
     <Company>Georg</Company>
     <Product>CollectionsByFolder</Product>
 
-    <!-- Build-Qualität -->
+    <!-- Build-Einstellungen -->
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Optimize>true</Optimize>
     <DebugType>portable</DebugType>
-
-    <!-- Wir wollen nicht, dass Trimming Teile aus dem Plugin rausschneidet -->
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>
-    <!--
-      GANZ WICHTIG:
-      Erstelle in deinem Plugin-Projekt lokal diesen Ordner:
-
-          lib/jellyfin-10.11/
-
-      Und kopiere aus deinem LXC-Container aus:
-          /usr/lib/jellyfin/bin
-
-      mindestens diese Dateien hinein:
-          MediaBrowser.Controller.dll
-          MediaBrowser.Model.dll
-          Jellyfin.Data.dll
-          Jellyfin.Server.Implementations.dll
-          Microsoft.Extensions.Logging.Abstractions.dll
-
-      Falls beim Build noch ein weiterer Typ fehlt,
-      kannst du weitere DLLs aus /usr/lib/jellyfin/bin
-      einfach genauso hinzufügen.
-    -->
-
-    <Reference Include="MediaBrowser.Controller">
-      <HintPath>lib/jellyfin-10.11/MediaBrowser.Controller.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="MediaBrowser.Model">
-      <HintPath>lib/jellyfin-10.11/MediaBrowser.Model.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="Jellyfin.Data">
-      <HintPath>lib/jellyfin-10.11/Jellyfin.Data.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="Jellyfin.Server.Implementations">
-      <HintPath>lib/jellyfin-10.11/Jellyfin.Server.Implementations.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-
-    <Reference Include="Microsoft.Extensions.Logging.Abstractions">
-      <HintPath>lib/jellyfin-10.11/Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <!-- Offizielle Jellyfin-Paketabhängigkeiten, wie sie Plugins normalerweise verwenden -->
+    <PackageReference Include="Jellyfin.Controller" Version="10.11.0" />
+    <PackageReference Include="Jellyfin.Model" Version="10.11.0" />
+    <PackageReference Include="Jellyfin.Data" Version="10.11.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Wenn du in deinem Plugin eine statische HTML-Konfigurationsseite einbettst
-         (z. B. Web/configPage.html für IHasWebPages), dann diese Zeile lassen.
-         Wenn du keine solche Datei hast, kannst du diese ItemGroup einfach komplett löschen. -->
+    <!-- Optional: Falls du eine statische HTML-Konfigurationsseite einbindest -->
     <EmbeddedResource Include="Web/configPage.html" />
   </ItemGroup>
 
