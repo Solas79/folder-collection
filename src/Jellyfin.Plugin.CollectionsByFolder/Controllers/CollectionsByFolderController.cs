@@ -1,9 +1,11 @@
+// Datei: Controllers/CollectionsByFolderController.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.CollectionsByFolder.Services;
+using Jellyfin.Server.Implementations.Item;        // <-- NEU: für BaseItemRepository
 using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
@@ -18,17 +20,20 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
     {
         private readonly ILibraryManager _library;
         private readonly ICollectionManager _collections;
+        private readonly BaseItemRepository _repo; // <-- NEU
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<CollectionsByFolderController> _log;
 
         public CollectionsByFolderController(
             ILibraryManager library,
             ICollectionManager collections,
+            BaseItemRepository repo,                         // <-- NEU
             ILoggerFactory loggerFactory,
             ILogger<CollectionsByFolderController> log)
         {
             _library = library;
             _collections = collections;
+            _repo = repo;                                     // <-- NEU
             _loggerFactory = loggerFactory;
             _log = log;
         }
@@ -54,9 +59,9 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             {
                 whitelist = cfg.Whitelist ?? new List<string>(),
                 blacklist = cfg.Blacklist ?? new List<string>(),
-                prefix    = cfg.Prefix   ?? string.Empty,
-                suffix    = cfg.Suffix   ?? string.Empty,
-                minfiles  = cfg.MinFiles
+                prefix = cfg.Prefix ?? string.Empty,
+                suffix = cfg.Suffix ?? string.Empty,
+                minfiles = cfg.MinFiles
             });
         }
 
@@ -69,7 +74,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
             [FromForm] string? blacklist,
             [FromForm] string? prefix,
             [FromForm] string? suffix,
-            [FromForm] int?    minfiles)
+            [FromForm] int? minfiles)
         {
             try
             {
@@ -78,9 +83,9 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 
                 cfg.Whitelist = SplitLines(whitelist);
                 cfg.Blacklist = SplitLines(blacklist);
-                cfg.Prefix    = prefix ?? string.Empty;
-                cfg.Suffix    = suffix ?? string.Empty;
-                cfg.MinFiles  = Math.Max(0, minfiles ?? 0);
+                cfg.Prefix = prefix ?? string.Empty;
+                cfg.Suffix = suffix ?? string.Empty;
+                cfg.MinFiles = Math.Max(0, minfiles ?? 0);
                 cfg.FolderPaths = new List<string>(cfg.Whitelist);
 
                 plugin.UpdateConfiguration(cfg);
@@ -109,7 +114,9 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Controllers
 
                 _log.LogInformation("[CBF] Scan-Request empfangen.");
                 var builderLogger = _loggerFactory.CreateLogger<CollectionBuilder>();
-                var builder = new CollectionBuilder(_library, _collections, builderLogger);
+
+                // Angepasster Konstruktor (neu: _repo)
+                var builder = new CollectionBuilder(_library, _collections, _repo, builderLogger);
 
                 var (created, updated) = await builder.RunOnceAsync(cfg, ct).ConfigureAwait(false);
 
