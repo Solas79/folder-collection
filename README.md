@@ -39,7 +39,15 @@ Sufix -> erstellt einen Eintrag nach dem Collection Namen
 
 Mindestanzahl an Dateien -> Ordner mit weniger Dateien werden ignoriert und nicht als Collection angelegt.
 
-Wurde mit **Jellyfin 10.10.7** (Linuxserver) getestet
+## Jellyfin 10.11
+Plugin über Puzzleteil -> Einstellungen öffnen 
+
+<img width="402" height="344" alt="Bildschirmfoto 2025-10-25 um 12 13 28" src="https://github.com/user-attachments/assets/4d27e756-9111-4084-ac14-35af5b2236f6" />
+
+
+Wurde mit **Jellyfin 10.10.7** (Linuxserver) getestet (Release 0.3.4)
+
+Wurde mit **Jellyfin 10.11.0** (Linuxserver) getestet (Release > 0.3.4)
 
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -80,7 +88,15 @@ Sufix -> creates an entry after the collection name
 
 Minimum number of files -> Folders with fewer files are ignored and not created as a collection.
 
-Tested with **Jellyfin 10.10.7** (Linux server)
+## Jellyfin 10.11
+Open plugin via puzzle piece -> Settings
+
+<img width="402" height="344" alt="Bildschirmfoto 2025-10-25 um 12 13 28" src="https://github.com/user-attachments/assets/4d27e756-9111-4084-ac14-35af5b2236f6" />
+
+Tested with **Jellyfin 10.10.7** (Linux server) (Release 0.3.4)
+
+Tested with **Jellyfin 10.11.0** (Linux server) (Release > 0.3.4)
+
 
 
 ## Build
