@@ -18,10 +18,10 @@
       {
         "version": "0.3.5.0",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.3.5-pre/Jellyfin.Plugin.CollectionsByFolder.zip",
+        "sourceUrl": "https://github.com/Solas79/folder-collection/releases/download/v0.3.5/Jellyfin.Plugin.CollectionsByFolder.zip",
         "checksum": "1b8084f928772df9cd4162e74fd7855c",
         "timestamp": "2025-10-25T08:51:24Z",
-        "changelog": "Automatischer Build für v0.3.5 (Jellyfin 10.11.x)"
+        "changelog": "preVersion!!! Automatischer Build für v0.3.5 (Jellyfin 10.11.x)"
       }
     ]
   }
