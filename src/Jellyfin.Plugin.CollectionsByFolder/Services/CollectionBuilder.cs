@@ -11,15 +11,15 @@ using MediaBrowser.Controller.Collections;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Querying;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.CollectionsByFolder.Services
 {
     /// <summary>
     /// Baut/aktualisiert Collections anhand der gespeicherten Plugin-Konfiguration.
-    /// Diese Version versucht KEINEN direkten Zugriff auf interne Jellyfin-Implementierungen
-    /// (z.B. BaseItemRepository), damit das Plugin ohne Server-internes DLL-Referenzieren
-    /// gebaut und verteilt werden kann.
+    /// Diese Version verwendet nur öffentliche/halböffentliche Jellyfin-APIs (ILibraryManager, ICollectionManager)
+    /// und keine internen Server-Klassen wie BaseItemRepository.
     /// </summary>
     public sealed class CollectionBuilder
     {
@@ -51,17 +51,14 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var min    = Math.Max(1, cfg.MinFiles);
+            var min = Math.Max(1, cfg.MinFiles);
             var prefix = cfg.Prefix ?? string.Empty;
             var suffix = cfg.Suffix ?? string.Empty;
 
             _log.LogInformation("[CBF] Scan start: WL={W} BL={B} Min={Min} Prefix='{P}' Suffix='{S}'",
                 wl.Count, bl.Count, min, prefix, suffix);
 
-            // 1. Alle Movies im System sammeln, ohne GetItemList().
-            //    Strategie:
-            //    - Wir holen alle Root-Library-Items.
-            //    - Wir laufen rekursiv runter und sammeln Movie-Instanzen.
+            // 1. Alle Movies per Traversal über LibraryManager sammeln.
             var movies = GetAllMoviesFallback(ct).ToList();
 
             _log.LogInformation("[CBF] Movies gesamt (fallback traversal): {N}", movies.Count);
@@ -83,12 +80,10 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
             _log.LogInformation("[CBF] Movies nach WL/BL: {N}", filtered.Count);
 
-            // WL-Roots ohne Slash-Ende zum direkten Ausschluss
             var wlRootsNoSlash = new HashSet<string>(
                 wl.Select(s => s.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
                 StringComparer.OrdinalIgnoreCase);
 
-            // Gruppieren nach Parent-Ordner; WL-Roots selbst NICHT zu Collections machen
             var groups = filtered
                 .GroupBy(m => (Path.GetDirectoryName(m.Path ?? "") ?? "")
                     .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
@@ -114,15 +109,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 var items = g.Cast<BaseItem>().ToList();
                 var itemIds = items.Select(i => i.Id).ToList();
 
-                // 2. Gibt es schon eine Collection mit genau diesem Namen?
-                //    Wir können nicht mehr via _library.GetItemList(query) suchen.
-                //    Workaround:
-                //    - Durchsuche alle vorhandenen BoxSets, die wir über die Wurzelknoten finden.
-                //      (BoxSet = Sammlungen / Collections / Sets)
-                //    - Oder notfalls: Finde eine existierende Collection durch _collections,
-                //      indem wir alle Collections holen können, dann Name vergleichen.
-
-                var existing = FindExistingBoxSetByName(name);
+                // Existiert schon eine Collection mit genau diesem Namen?
+                var existing = FindExistingBoxSetByName(name, ct);
 
                 if (existing == null)
                 {
@@ -142,7 +130,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                     created++;
 
                     // Sammlung nach Create nochmal suchen:
-                    var just = FindExistingBoxSetByName(name);
+                    var just = FindExistingBoxSetByName(name, ct);
 
                     if (just != null && itemIds.Count > 0)
                     {
@@ -162,8 +150,11 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                 }
                 else
                 {
-                    var ex = new HashSet<Guid>(existing.GetLinkedChildren().Select(x => x.Id));
-                    var toAdd = items.Where(x => !ex.Contains(x.Id)).ToList();
+                    var existingChildIds = new HashSet<Guid>(
+                        SafeGetLinkedChildren(existing).Select(x => x.Id)
+                    );
+
+                    var toAdd = items.Where(x => !existingChildIds.Contains(x.Id)).ToList();
                     var toAddId = toAdd.Select(x => x.Id).ToList();
 
                     if (toAddId.Count > 0)
@@ -189,21 +180,12 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         }
 
         /// <summary>
-        /// Holt alle Movies über Traversal (Fallback ohne ILibraryManager.GetItemList).
-        /// Idee: Wir nehmen alle Root-Items und laufen rekursiv runter.
+        /// Holt alle Movies durch rekursives Traversal über ILibraryManager
+        /// statt BaseItem.GetChildren().
         /// </summary>
         private IEnumerable<Movie> GetAllMoviesFallback(CancellationToken ct)
         {
-            // ILibraryManager hat normalerweise Zugriff auf Wurzel-Items (Bibliotheken).
-            // Wir gehen defensive: wir holen ALLE items, die der Manager kennt,
-            // filtern auf Movie, und machen es robust gegen Nulls.
-            //
-            // Hinweis: Je nach Jellyfin-Version gibt es:
-            //   - GetItemById / RootFolder / GetChildren()
-            //   - oder LibraryManager.RootFolder
-            // Wir versuchen den Weg über RootFolder, weil der seit Jahren existiert.
-
-            var root = _library.RootFolder; // RootFolder ist in MediaBrowser.Controller.Library. 
+            var root = _library.RootFolder;
             if (root == null)
             {
                 _log.LogWarning("[CBF] RootFolder ist null – kein Traversal möglich.");
@@ -223,19 +205,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
                     acc.Add(mov);
                 }
 
-                // Hole Kinder des Knotens
-                IEnumerable<BaseItem> children;
-                try
-                {
-                    children = node.GetChildren() ?? Array.Empty<BaseItem>();
-                }
-                catch (Exception ex)
-                {
-                    _log.LogDebug(ex, "[CBF] GetChildren() Exception bei {Node}", node.Name);
-                    children = Array.Empty<BaseItem>();
-                }
-
-                foreach (var child in children)
+                foreach (var child in GetChildrenOf(node))
                 {
                     Traverse(child, acc, token);
                 }
@@ -243,18 +213,84 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         }
 
         /// <summary>
-        /// Versucht, ein vorhandenes BoxSet (Sammlung) mit genau diesem Namen zu finden.
-        /// Fallback-Strategie ohne _library.GetItemList(query).
+        /// Holt Kinder eines Items über ILibraryManager (per Query),
+        /// da BaseItem.GetChildren() in 10.11 nicht mehr öffentlich ist.
         /// </summary>
-        private BoxSet? FindExistingBoxSetByName(string name)
+        private IEnumerable<BaseItem> GetChildrenOf(BaseItem parent)
         {
-            // Idee:
-            // - Wir durchsuchen ab RootFolder rekursiv nach BoxSet.
-            // - Dann Name vergleichen (case-insensitive).
+            // Wir versuchen mehrere mögliche API-Signaturen von ILibraryManager per Reflection.
+            // Ziel: "gib mir alle Items mit ParentId = parent.Id".
             //
-            // Das ist nicht die allerschnellste Methode in riesigen Bibliotheken,
-            // aber sie vermeidet private Jellyfin-APIs.
+            // Kandidaten:
+            //   GetItemList(InternalItemsQuery q)
+            //   GetItemsResult(InternalItemsQuery q) -> { Items, TotalRecordCount }
+            //   QueryItems(InternalItemsQuery q) -> gleiches Muster
+            //
+            // Wir bauen die Query dynamisch.
 
+            var query = new InternalItemsQuery
+            {
+                ParentId = parent.Id
+            };
+
+            // 1. Direkt: GetItemList(q)
+            var miList = _library.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(m =>
+                    m.Name.Equals("GetItemList", StringComparison.OrdinalIgnoreCase) &&
+                    m.GetParameters().Length == 1 &&
+                    m.GetParameters()[0].ParameterType == typeof(InternalItemsQuery));
+
+            if (miList != null)
+            {
+                var result = miList.Invoke(_library, new object[] { query });
+                if (result is IEnumerable<BaseItem> list)
+                {
+                    return list;
+                }
+            }
+
+            // 2. Ergebnis-Wrapper: GetItemsResult(q) / QueryItems(q)
+            //    Erwartung: Rückgabewert hat Property "Items" vom Typ IEnumerable<BaseItem>
+            var miResult = _library.GetType()
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(m =>
+                    (m.Name.Equals("GetItemsResult", StringComparison.OrdinalIgnoreCase) ||
+                     m.Name.Equals("QueryItems", StringComparison.OrdinalIgnoreCase)) &&
+                    m.GetParameters().Length == 1 &&
+                    m.GetParameters()[0].ParameterType == typeof(InternalItemsQuery));
+
+            if (miResult != null)
+            {
+                var wrapper = miResult.Invoke(_library, new object[] { query });
+                if (wrapper != null)
+                {
+                    var itemsProp = wrapper.GetType().GetProperty("Items",
+                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+                    if (itemsProp != null)
+                    {
+                        var val = itemsProp.GetValue(wrapper);
+                        if (val is IEnumerable<BaseItem> list2)
+                        {
+                            return list2;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: keine Kinder
+            _log.LogDebug("[CBF] Keine Kinder via LibraryManager für {Name} ({Id}) gefunden.",
+                parent.Name, parent.Id);
+            return Array.Empty<BaseItem>();
+        }
+
+        /// <summary>
+        /// Sucht ein vorhandenes BoxSet anhand des Namens durch Traversal,
+        /// aber ohne GetChildren().
+        /// </summary>
+        private BoxSet? FindExistingBoxSetByName(string targetName, CancellationToken ct)
+        {
             var root = _library.RootFolder;
             if (root == null)
                 return null;
@@ -267,27 +303,18 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
                 if (node is BoxSet bs)
                 {
-                    if (string.Equals(bs.Name, name, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(bs.Name, targetName, StringComparison.OrdinalIgnoreCase))
                     {
                         found = bs;
                         return;
                     }
                 }
 
-                IEnumerable<BaseItem> children;
-                try
-                {
-                    children = node.GetChildren() ?? Array.Empty<BaseItem>();
-                }
-                catch
-                {
-                    return;
-                }
-
-                foreach (var c in children)
+                foreach (var child in GetChildrenOf(node))
                 {
                     if (found != null) break;
-                    Walk(c);
+                    Walk(child);
+                    ct.ThrowIfCancellationRequested();
                 }
             }
 
@@ -295,7 +322,20 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             return found;
         }
 
-        // ---------- Create / Add bleiben wie gehabt (Reflection, tolerant gegenüber Signatur-Änderungen) ----------
+        private static IEnumerable<BaseItem> SafeGetLinkedChildren(BoxSet set)
+        {
+            try
+            {
+                var linked = set.GetLinkedChildren();
+                return linked ?? Enumerable.Empty<BaseItem>();
+            }
+            catch
+            {
+                return Enumerable.Empty<BaseItem>();
+            }
+        }
+
+        // ---- Create/Add per Reflection (gleich wie vorher) ----
 
         private async Task<bool> TryCreateCollection_OptionsAsync(
             object targetManager, string name, IReadOnlyCollection<Guid> itemIds, CancellationToken ct)
@@ -382,7 +422,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
             }
         }
 
-        // ---------- Helpers ----------
+        // ---- Helper utils ----
 
         private static bool SetStringProperty(object obj, string name, string value)
         {
@@ -407,7 +447,7 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
 
                 if (IsEnumerableOfGuid(pi.PropertyType))
                 {
-                    object value = ids.ToList(); // List<Guid> safe default
+                    object value = ids.ToList(); // List<Guid>
                     pi.SetValue(obj, value);
                     return true;
                 }
@@ -474,8 +514,8 @@ namespace Jellyfin.Plugin.CollectionsByFolder.Services
         {
             try
             {
-                DumpType("Instance", _collections.GetType());
-                DumpType("Instance", _library.GetType());
+                DumpType("ICollectionManager instance", _collections.GetType());
+                DumpType("ILibraryManager instance", _library.GetType());
             }
             catch (Exception ex)
             {
